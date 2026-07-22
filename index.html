@@ -1,0 +1,2064 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>韓国輸出管理表</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Noto+Sans+JP:wght@400;500;700;800&display=swap" rel="stylesheet">
+<style>
+  *{ box-sizing:border-box; margin:0; padding:0; }
+  :root{
+    --accent:#4f6bef; --accent-d:#3a54d6; --accent-2:#7c5fe6;
+    --blue:#4f6bef; --blue-d:#3a54d6; --navy:#232c44;
+    --green:#12a866; --red:#e5453c; --amber:#e29a1f;
+    --txt:#1e2534; --muted:#828c9e; --line:#e6e9f0; --line-2:#f1f3f9;
+    --bg:#f3f5fb; --surface:#ffffff;
+    --sh-sm:0 1px 3px rgba(24,34,64,.07); --sh:0 6px 20px rgba(24,34,64,.09); --sh-lg:0 14px 38px rgba(24,34,64,.16);
+    --ring:rgba(79,107,239,.22); --accent-soft:rgba(79,107,239,.12);
+  }
+  *::-webkit-scrollbar{ height:10px; width:10px; }
+  *::-webkit-scrollbar-thumb{ background:#d7dced; border-radius:20px; border:2px solid transparent; background-clip:content-box; }
+  *::-webkit-scrollbar-thumb:hover{ background:#c2c9df; background-clip:content-box; }
+  body{ font-family:"Inter","Noto Sans JP","Hiragino Kaku Gothic ProN",-apple-system,sans-serif; background:var(--bg); color:var(--txt); font-size:14px; -webkit-font-smoothing:antialiased; }
+
+  header{ background:rgba(255,255,255,.85); backdrop-filter:saturate(180%) blur(10px); border-bottom:1px solid var(--line); padding:0 24px; height:62px; display:flex; align-items:center; gap:26px; position:sticky; top:0; z-index:20; }
+  .brand{ display:flex; align-items:center; gap:11px; }
+  .brand-badge{ width:34px; height:34px; border-radius:10px; background:linear-gradient(135deg,var(--accent),var(--accent-2)); color:#fff; display:flex; align-items:center; justify-content:center; font-weight:800; font-size:16px; box-shadow:0 4px 12px rgba(79,107,239,.4); }
+  .brand-txt{ font-size:19px; font-weight:800; letter-spacing:.02em; background:linear-gradient(135deg,var(--navy),#43506e); -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent; }
+  .userchip{ margin-left:14px; color:var(--muted); font-size:13px; font-weight:600; display:flex; align-items:center; gap:9px; }
+  #hdr-sync.synced{ color:var(--green); border-color:#bfead2; background:#eefaf3; }
+  .sync-dot{ width:9px; height:9px; border-radius:50%; display:inline-block; }
+  .sync-dot.on{ background:var(--green); } .sync-dot.off{ background:#cdd4e5; }
+  .hist{ font-size:11px; color:var(--muted); cursor:help; margin-left:4px; vertical-align:middle; }
+  .memo{ padding:6px 24px 22px; font-size:12.5px; color:var(--txt); line-height:1.8; }
+  .memo p{ margin:14px 0 4px; font-size:13px; color:var(--accent-d); }
+  .memo p:first-child{ margin-top:2px; }
+  .steps{ padding:4px 24px 22px; font-size:13px; color:var(--txt); line-height:1.7; }
+  .steps ol{ margin:8px 0 8px 18px; } .steps li{ margin:5px 0; } .steps code{ background:var(--line-2); padding:1px 6px; border-radius:5px; font-size:12px; }
+  .field{ display:flex; flex-direction:column; gap:6px; padding:2px 24px 6px; }
+  .field label{ font-weight:700; font-size:13px; }
+  .field input{ height:40px; border:1px solid var(--line); border-radius:9px; padding:0 12px; font-size:13px; font-family:inherit; }
+  .field input:focus{ outline:none; border-color:var(--accent); box-shadow:0 0 0 3px var(--ring); }
+  .userchip .dot{ width:30px; height:30px; border-radius:50%; background:linear-gradient(135deg,var(--accent),var(--accent-2)); color:#fff; display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:700; box-shadow:var(--sh-sm); }
+
+  .crumb{ color:var(--muted); font-size:12.5px; font-weight:600; margin-bottom:16px; letter-spacing:.01em; }
+  .crumb b{ color:var(--txt); }
+
+  /* sidebar */
+  .layout{ display:flex; align-items:flex-start; }
+  .side{ width:224px; flex:0 0 224px; background:var(--surface); border-right:1px solid var(--line); min-height:calc(100vh - 62px); padding:16px 12px; position:sticky; top:62px; }
+  .main{ flex:1; min-width:0; padding:24px 26px; }
+  .navgroup+.navgroup{ margin-top:6px; }
+  .navhead{ padding:11px 13px; font-weight:700; font-size:14px; cursor:pointer; border-radius:11px; display:flex; align-items:center; justify-content:space-between; color:var(--txt); transition:background .15s; }
+  .navhead:hover{ background:var(--line-2); }
+  .navhead .arw{ color:var(--muted); font-size:10px; transition:transform .2s; }
+  .navgroup.open .navhead{ color:var(--accent-d); }
+  .navgroup.open .navhead .arw{ transform:rotate(90deg); }
+  .navsub{ display:none; padding:3px 0 8px 8px; }
+  .navgroup.open .navsub{ display:block; }
+  .navsub a{ position:relative; display:flex; align-items:center; gap:10px; padding:9px 13px; border-radius:10px; color:var(--muted); text-decoration:none; font-size:13px; font-weight:600; cursor:pointer; transition:all .15s; }
+  .navsub a:hover{ background:var(--line-2); color:var(--txt); }
+  .navsub a.active{ background:linear-gradient(135deg,rgba(79,107,239,.14),rgba(124,95,230,.14)); color:var(--accent-d); }
+  .navsub a.active::before{ content:""; position:absolute; left:-8px; top:50%; transform:translateY(-50%); width:3px; height:18px; border-radius:3px; background:linear-gradient(var(--accent),var(--accent-2)); }
+  .navsub a .dot{ width:8px; height:8px; border-radius:50%; background:#cdd4e5; }
+  .navsub a.active .dot{ background:var(--accent); }
+  .navsub a .soon{ font-size:9.5px; background:var(--line); color:var(--muted); border-radius:8px; padding:1px 7px; margin-left:auto; font-weight:700; }
+  .navsub a .ext{ margin-left:auto; color:var(--muted); font-size:12px; font-weight:800; }
+  .navsub a[target="_blank"]{ text-decoration:none; }
+
+  .stats{ display:grid; grid-template-columns:repeat(5,1fr); gap:14px; margin-bottom:18px; }
+  .stats.s4{ grid-template-columns:repeat(4,1fr); }
+  td.mono{ font-variant-numeric:tabular-nums; }
+  td.neg{ color:var(--red); }
+  .right{ text-align:right; }
+  .seg{ display:inline-flex; background:var(--line-2); border:1px solid var(--line); border-radius:10px; padding:3px; gap:2px; }
+  .segbtn{ height:32px; border:none; background:transparent; color:var(--muted); font-weight:700; padding:0 15px; border-radius:7px; transition:all .15s; }
+  .segbtn.active{ background:var(--surface); color:var(--accent-d); box-shadow:var(--sh-sm); }
+  .msel{ height:38px; border:1px solid var(--line); border-radius:9px; padding:0 10px; font-size:13px; font-weight:600; background:var(--surface); color:var(--txt); transition:border .15s,box-shadow .15s; }
+  .msel:focus{ outline:none; border-color:var(--accent); box-shadow:0 0 0 3px var(--ring); }
+  .cellinput{ width:88px; height:30px; border:1px solid var(--line); border-radius:7px; padding:0 8px; font-size:12px; font-family:inherit; transition:border .15s,box-shadow .15s; }
+  .cellinput:focus{ outline:none; border-color:var(--accent); box-shadow:0 0 0 3px var(--ring); }
+  .cellinput.txt{ width:122px; }
+  #view-sales td{ padding:7px 9px; }
+  #view-sales th{ white-space:nowrap; }
+  #view-sales td a{ color:var(--accent-d); text-decoration:none; font-weight:700; }
+  .srclink{ display:inline-block; max-width:150px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; vertical-align:middle; color:var(--accent-d); font-weight:700; text-decoration:none; }
+  .srclink:hover{ text-decoration:underline; }
+  .mini{ height:24px; padding:0 7px; font-size:11px; border:1px solid var(--line); background:var(--surface); color:var(--muted); border-radius:6px; margin-left:5px; vertical-align:middle; }
+  .mini:hover{ background:var(--line-2); color:var(--txt); }
+  .mini.add{ color:var(--accent-d); border-color:#cdd6ff; background:#eef2ff; margin-left:0; }
+  .edit-mark{ font-size:10px; color:var(--muted); cursor:pointer; margin-left:6px; opacity:.5; vertical-align:middle; }
+  .edit-mark:hover{ opacity:1; color:var(--accent-d); }
+  .edit-mark.add{ font-size:13px; opacity:.8; }
+  .card{ background:var(--surface); border:1px solid var(--line); border-radius:15px; padding:16px 18px; box-shadow:var(--sh-sm); transition:transform .18s,box-shadow .18s; }
+  .card:hover{ transform:translateY(-3px); box-shadow:var(--sh); }
+  .card .label{ color:var(--muted); font-size:11.5px; font-weight:700; letter-spacing:.02em; text-transform:none; }
+  .card .num{ font-size:26px; font-weight:800; margin-top:6px; letter-spacing:-.02em; font-variant-numeric:tabular-nums; }
+  .card .num small{ font-size:12px; color:var(--muted); font-weight:600; }
+  .card.alert{ background:linear-gradient(135deg,#fff5f4,#fff); border-color:#fbd3ce; }
+  .card.alert .label{ color:var(--red); } .card.alert .num{ color:var(--red); }
+
+  .panel{ background:var(--surface); border:1px solid var(--line); border-radius:16px; overflow:hidden; box-shadow:var(--sh-sm); }
+  .toolbar{ display:flex; flex-wrap:wrap; gap:10px; align-items:center; padding:16px 18px; border-bottom:1px solid var(--line); }
+  .toolbar input[type=text]{ height:38px; border:1px solid var(--line); border-radius:9px; padding:0 12px; font-size:13px; min-width:260px; transition:border .15s,box-shadow .15s; }
+  .toolbar input[type=text]:focus{ outline:none; border-color:var(--accent); box-shadow:0 0 0 3px var(--ring); }
+  .grow{ flex:1; }
+  button{ font-family:inherit; cursor:pointer; border:none; border-radius:9px; font-weight:700; font-size:13px; height:38px; padding:0 16px; transition:transform .12s,box-shadow .15s,background .15s; }
+  button:active{ transform:translateY(1px); }
+  .btn-primary{ background:linear-gradient(135deg,var(--accent),var(--accent-2)); color:#fff; box-shadow:0 4px 14px rgba(79,107,239,.42); }
+  .btn-primary:hover{ box-shadow:0 6px 18px rgba(79,107,239,.5); }
+  .btn-ghost{ background:var(--surface); border:1px solid var(--line); color:var(--txt); }
+  .btn-ghost:hover{ background:var(--line-2); border-color:#dde2ee; }
+  .btn-sm{ height:31px; padding:0 11px; font-size:12px; }
+
+  .retnote{ padding:11px 18px; background:linear-gradient(90deg,#fffbf0,#fff); border-bottom:1px solid var(--line); font-size:12px; color:#a5791a; line-height:1.6; }
+  .retnote b{ color:#8a640f; }
+
+  .tablewrap{ overflow:auto; max-height:66vh; }
+  table{ border-collapse:separate; border-spacing:0; white-space:nowrap; font-size:12.5px; width:100%; }
+  th,td{ padding:11px 13px; text-align:left; border-bottom:1px solid var(--line); }
+  th{ background:#fbfcfe; color:var(--muted); font-weight:700; font-size:11px; letter-spacing:.03em; text-transform:uppercase; position:sticky; top:0; cursor:help; z-index:1; }
+  th small{ display:block; color:#aab2c2; font-weight:500; font-size:10px; margin-top:3px; text-transform:none; letter-spacing:0; }
+  th.s1,td.s1{ position:sticky; left:0; background:var(--surface); z-index:2; min-width:132px; }
+  th.s2,td.s2{ position:sticky; left:132px; background:var(--surface); z-index:2; min-width:116px; box-shadow:6px 0 12px -8px rgba(20,28,50,.25); }
+  th.s1,th.s2{ background:#fbfcfe; z-index:3; }
+  tbody tr{ transition:background .12s; }
+  tbody tr:hover td{ background:#f6f8ff; }
+  tbody tr:hover td.s1, tbody tr:hover td.s2{ background:#eef2ff; }
+  tr.stocked td{ background:#eef4ff; }
+  tr.stocked td.s1, tr.stocked td.s2{ background:#e4edff; }
+  tbody tr.stocked:hover td{ background:#e2ecff; }
+  td.money{ text-align:right; font-variant-numeric:tabular-nums; }
+  .dl-today{ color:var(--red); font-weight:800; }
+  .dl-over{ color:var(--red); font-weight:800; }
+  .dl-over::after{ content:" 超過"; font-size:10px; }
+  .empty{ text-align:center; color:var(--muted); padding:66px 20px; }
+  .empty b{ display:block; font-size:15px; color:var(--txt); margin-bottom:8px; }
+  .count{ color:var(--muted); font-size:12px; font-weight:600; padding:13px 18px; }
+  .page-head{ font-size:26px; font-weight:800; color:var(--txt); letter-spacing:-.01em; margin:2px 0 16px; }
+  .page-head small{ font-size:13px; color:var(--muted); font-weight:600; margin-left:12px; }
+  .rowbtn{ background:var(--surface); border:1px solid var(--line); color:var(--muted); border-radius:7px; }
+  .rowbtn:hover{ background:var(--line-2); }
+  .rowbtn.del{ color:var(--red); border-color:#fbd3ce; }
+  .rowbtn.del:hover{ background:#fff5f4; }
+
+  .stsel{ height:31px; border:1px solid var(--line); border-radius:8px; font-size:12px; font-weight:700; padding:0 7px; background:var(--surface); cursor:pointer; transition:box-shadow .15s; }
+  .stsel:focus{ outline:none; box-shadow:0 0 0 3px var(--ring); }
+  .stsel[data-v="入金済み"]{ color:#8a640f; background:#fffaf0; border-color:#f0e2b8; }
+  .stsel[data-v="仕入れ済み"]{ color:var(--accent-d); background:#eef2ff; border-color:#cdd6ff; }
+  .stsel[data-v="発送手配済み"]{ color:#0e7ec9; background:#eef7fc; border-color:#c2e0f2; }
+  .stsel[data-v="発送済み"]{ color:#12a866; background:#e9fbf2; border-color:#bfead2; }
+  .stsel[data-v="キャンセル"]{ color:#e5453c; background:#fdeeec; border-color:#f6cdc8; }
+  .stsel[data-v="返品"]{ color:#9b51e0; background:#f6effc; border-color:#e2d0f4; }
+  .stsel[data-v="トラブル"]{ color:#fff; background:#e5453c; border-color:#d0342c; font-weight:800; }
+  tr.returned td{ background:#faf4fe; }
+  tr.returned td.s1, tr.returned td.s2{ background:#f4e9fc; }
+  tbody tr.returned:hover td{ background:#f2e6fb; }
+  tr.cancelled td{ background:#f5f6f8; color:#a3abba; }
+  tr.cancelled td.s1, tr.cancelled td.s2{ background:#eef0f4; }
+  tbody tr.cancelled:hover td{ background:#eceef2; }
+  /* トラブル行 */
+  tr.trouble td{ background:#fff0ef; }
+  tr.trouble td.s1{ background:#ffe3e0; box-shadow:inset 3px 0 0 #e5453c; }
+  tbody tr.trouble:hover td{ background:#ffe7e5; }
+  /* チェックボックス列（ステータス右隣・固定表示） */
+  th.s2c,td.s2c{ position:sticky; left:132px; background:var(--surface); z-index:2; min-width:32px; width:32px; padding-left:4px; padding-right:4px; text-align:center; box-shadow:6px 0 12px -8px rgba(20,28,50,.25); }
+  th.s2c{ background:#fbfcfe; z-index:3; }
+  tbody tr:hover td.s2c{ background:#eef2ff; }
+  .rowchk{ width:15px; height:15px; cursor:pointer; accent-color:#f4c000; margin:0; }
+  .notein{ width:150px; height:30px; border:1px solid var(--line); border-radius:7px; padding:0 8px; font-size:12px; font-family:inherit; background:var(--surface); }
+  .notein:focus{ outline:none; border-color:var(--accent); box-shadow:0 0 0 3px var(--ring); }
+  /* 配送指示チェック：チェックで黄色ハイライト */
+  tr.hi td{ background:#fff4c2 !important; color:var(--txt) !important; }
+  tr.hi td.s1{ background:#ffeda3 !important; box-shadow:inset 3px 0 0 #f4c000; }
+  tr.hi td.s2c{ background:#ffeda3 !important; }
+  tbody tr.hi:hover td{ background:#ffefb0 !important; }
+  /* トラブル中フィルタ ボタンON */
+  #btn-trouble.on{ background:#fdeeec; color:#d0342c; border-color:#f6cdc8; }
+
+  .overlay{ display:none; position:fixed; inset:0; background:rgba(24,32,54,.5); backdrop-filter:blur(3px); z-index:50; align-items:flex-start; justify-content:center; padding:40px 16px; overflow:auto; }
+  .overlay.show{ display:flex; }
+  .modal{ background:var(--surface); border-radius:18px; width:780px; max-width:100%; box-shadow:var(--sh-lg); }
+  .modal h3{ padding:20px 24px; border-bottom:1px solid var(--line); font-size:16px; font-weight:800; display:flex; }
+  .modal h3 .x{ margin-left:auto; cursor:pointer; color:var(--muted); }
+  .gtable{ padding:10px 24px 24px; }
+  .gtable table{ width:100%; white-space:normal; }
+  .gtable th,.gtable td{ font-size:12.5px; vertical-align:top; text-transform:none; letter-spacing:0; }
+  .gtable th{ position:static; color:var(--muted); }
+  .gnum{ color:var(--muted); width:34px; }
+  .gkr{ font-weight:700; width:32%; }
+  .ghi td{ background:#eef2ff; }
+
+  /* ===== リサーチ（商品リサーチ） ===== */
+  #view-research td{ vertical-align:middle; padding:9px 11px; }
+  #view-research th{ white-space:nowrap; text-transform:none; letter-spacing:.01em; }
+  #rv-tabs .segbtn{ padding:0 13px; }
+  th.rvc,td.rvc{ position:sticky; left:0; width:36px; min-width:36px; text-align:center; padding-left:6px; padding-right:6px; background:var(--surface); z-index:2; }
+  th.rvc{ background:#fbfcfe; z-index:3; }
+  tbody tr:hover td.rvc{ background:#f6f8ff; }
+  .rvchk{ width:16px; height:16px; cursor:pointer; accent-color:var(--accent); margin:0; }
+  .rvname{ width:170px; height:32px; border:1px solid var(--line); border-radius:7px; padding:0 9px; font-size:13px; font-weight:600; font-family:inherit; }
+  .rvname:focus{ outline:none; border-color:var(--accent); box-shadow:0 0 0 3px var(--ring); }
+  .rvurl{ width:150px; min-height:32px; height:32px; border:1px solid var(--line); border-radius:7px; padding:6px 8px; font-size:12px; font-family:inherit; resize:vertical; line-height:1.4; vertical-align:middle; }
+  #view-research .srclink{ max-width:96px; }
+  .rvurl:focus{ outline:none; border-color:var(--accent); box-shadow:0 0 0 3px var(--ring); }
+  .rvmemo{ width:180px; height:32px; border:1px solid var(--line); border-radius:7px; padding:0 8px; font-size:12px; font-family:inherit; }
+  .rvmemo:focus{ outline:none; border-color:var(--accent); box-shadow:0 0 0 3px var(--ring); }
+  .rvsm{ width:90px; height:32px; border:1px solid var(--line); border-radius:7px; padding:0 8px; font-size:12px; font-family:inherit; }
+  .rvsm:focus{ outline:none; border-color:var(--accent); box-shadow:0 0 0 3px var(--ring); }
+  .rvdate{ width:140px; height:32px; border:1px solid var(--line); border-radius:7px; padding:0 8px; font-size:12px; font-family:inherit; }
+  .rvdate:focus{ outline:none; border-color:var(--accent); box-shadow:0 0 0 3px var(--ring); }
+  #rv-open.on{ background:#eef2ff; color:var(--accent-d); border-color:#cdd6ff; }
+  /* 顧客管理 上部ツールバー（為替・換算・翻訳）：控えめ表示 */
+  .ctools{ display:flex; flex-wrap:wrap; gap:8px 16px; align-items:center; padding:8px 14px; margin-bottom:14px; background:var(--surface); border:1px solid var(--line); border-radius:12px; box-shadow:var(--sh-sm); font-size:12px; color:var(--muted); }
+  .ctool{ display:flex; align-items:center; gap:7px; }
+  .ctool.grow{ flex:1; min-width:280px; }
+  .ctool-lb{ font-weight:700; color:var(--muted); font-size:11px; white-space:nowrap; }
+  .ctool b{ color:var(--txt); font-weight:700; }
+  .ctool-sub{ color:#aab2c2; font-size:11px; white-space:nowrap; }
+  .ctool-div{ width:1px; height:20px; background:var(--line); }
+  .ctool-in{ height:28px; border:1px solid var(--line); border-radius:7px; padding:0 8px; font-size:12px; font-family:inherit; width:98px; }
+  .ctool-in.wide{ flex:1; min-width:160px; width:auto; }
+  .ctool-in:focus{ outline:none; border-color:var(--accent); box-shadow:0 0 0 3px var(--ring); }
+  .ctool-eq{ color:var(--muted); white-space:nowrap; }
+  .ctool-out{ color:var(--txt); font-weight:600; max-width:300px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .ctool-ext{ color:var(--accent-d); text-decoration:none; font-weight:700; font-size:11px; white-space:nowrap; }
+  .ctool-ext:hover{ text-decoration:underline; }
+  td.rvop{ white-space:nowrap; }
+  /* 出品：Attributes表（コンパクト） */
+  .attrbox{ max-width:820px; margin:14px auto 4px; border:1px solid var(--line); border-radius:12px; overflow:hidden; box-shadow:var(--sh-sm); }
+  .attr-title{ background:linear-gradient(135deg,#7cb342,#689f38); color:#fff; font-weight:800; text-align:center; padding:9px; letter-spacing:.06em; font-size:14px; }
+  #attrtbl{ font-size:15px; }
+  #attrtbl th,#attrtbl td{ padding:9px 14px; vertical-align:middle; border-bottom:1px solid var(--line-2); text-align:center; }
+  #attrtbl th{ text-transform:none; letter-spacing:0; font-size:12.5px; }
+  .attr-kr{ color:var(--txt); font-weight:600; white-space:nowrap; }
+  .attr-jp b{ color:var(--txt); font-weight:700; }
+  .attr-v{ font-weight:700; color:var(--accent-d); }
+  .attr-in{ height:30px; border:1px solid var(--line); border-radius:6px; padding:0 8px; font-size:13px; font-family:inherit; width:150px; }
+  .attr-in:focus{ outline:none; border-color:var(--accent); box-shadow:0 0 0 3px var(--ring); }
+  /* 小さめコピーボタン */
+  .cbtn{ height:16px; min-width:16px; padding:0 3px; margin-left:5px; font-size:9px; line-height:1; border:1px solid var(--line); background:var(--surface); color:var(--muted); border-radius:4px; cursor:pointer; vertical-align:middle; opacity:.75; }
+  .cbtn:hover{ background:var(--line-2); color:var(--accent-d); border-color:#cdd6ff; opacity:1; }
+  /* 商品名など：省略表示（クリックで全文） */
+  .clip{ display:inline-block; max-width:170px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; vertical-align:middle; cursor:pointer; }
+  .clip.open{ max-width:520px; white-space:normal; word-break:break-word; }
+  .clip-brand{ max-width:120px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-weight:600; }
+  /* ステータス フィルタチップ */
+  .chips{ display:flex; flex-wrap:wrap; gap:7px; margin:0 0 14px; align-items:center; }
+  .chip{ height:31px; padding:0 13px; border-radius:16px; border:1px solid var(--line); background:var(--surface); color:var(--txt); font-weight:700; font-size:12.5px; cursor:pointer; display:inline-flex; align-items:center; gap:6px; transition:all .12s; }
+  .chip:hover{ background:var(--line-2); }
+  .chip.active{ border-color:var(--accent); box-shadow:0 0 0 3px var(--ring); color:var(--accent-d); background:#eef2ff; }
+  .chip .dot{ width:9px; height:9px; border-radius:50%; display:inline-block; }
+  .chip .n{ font-size:11px; color:var(--muted); font-weight:800; }
+  .chip.active .n{ color:var(--accent-d); }
+  .chip.all.active{ background:linear-gradient(135deg,var(--accent),var(--accent-2)); color:#fff; border-color:transparent; box-shadow:0 4px 12px rgba(79,107,239,.35); }
+  .chip.all.active .n{ color:#fff; }
+  /* 年間サマリー：縞模様＋データバー */
+  #ytbody tr:nth-child(even) td{ background:#fafbfe; }
+  #ytbody tr.total-row td{ background:#eef2ff; font-weight:800; border-top:2px solid #cdd6ff; }
+  .barcell{ position:relative; }
+  .barcell .bar{ position:absolute; left:2px; top:5px; bottom:5px; border-radius:4px; background:rgba(79,107,239,.16); z-index:0; }
+  .barcell .bar.prof{ background:rgba(18,168,102,.16); }
+  .barcell .bar.loss{ background:rgba(229,69,60,.16); }
+  #ytbody td:first-child{ font-weight:700; }
+  /* マニュアル（ブログ／管理表 共通フォーマット） */
+  .man-grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(340px,1fr)); gap:14px; max-width:1100px; }
+  .man-addwrap{ margin-top:16px; max-width:1100px; }
+  .man-card{ border:1px solid var(--line); border-radius:12px; padding:14px 16px; background:var(--surface); box-shadow:var(--sh-sm); }
+  .man-h{ font-weight:800; font-size:15px; display:flex; align-items:center; gap:9px; margin-bottom:10px; }
+  .man-title{ flex:1; min-width:0; height:30px; border:1px solid var(--line); border-radius:7px; padding:0 9px; font-size:14px; font-weight:700; font-family:inherit; }
+  .man-title:focus{ outline:none; border-color:var(--accent); box-shadow:0 0 0 3px var(--ring); }
+  .man-note{ font-size:12.5px; color:var(--muted); margin-bottom:14px; }
+  .man-no{ width:24px; height:24px; border-radius:7px; background:linear-gradient(135deg,var(--accent),var(--accent-2)); color:#fff; display:inline-flex; align-items:center; justify-content:center; font-size:12px; font-weight:800; flex:0 0 auto; }
+  .man-video{ position:relative; padding-bottom:56.25%; height:0; border-radius:10px; overflow:hidden; background:#000; }
+  .man-video iframe{ position:absolute; top:0; left:0; width:100%; height:100%; border:0; }
+  .man-empty{ border:2px dashed var(--line); border-radius:10px; padding:24px 12px; text-align:center; color:var(--muted); font-size:12.5px; background:#fafbff; }
+  .man-url{ display:flex; align-items:center; gap:8px; margin-top:10px; }
+  .man-url input{ flex:1; height:31px; border:1px solid var(--line); border-radius:7px; padding:0 9px; font-size:12px; font-family:inherit; }
+  .man-url input:focus{ outline:none; border-color:var(--accent); box-shadow:0 0 0 3px var(--ring); }
+  .man-prompt{ max-width:1100px; border:1px solid var(--line); border-radius:12px; overflow:hidden; margin-top:22px; box-shadow:var(--sh-sm); }
+  .man-prompt .man-ph{ background:linear-gradient(135deg,#7c5fe6,#5b46c9); color:#fff; padding:12px 16px; font-weight:800; font-size:14px; display:flex; align-items:center; justify-content:space-between; }
+  .man-prompt .man-ph .mini{ background:rgba(255,255,255,.2); color:#fff; border-color:transparent; }
+  .man-pre{ white-space:pre-wrap; word-break:break-word; font-family:"Noto Sans JP",-apple-system,sans-serif; font-size:12px; line-height:1.75; padding:16px 18px; max-height:540px; overflow:auto; margin:0; background:#fbfcff; color:var(--txt); }
+  .barcell .v{ position:relative; z-index:1; }
+  #view-sales #ythead th{ background:#f3f5fb; }
+  .lst-hint{ font-size:12px; color:var(--muted); }
+  /* 出品禁止 一覧表 */
+  .bl-table{ width:100%; border-collapse:collapse; font-size:13px; white-space:normal; }
+  .bl-table th,.bl-table td{ border:1px solid var(--line); padding:8px 12px; text-align:left; vertical-align:middle; }
+  .bl-table th{ background:#fbfcfe; color:var(--muted); font-weight:700; text-transform:none; letter-spacing:0; position:sticky; top:0; z-index:1; }
+  .bl-table td{ line-height:1.6; }
+  .bl-group{ font-weight:800; color:var(--txt); white-space:nowrap; text-align:center; background:#eef0f4 !important; }
+  .bl-mark{ text-align:center; font-weight:800; width:92px; font-size:15px; }
+  .bl-x{ color:var(--red); } .bl-o{ color:var(--green); } .bl-tri{ color:var(--amber); }
+  .bl-g-x td{ background:#fdeeec; }
+  .bl-g-tri td{ background:#fffbe8; }
+  .bl-g-grey td{ background:#f4f5f7; }
+  .bl-table .hl{ color:var(--red); font-weight:800; }
+  /* ショートカット一覧 */
+  #shortcut-body{ max-width:1080px; margin:0 auto; }
+  .sc-sec{ margin:0 0 20px; }
+  .sc-h{ text-align:center; font-weight:800; color:#fff; padding:9px; border-radius:10px; font-size:15px; letter-spacing:.05em; }
+  .sc-h.green{ background:linear-gradient(135deg,#66bb6a,#549b58); }
+  .sc-h.blue{ background:linear-gradient(135deg,#5c6bc0,#4a58ad); }
+  .sc-h.orange{ background:linear-gradient(135deg,#ef8c46,#e2712a); }
+  .sc-grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(320px,1fr)); gap:6px; margin-top:9px; }
+  .sc-item{ display:flex; align-items:center; gap:10px; padding:8px 13px; border-radius:8px; font-size:13.5px; }
+  .sc-item .k{ font-weight:800; color:var(--txt); min-width:158px; }
+  .sc-item .d{ color:#2c3550; }
+  .sc-green .sc-item{ background:#e9f4e4; } .sc-green .sc-item:nth-child(even){ background:#dcefd3; }
+  .sc-blue .sc-item{ background:#e8ebfb; } .sc-blue .sc-item:nth-child(even){ background:#dde2f7; }
+  .sc-orange .sc-item{ background:#fdece0; } .sc-orange .sc-item:nth-child(even){ background:#fbe0cd; }
+  .rvmove{ height:31px; border:1px solid var(--line); border-radius:8px; font-size:12px; font-weight:600; padding:0 6px; background:var(--surface); color:var(--txt); cursor:pointer; margin-right:6px; vertical-align:middle; }
+  .rvmove:focus{ outline:none; border-color:var(--accent); box-shadow:0 0 0 3px var(--ring); }
+</style>
+</head>
+<body>
+<header>
+  <div class="brand"><span class="brand-badge">韓</span><span class="brand-txt">韓国輸出管理表</span></div>
+  <button class="btn-ghost btn-sm" id="hdr-help" style="margin-left:auto">❓ 使い方</button>
+  <button class="btn-ghost btn-sm" id="hdr-backup">💾 バックアップ</button>
+  <button class="btn-ghost btn-sm" id="hdr-sync">☁ 同期</button>
+  <div class="userchip"><span>外注ユーザー</span><span class="dot">U</span></div>
+</header>
+
+<div class="layout">
+  <aside class="side" id="side">
+    <div class="navgroup open" data-g="cust">
+      <div class="navhead">顧客管理 <span class="arw">▶</span></div>
+      <div class="navsub">
+        <a data-sec="cust" data-p="coupang" class="active"><span class="dot"></span>クーパン</a>
+        <a data-sec="cust" data-p="smart"><span class="dot"></span>スマートストア</a>
+        <a data-sec="cust" data-p="st11"><span class="dot"></span>11番街 <span class="soon">準備中</span></a>
+      </div>
+    </div>
+    <div class="navgroup" data-g="sales">
+      <div class="navhead">売上管理 <span class="arw">▶</span></div>
+      <div class="navsub">
+        <a data-sec="sales" data-p="coupang"><span class="dot"></span>クーパン</a>
+        <a data-sec="sales" data-p="smart"><span class="dot"></span>スマートストア</a>
+        <a class="soon-item"><span class="dot"></span>11番街 <span class="soon">準備中</span></a>
+      </div>
+    </div>
+    <div class="navgroup" data-g="research">
+      <div class="navhead">リサーチ <span class="arw">▶</span></div>
+      <div class="navsub">
+        <a data-sec="research" data-p="coupang"><span class="dot"></span>クーパン</a>
+        <a class="soon-item"><span class="dot"></span>スマートストア <span class="soon">準備中</span></a>
+        <a class="soon-item"><span class="dot"></span>11番街 <span class="soon">準備中</span></a>
+      </div>
+    </div>
+    <div class="navgroup" data-g="list">
+      <div class="navhead">出品 <span class="arw">▶</span></div>
+      <div class="navsub">
+        <a data-sec="list" data-p="coupang"><span class="dot"></span>クーパン</a>
+        <a data-sec="list" data-p="smart"><span class="dot"></span>スマートストア</a>
+        <a data-sec="list" data-p="st11"><span class="dot"></span>11番街</a>
+      </div>
+    </div>
+    <div class="navgroup" data-g="blog">
+      <div class="navhead">ブログ <span class="arw">▶</span></div>
+      <div class="navsub">
+        <a data-sec="blog" data-p="coupang"><span class="dot"></span>クーパン</a>
+        <a data-sec="blog" data-p="smart"><span class="dot"></span>スマートストア</a>
+        <a id="nav-manual"><span class="dot"></span>マニュアル</a>
+      </div>
+    </div>
+    <div class="navgroup" data-g="ai">
+      <div class="navhead">AI検索 <span class="arw">▶</span></div>
+      <div class="navsub">
+        <a href="https://notebooklm.google.com/notebook/22450892-bec4-43b2-af2c-bf3be6afec18" target="_blank"><span class="dot"></span>顧客対応 <span class="ext">↗</span></a>
+      </div>
+    </div>
+    <div class="navgroup" data-g="tblman">
+      <div class="navhead">管理表マニュアル <span class="arw">▶</span></div>
+      <div class="navsub">
+        <a data-sec="tblman" data-p="coupang"><span class="dot"></span>クーパン</a>
+        <a data-sec="tblman" data-p="smart"><span class="dot"></span>スマートストア</a>
+        <a data-sec="tblman" data-p="st11"><span class="dot"></span>11番街</a>
+      </div>
+    </div>
+    <div class="navgroup" data-g="banned">
+      <div class="navhead">禁止ブランド <span class="arw">▶</span></div>
+      <div class="navsub">
+        <a data-sec="banned" data-p="coupang"><span class="dot"></span>クーパン</a>
+        <a data-sec="banned" data-p="smart"><span class="dot"></span>スマートストア</a>
+        <a data-sec="banned" data-p="st11"><span class="dot"></span>11番街</a>
+      </div>
+    </div>
+    <div class="navgroup" data-g="banlist">
+      <div class="navhead">出品禁止 <span class="arw">▶</span></div>
+      <div class="navsub">
+        <a id="nav-banlist"><span class="dot"></span>NGカテゴリー一覧</a>
+      </div>
+    </div>
+    <div class="navgroup" data-g="shortcut">
+      <div class="navhead">ショートカット <span class="arw">▶</span></div>
+      <div class="navsub">
+        <a id="nav-shortcut"><span class="dot"></span>ショートカット50 一覧</a>
+      </div>
+    </div>
+  </aside>
+
+  <main class="main">
+  <div class="crumb" id="crumb">HOME / <b>顧客管理</b> / クーパン</div>
+
+  <div id="view-cust">
+  <div class="ctools">
+    <div class="ctool">
+      <span class="ctool-lb">現在レート</span>
+      <b id="lv-rate">₩1 = ¥—</b>
+      <span class="ctool-sub" id="lv-time">取得中…</span>
+      <button class="mini" id="lv-refresh" title="最新の為替に更新">🔄</button>
+    </div>
+    <span class="ctool-div"></span>
+    <div class="ctool">
+      <span class="ctool-lb">ウォン→円</span>
+      <input type="number" id="cvt-won" class="ctool-in" placeholder="₩ 金額">
+      <span class="ctool-eq">= <b id="cvt-yen">¥0</b></span>
+    </div>
+    <span class="ctool-div"></span>
+    <div class="ctool grow">
+      <span class="ctool-lb">韓国語→英語</span>
+      <input type="text" id="tr-src" class="ctool-in wide" placeholder="韓国語を貼り付け（住所・配送メッセージ等）→ Enter">
+      <button class="mini" id="tr-go">翻訳</button>
+      <span class="ctool-out" id="tr-out"></span>
+      <a class="ctool-ext" id="tr-papago" href="https://papago.naver.com/?sk=ko&tk=en" target="_blank" title="Papagoで開く">Papago↗</a>
+    </div>
+  </div>
+  <div class="stats">
+    <div class="card alert"><div class="label">🚨 発送期日 本日／超過</div><div class="num" id="s-due">0<small> 件</small></div></div>
+    <div class="card"><div class="label">入金済み</div><div class="num" id="s-paid">0<small> 件</small></div></div>
+    <div class="card"><div class="label">仕入れ済み</div><div class="num" id="s-stock">0<small> 件</small></div></div>
+    <div class="card"><div class="label">発送手配済み</div><div class="num" id="s-arr">0<small> 件</small></div></div>
+    <div class="card"><div class="label">発送済み</div><div class="num" id="s-sent">0<small> 件</small></div></div>
+  </div>
+
+  <div class="chips" id="cust-chips"></div>
+
+  <div class="panel">
+    <div class="toolbar">
+      <input type="text" id="search" placeholder="🔍 注文番号・名前・商品名・住所などで検索">
+      <div class="grow"></div>
+      <button class="btn-ghost" id="btn-guide">📖 項目の日本語解説</button>
+      <button class="btn-ghost" id="btn-export">CSV出力</button>
+      <button class="btn-primary" id="btn-import">📥 Excelを取り込む</button>
+      <input type="file" id="file" accept=".xlsx,.xls,.csv" hidden>
+    </div>
+    <div class="tablewrap">
+      <table id="tbl"><thead id="thead"></thead><tbody id="tbody"></tbody></table>
+    </div>
+    <div class="count" id="count"></div>
+  </div>
+  </div><!-- /view-cust -->
+
+  <div id="view-sales" style="display:none">
+    <div class="page-head" id="sv-head"></div>
+    <div class="stats" id="sv-stats">
+      <div class="card"><div class="label">利益額</div><div class="num" id="sv-profit">¥0</div></div>
+      <div class="card"><div class="label">還付金込み利益 <small style="color:var(--muted);font-weight:600">仕入れ+9%</small></div><div class="num" id="sv-refund">¥0</div></div>
+      <div class="card"><div class="label">発送件数</div><div class="num" id="sv-ship">0<small> 件</small></div></div>
+      <div class="card"><div class="label">キャンセル件数</div><div class="num" id="sv-cancel">0<small> 件</small></div></div>
+      <div class="card"><div class="label">返品件数</div><div class="num" id="sv-return">0<small> 件</small></div></div>
+    </div>
+    <div class="panel">
+      <div class="toolbar">
+        <div class="seg">
+          <button class="segbtn active" id="tab-detail">月別明細</button>
+          <button class="segbtn" id="tab-rank">月間売上ランキング</button>
+          <button class="segbtn" id="tab-year">年間サマリー</button>
+        </div>
+        <span id="ctl-search" style="display:flex;gap:10px;align-items:center">
+          <input type="text" id="sv-search" placeholder="🔍 注文番号・商品タイトル・追跡番号で検索" style="height:36px;border:1px solid var(--line);border-radius:7px;padding:0 10px;font-size:13px;min-width:250px">
+        </span>
+        <span id="ctl-month" style="display:flex;gap:8px;align-items:center">
+          <label style="font-weight:700;font-size:13px">対象月</label>
+          <select id="sv-month" class="msel"></select>
+        </span>
+        <span id="ctl-year" style="display:none;gap:8px;align-items:center">
+          <label style="font-weight:700;font-size:13px">対象年</label>
+          <select id="sv-year" class="msel"></select>
+        </span>
+        <label style="font-weight:700;font-size:13px;margin-left:6px" title="このレートは取り込んだ時点で各注文に記録され、以後は変わりません（過去分は取込時のレートで計算）">取込レート ₩→¥</label>
+        <input type="number" id="sv-rate" step="0.0001" class="cellinput" style="width:96px;height:36px" title="次に取り込む注文に適用されるレート。既存の注文は取込時のレートで固定されます。">
+        <div class="grow"></div>
+        <button class="btn-ghost" id="btn-sexport">CSV出力</button>
+        <button class="btn-primary" id="btn-import-sales">📥 Excelを取り込む</button>
+      </div>
+      <div id="sv-detail">
+        <div class="chips" id="sales-chips" style="padding:14px 18px 0"></div>
+        <div class="tablewrap"><table><thead id="sthead"></thead><tbody id="stbody"></tbody></table></div>
+        <div class="count" id="scount"></div>
+      </div>
+      <div id="sv-rank" style="display:none">
+        <div class="tablewrap"><table><thead id="rkhead"></thead><tbody id="rkbody"></tbody></table></div>
+        <div class="count" id="rkcount"></div>
+      </div>
+      <div id="sv-year" style="display:none">
+        <div class="tablewrap"><table><thead id="ythead"></thead><tbody id="ytbody"></tbody></table></div>
+        <div class="count" id="ycount"></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="view-research" style="display:none">
+    <div class="page-head" id="rv-head">商品リサーチ（クーパン）</div>
+    <div class="panel">
+      <div class="toolbar">
+        <div class="seg" id="rv-tabs">
+          <button class="segbtn active" data-cat="soldA">Sold A</button>
+          <button class="segbtn" data-cat="soldB">Sold B</button>
+          <button class="segbtn" data-cat="compe">競合リサーチ</button>
+          <button class="segbtn" data-cat="rival">ライバルセラー</button>
+          <button class="segbtn" data-cat="ngexp">輸出不可</button>
+          <button class="segbtn" data-cat="wake">訳あり</button>
+          <button class="segbtn" data-cat="brandrank">ランキング</button>
+        </div>
+        <input type="text" id="rv-search" placeholder="🔍 ブランド名・メモ・担当で検索" style="height:38px;border:1px solid var(--line);border-radius:9px;padding:0 12px;font-size:13px;min-width:240px">
+        <div class="grow"></div>
+        <button class="btn-ghost" id="rv-open" title="チェックした行のURLをまとめて開きます（チェックなしなら表示中すべて）">🗂 選択を一括で開く</button>
+        <button class="btn-ghost" id="rv-export">CSV出力</button>
+        <button class="btn-ghost" id="rv-import-btn" title="見出し名（ブランド名/Amazon URL/楽天URL/メモ/最終確認日）を自動認識して一括追加。見出しが無ければ 1列目=名前, 2列目=Amazon, 3列目=楽天…の順">CSV取込</button>
+        <input type="file" id="rv-file" accept=".csv,.xlsx,.xls" hidden>
+        <button class="btn-primary" id="rv-add">＋ 行を追加</button>
+      </div>
+      <div class="retnote" id="rv-hint" style="color:var(--muted);background:#fafbff">
+        <b>使い方：</b>行を追加してブランド名・Amazon URL・楽天 URLを入力 → 左の <b>✓</b> を付けて「<b>選択を一括で開く</b>」でAmazon・楽天をまとめてタブ表示。URLは一度入れると小さなボタンになり、<b>✎</b>で再編集できます（複数URLは改行/スペース区切り）。CSV取込で一覧を一気に追加できます。
+      </div>
+      <div class="tablewrap"><table id="rvtbl"><thead id="rvhead"></thead><tbody id="rvbody"></tbody></table></div>
+      <div class="count" id="rvcount"></div>
+    </div>
+  </div>
+
+  <div id="view-list" style="display:none">
+    <div class="page-head" id="list-head">出品</div>
+    <div class="panel"><div id="list-body"></div></div>
+  </div>
+
+  <div id="view-banned" style="display:none">
+    <div class="page-head" id="banned-head">禁止ブランド</div>
+    <div class="panel"><div id="banned-body"></div></div>
+  </div>
+
+  <div id="view-banlist" style="display:none">
+    <div class="page-head">出品禁止 <small>出品NGカテゴリー一覧</small></div>
+    <div class="panel"><div id="banlist-body"></div></div>
+  </div>
+
+  <div id="view-shortcut" style="display:none">
+    <div class="page-head">ショートカット <small>ショートカット50 一覧表</small></div>
+    <div class="panel" style="padding:18px"><div id="shortcut-body"></div></div>
+  </div>
+
+  <div id="view-blog" style="display:none">
+    <div class="page-head" id="blog-head">ブログ</div>
+    <div class="panel">
+      <div class="toolbar">
+        <div class="seg" id="blog-tabs">
+          <button class="segbtn active" data-bt="todo">未投稿</button>
+          <button class="segbtn" data-bt="done">投稿済み</button>
+        </div>
+        <input type="text" id="blog-search" placeholder="🔍 ASIN・商品タイトルで検索" style="height:36px;border:1px solid var(--line);border-radius:7px;padding:0 10px;font-size:13px;min-width:230px">
+        <div class="grow"></div>
+        <button class="btn-ghost" id="blog-export">CSV出力</button>
+      </div>
+      <div class="retnote" style="background:#fafbff;color:var(--muted)">販売した商品のASINを一覧にしています。投稿日を選んで「投稿する」を押すと「投稿済み」に移動します（クーパン／スマートストアは別々に管理）。</div>
+      <div class="tablewrap"><table id="blogtbl"><thead id="bloghead"></thead><tbody id="blogbody"></tbody></table></div>
+      <div class="count" id="blogcount"></div>
+    </div>
+  </div>
+
+  <div id="view-tblman" style="display:none">
+    <div class="page-head" id="tblman-head">管理表マニュアル</div>
+    <div class="panel"><div id="tblman-body"></div></div>
+  </div>
+
+  <div id="view-manual" style="display:none">
+    <div class="page-head">ブログ マニュアル <small>タイトル＋動画。未作成の動画は空欄（後日URLを貼れます）</small></div>
+    <div class="panel" style="padding:18px">
+      <div id="manual-videos"></div>
+      <div class="man-prompt">
+        <div class="man-ph">ジェミニプロンプト（NAVERブログ記事用） <button class="mini" onclick="copyPrompt(this)" title="全文コピー">📋 コピー</button></div>
+        <pre id="gemini-prompt" class="man-pre">あなたはNAVERブログに韓国語で商品紹介記事を書く専門ライターです。
+以下の構成ルールと定型文を必ず守って記事を作成してください。
+═══════════════════════════════
+【記事構成ルール】
+═══════════════════════════════
+■ 記事冒頭（定型文①）
+━━━━━━━━━━━━━━━━━━━━
+◇──────────────────────◇
+안녕하세요!
+일본 직구 전문 **Tokyo Mart**입니다 🇯🇵
+▶ 스마트스토어：（ストアURL）
+▶ 네이버 톡톡：（ネイバートクトクURL）
+▶ 카카오톡 ID：japansellartokyo
+📦 발송 안내
+주문 확인 후 **7일 이내 일본에서 발송**해 드립니다.
+도착까지 약 **5~7일** 정도 소요됩니다.
+◇──────────────────────◇
+━━━━━━━━━━━━━━━━━━━━
+■ パート1：商品導入
+━━━━━━━━━━━━━━━━━━━━
+・挨拶 + 今日紹介する商品の簡単な導入文
+・読者の興味を引くフレーズで始める
+━━━━━━━━━━━━━━━━━━━━
+■ パート2：商品詳細（メインコンテンツ）
+━━━━━━━━━━━━━━━━━━━━
+## [ブランド名] 商品タイトル（韓国語SEO最適化）
+【📷 商品画像①挿入】
+・商品の第一印象、デザイン、特徴を説明
+【📷 商品画像②挿入】
+・使用シーン、活用方法を説明
+【📷 商品画像③挿入】
+・携帯性、追加機能、便利なポイントを説明
+※ 画像の枚数は商品に応じて増減OK
+━━━━━━━━━━━━━━━━━━━━
+■ パート3：商品スペック表
+━━━━━━━━━━━━━━━━━━━━
+### 📋 상품 상세 스펙 (Product Spec)
+| 항목 | 상세 정보 |
+| --- | --- |
+| **브랜드** | （ブランド名） |
+| **상품명** | （商品名） |
+| **특징** | （特徴） |
+| **색상** | （カラー） |
+| **호환성** | （対応機種など） |
+| **상태** | 미개봉 새상품 |
+※ 項目は商品に応じて調整OK
+━━━━━━━━━━━━━━━━━━━━
+■ パート4：ブランドクロスプロモション
+━━━━━━━━━━━━━━━━━━━━
+### 💡 브랜드 크로스 프로모션
+・同ブランドの他商品も扱っていることをアピール
+・関連商品カテゴリを具体的に記載
+━━━━━━━━━━━━━━━━━━━━
+■ 記事末尾（定型文②）
+━━━━━━━━━━━━━━━━━━━━
+◇──────────────────────◇
+💬 문의는 언제든 편하게 연락주세요!
+▶ 네이버 톡톡：（ネイバートクトクURL）
+▶ 카카오톡 ID：japansellartokyo
+▶ 스마트스토어：（ストアURL）
+◇──────────────────────◇
+━━━━━━━━━━━━━━━━━━━━
+■ 記事末尾（定型文③：購買代行案内）
+━━━━━━━━━━━━━━━━━━━━
+◇──────────────────────◇
+### 🛒 구매대행 서비스 안내
+일본에서만 판매되는 상품, 찾기 어려운 상품도
+**Tokyo Mart**가 대신 찾아서 보내드립니다!
+**📌 이용 방법**
+1️⃣ 원하시는 상품의 URL 또는 사진을 보내주세요
+2️⃣ 견적을 확인 후 안내해 드립니다
+3️⃣ 결제 완료 후 일본에서 바로 발송!
+다른 색상과 사이즈를 원하시면 편하게 문의하세요.
+이 상품 외에 필요한 상품이 있다면,
+찾아보겠으니, 언제라도 연락을 주세요.
+가격 협의도 가능합니다.▼▼
+여기서 소개한 제품외에도 다양한 제품이 준비되어있습니다.
+◇──────────────────────◇
+━━━━━━━━━━━━━━━━━━━━
+■ ハッシュタグ
+━━━━━━━━━━━━━━━━━━━━
+・韓国語ハッシュタグ 25~30個
+・含む要素：ブランド名、商品カテゴリ、
+  関連キーワード、#일본직구 #구매대행
+  #도쿄마트 #TokyoMart #일본구매대행
+═══════════════════════════════
+【文体・トーンルール】
+═══════════════════════════════
+・丁寧かつ親しみやすい韓国語（해요체）
+・絵文字は適度に使用（過度にならない程度）
+・中央揃えを意識した構成
+・SEOを意識したタイトルと見出し
+・読みやすい短い段落で区切る
+═══════════════════════════════</pre>
+      </div>
+    </div>
+  </div>
+  </main>
+</div>
+
+<div class="overlay" id="helpOverlay">
+  <div class="modal" style="width:520px">
+    <h3>使い方メモ <span class="x" id="helpClose">✕</span></h3>
+    <div class="memo">
+      <p><b>顧客管理</b>（発送の実務）</p>
+      ・「📥 Excelを取り込む」でクーパンの配送リストを読み込み<br>
+      ・<b>仕入値</b>を入れると自動で「仕入れ済み」／<b>追跡番号</b>を入れると自動で「発送済み」<br>
+      ・行の<b>✓</b>で色付け（発送指示の目印）<br>
+      ・問題のある注文は「トラブル」にして、上の「🚨 トラブル中」で絞込<br>
+      ・ASINはダブルクリックで修正／備考は自由記入
+      <p><b>売上管理</b>（利益の管理）</p>
+      ・精算明細Excelを取り込むと<b>手数料が自動入力</b><br>
+      ・レートは<b>取込時点で固定</b>（過去分は当時のレートで計算）<br>
+      ・上の「月別明細／年間サマリー」で切替
+      <p><b>共有</b></p>
+      ・右上「☁ 同期」でスプレッドシートに接続すると全員で共有。最新化は「今すぐ同期」
+      <p style="margin-bottom:6px"><b>わからないことは AI に質問</b></p>
+      <a class="btn-primary" href="https://notebooklm.google.com/notebook/22450892-bec4-43b2-af2c-bf3be6afec18" target="_blank" style="display:inline-block;text-decoration:none;line-height:38px">📓 NotebookLM（顧客対応）で質問する</a>
+      <span style="color:var(--muted);font-size:12px;margin-left:8px">自分のノートブックをブックマークしておくと便利です</span>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="syncOverlay">
+  <div class="modal" style="width:620px">
+    <h3>☁ クラウド同期（Googleスプレッドシート） <span class="x" id="syncClose">✕</span></h3>
+    <div class="steps">
+      <div style="display:flex;align-items:center;gap:8px;margin:2px 0 10px"><span class="sync-dot off" id="sync-dot"></span><b id="sync-state">未接続</b></div>
+      接続すると、外注さん全員が<b>同じデータ（売上台帳＝ステータス・仕入れ値・追跡番号・手数料・売上、およびリサーチ）を共有</b>できます。設定は最初の1回だけです。<br><span style="color:var(--amber)">※リサーチ共有に対応した新しい <code>Code.gs</code> に貼り替えて再デプロイしてください（URLは変わりません）。</span>
+      <ol>
+        <li>Googleスプレッドシートを新規作成 → メニュー<code>拡張機能 → Apps Script</code></li>
+        <li>付属の <code>Code.gs</code> の中身を貼り付けて保存</li>
+        <li><code>デプロイ → 新しいデプロイ → ウェブアプリ</code>。アクセスできるユーザーを<b>「全員」</b>にしてデプロイ</li>
+        <li>表示された <b>ウェブアプリURL（/exec で終わる）</b> を下に貼り付けて「保存して接続」</li>
+        <li>外注さんのPCでも同じURLを貼れば、全員で共有されます</li>
+      </ol>
+    </div>
+    <div class="field">
+      <label>ウェブアプリURL</label>
+      <input type="text" id="sync-url" placeholder="https://script.google.com/macros/s/××××/exec">
+    </div>
+    <div class="steps" style="padding-top:6px;color:var(--muted)">最終同期：<span id="sync-last">—</span></div>
+    <div class="modal-foot" style="display:flex;justify-content:flex-end;gap:10px;padding:14px 24px;border-top:1px solid var(--line)">
+      <button class="btn-ghost" id="sync-now">今すぐ同期</button>
+      <button class="btn-primary" id="sync-save">保存して接続</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="backupOverlay">
+  <div class="modal" style="width:560px">
+    <h3>💾 バックアップ（データの保存・復元） <span class="x" id="bkClose">✕</span></h3>
+    <div class="steps">
+      入力したデータ（顧客・売上・リサーチ）は、<b>このパソコンのブラウザの中だけ</b>に保存されています。念のため、ときどき書き出してファイルで保管しておくと安心です。パソコンを変えるときや、リンク版へ引っ越すときも、このファイルで移せます。
+      <div style="display:flex;gap:10px;flex-wrap:wrap;margin:16px 0 6px">
+        <button class="btn-primary" id="bk-export">📤 いまのデータを書き出す</button>
+        <button class="btn-ghost" id="bk-import-btn">📥 バックアップから復元する</button>
+        <input type="file" id="bk-file" accept=".json,application/json" hidden>
+      </div>
+      <div id="bk-msg" style="color:var(--green);font-size:12px;font-weight:700;min-height:16px"></div>
+      <p style="color:var(--muted);font-size:12px;line-height:1.7;margin-top:6px">※「復元」は、このパソコンの<b>今のデータを、選んだファイルの内容で置き換え</b>ます。先に「書き出す」で今の状態を保存してから行うと安全です。</p>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="overlay">
+  <div class="modal">
+    <h3>クーパン配送リスト：項目の日本語解説 <span class="x" id="gx">✕</span></h3>
+    <div class="gtable">
+      <p style="color:var(--muted);font-size:12px;margin:4px 0 10px">水色 = 現在このツールに表示している12項目</p>
+      <table><thead><tr><th class="gnum">#</th><th class="gkr">項目（韓国語 / 原文）</th><th>日本語での意味</th></tr></thead>
+      <tbody id="gbody"></tbody></table>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ===== クーパン配送リスト 全40列（原文=韓国語 / 日本語解説） ===== */
+const COUPANG_COLS = [
+  {en:"Number", kr:"번호", jp:"通し番号（連番）"},
+  {en:"Bundle delivery number", kr:"묶음배송번호", jp:"まとめ配送番号"},
+  {en:"Order number", kr:"주문번호", jp:"注文番号"},
+  {en:"Courier 1", kr:"택배사", jp:"配送業者"},
+  {en:"Invoice 1", kr:"운송장번호", jp:"送り状（追跡）番号"},
+  {en:"Split delivery Y/N", kr:"분리배송 Y/N", jp:"分割配送の可否"},
+  {en:"Expected shipment date for split delivery", kr:"분리배송 시 출고예정일", jp:"分割配送時の出荷予定日"},
+  {en:"Expected shipment date upon order", kr:"주문 시 출고예정일", jp:"発送期日（出荷予定日）★当日超過アラートの基準"},
+  {en:"Shipping date", kr:"출고일", jp:"出荷日（発送した日）"},
+  {en:"Order date", kr:"주문일", jp:"購入日（注文日時）★新着順・60日削除の基準"},
+  {en:"Registered product name", kr:"등록상품명", jp:"商品タイトル（登録商品名）"},
+  {en:"Registered option name", kr:"등록옵션명", jp:"登録オプション名"},
+  {en:"Displayed product name (option name)", kr:"노출상품명(옵션명)", jp:"表示商品名（オプション名）"},
+  {en:"Displayed product ID", kr:"노출상품ID", jp:"表示商品ID"},
+  {en:"Option ID", kr:"옵션ID", jp:"オプションID"},
+  {en:"initially registered product name/option name", kr:"최초 등록 상품명/옵션명", jp:"最初に登録した商品名・オプション名"},
+  {en:"Vendor product code", kr:"업체상품코드", jp:"ASIN（自社商品コード欄・Amazon商品コード）"},
+  {en:"Bar code", kr:"바코드", jp:"バーコード"},
+  {en:"paid amount", kr:"결제액", jp:"販売価格（決済金額・ウォン）"},
+  {en:"Shipping fee classification", kr:"배송비구분", jp:"送料区分"},
+  {en:"Shipping fee", kr:"배송비", jp:"送料"},
+  {en:"Extra shipping fee for remote areas", kr:"도서산간 추가배송비", jp:"離島・山間部の追加送料"},
+  {en:"Purchased qty", kr:"구매수(수량)", jp:"購入数量"},
+  {en:"Option price (unit sales price)", kr:"옵션가격(판매단가)", jp:"オプション価格（販売単価）"},
+  {en:"Buyer", kr:"구매자", jp:"購入者名"},
+  {en:"Buyer phone number", kr:"구매자 전화번호", jp:"購入者の電話番号（安心番号）"},
+  {en:"Recipient name", kr:"수취인 이름", jp:"名前（受取人名）"},
+  {en:"Recipient phone number", kr:"수취인 전화번호", jp:"受取人の電話番号"},
+  {en:"Zipcode", kr:"우편번호", jp:"郵便番号"},
+  {en:"Recipient address", kr:"수취인 주소", jp:"住所（受取人住所）"},
+  {en:"Delivery message", kr:"배송메시지", jp:"配送希望内容（配送メッセージ・置き配指定等）"},
+  {en:"Additional message per product", kr:"상품별 추가메시지", jp:"商品ごとの追加メッセージ"},
+  {en:"Additional message from the buyer", kr:"구매자 추가메시지", jp:"購入者からの追加メッセージ"},
+  {en:"Expected delivery completion date", kr:"배송완료예정일", jp:"配送完了予定日"},
+  {en:"Purchase confirm date", kr:"구매확정일", jp:"購入確定日"},
+  {en:"Personal Customs Clearance Code (PCCC)", kr:"개인통관고유부호", jp:"個人通関番号（PCCC）"},
+  {en:"Contact information of buyer for customs clearance purpose", kr:"통관용 구매자 연락처", jp:"電話番号（通関用の購入者連絡先）"},
+  {en:"Others", kr:"기타", jp:"その他"},
+  {en:"Payment location", kr:"결제위치", jp:"決済した場所（アプリ／PC等）"},
+  {en:"Shipment type", kr:"배송유형", jp:"配送タイプ（販売者配送など）"}
+];
+
+/* ===== 表示する12列（ご指定順）。head=見出しに出す韓国語、jp=日本語補足 ===== */
+const VIEW = [
+  {en:"Order number", head:"注文番号", jp:"注文番号"},
+  {en:"Order date", head:"주문일", jp:"購入日"},
+  {en:"Expected shipment date upon order", head:"출고예정일", jp:"発送期日", deadline:true},
+  {en:"Registered product name", head:"상품명", jp:"商品タイトル", clip:true},
+  {en:"Vendor product code", head:"ASIN", jp:"ASIN", asin:true},
+  {en:"paid amount", head:"결제액", jp:"販売価格", money:true, copy:true},
+  {en:"Purchased qty", head:"구매수", jp:"購入数"},
+  {en:"Recipient name", head:"수취인 이름", jp:"名前", copy:true},
+  {en:"Zipcode", head:"우편번호", jp:"郵便番号", copy:true},
+  {en:"Recipient address", head:"수취인 주소", jp:"住所", copy:true},
+  {en:"Personal Customs Clearance Code (PCCC)", head:"개인통관고유부호", jp:"個人通関番号", copy:true},
+  {en:"Contact information of buyer for customs clearance purpose", head:"연락처", jp:"電話番号", copy:true}
+];
+const VIEW_KEYS = new Set(VIEW.map(v=>v.en));
+
+/* ===== スマートストア（発注発送管理）表示列。key=Excelの韓国語見出しをそのまま使用 ===== */
+const SMART_VIEW = [
+  {key:"주문번호", jp:"注文番号"},
+  {key:"주문일시", jp:"購入日"},
+  {key:"발송기한", jp:"発送期日", deadline:true},
+  {key:"상품명", jp:"商品タイトル", clip:true},
+  {key:"판매자 상품코드", jp:"ASIN", asin:true},
+  {key:"최종 상품별 총 주문금액", jp:"販売価格", money:true, copy:true},
+  {key:"최종 상품별 할인액", jp:"割引額（クーポン等）", money:true},
+  {key:"수량", jp:"購入数"},
+  {key:"수취인명", jp:"名前", copy:true},
+  {key:"우편번호", jp:"郵便番号", copy:true},
+  {key:"통합배송지", jp:"住所", copy:true},
+  {key:"개인통관고유부호", jp:"個人通関番号", copy:true},
+  {key:"수취인연락처1", jp:"電話番号", copy:true}
+];
+
+const RETENTION_DAYS = 60;
+const ORDER_DATE = "Order date";                       // 購入日（60日削除・新着順）
+const DEADLINE = "Expected shipment date upon order";  // 発送期日（当日/超過アラート）
+const STATUSES = ["入金済み","仕入れ済み","発送手配済み","発送済み","キャンセル","返品","トラブル"];
+const DEFAULT_STATUS = "入金済み";
+const CLOSED = ["発送済み","キャンセル","返品"]; // 最下部＆発送期日アラート対象外
+let custStatusFilter="";                    // 顧客管理：ステータス絞り込み（""=全体）
+let salesStatusFilter="";                   // 売上管理：ステータス絞り込み（""=全体）
+const STATUS_COLOR={ "入金済み":"#e29a1f","仕入れ済み":"#4f6bef","発送手配済み":"#0e7ec9","発送済み":"#12a866","キャンセル":"#9aa2b1","返品":"#9b51e0","トラブル":"#e5453c" };
+/* ステータス絞り込みチップ（先頭に「全体」） */
+function statusChips(counts, active, fn){
+  const all=`<button class="chip all${active===""?" active":""}" onclick="${fn}('')">全体 <span class="n">${counts.__all||0}</span></button>`;
+  const rest=STATUSES.map(s=>`<button class="chip${active===s?" active":""}" onclick="${fn}('${s}')"><span class="dot" style="background:${STATUS_COLOR[s]||'#ccc'}"></span>${s} <span class="n">${counts[s]||0}</span></button>`).join("");
+  return all+rest;
+}
+window.setCustStatus=(v)=>{ custStatusFilter=v; render(); };
+window.setSalesStatus=(v)=>{ salesStatusFilter=v; render(); };
+const MSGS = ["不要","必要","済"];
+function autoMsg(won){ return num(won)>=150000?"必要":"不要"; }   // 15万ウォン以上=必要
+function msgOf(s){ return (s&&s.msg)?s.msg:autoMsg(s?s.won:0); }
+
+const platforms = {
+  coupang:{ name:"クーパン", key:"kr_cust_coupang_v4", salesKey:"kr_sales_coupang_v3", ready:true, cloud:true,
+            orderKey:"Order number", view:VIEW,
+            map:{ order:"Order number", date:"Order date", deadline:"Expected shipment date upon order",
+                  asin:"Vendor product code", title:"Registered product name", won:"paid amount", qty:"Purchased qty" } },
+  smart:{ name:"スマートストア", key:"kr_cust_smart_v4", salesKey:"kr_sales_smart_v3", ready:true, cloud:false,
+          orderKey:"상품주문번호", displayOrder:"주문번호", feeInline:true, view:SMART_VIEW,
+          map:{ order:"상품주문번호", date:"주문일시", deadline:"발송기한", asin:"판매자 상품코드",
+                title:"상품명", won:"최종 상품별 총 주문금액", qty:"수량", discount:"최종 상품별 할인액",
+                feeA:"네이버페이 주문관리 수수료", feeB:"매출연동 수수료" } },
+  st11:{ name:"11番街", key:"kr_cust_11st_v4", salesKey:"kr_sales_11st_v3", ready:false, cloud:false }
+};
+let current="coupang";
+let section="cust";                       // cust | sales
+const SALES_KEY="kr_sales_coupang_v3";    // クーパン売上台帳（クラウド同期対象）
+function curSalesKey(){ return (platforms[current]&&platforms[current].salesKey)||SALES_KEY; }
+function orderDateField(){ return (platforms[current].map&&platforms[current].map.date)||ORDER_DATE; }
+function deadlineField(){ return (platforms[current].map&&platforms[current].map.deadline)||DEADLINE; }
+/* クラウドへ送るのは同期対象プラットフォーム（現状クーパンのみ）だけ */
+function pushLedger(rows){ if(platforms[current]&&platforms[current].cloud) cloudPushRows(rows); }
+function delLedger(id){ if(platforms[current]&&platforms[current].cloud) cloudDelete(id); }
+const RATE_KEY="kr_won_yen_rate";
+let svMonth=null;                          // 売上（明細）の表示対象月
+let svYear=null;                           // 売上（年間）の表示対象年
+let salesTab="detail";                     // detail | year
+const REFUND_RATE=0.09;                    // 還付金込み利益：仕入れの9%上乗せ
+const num=v=>Number(String(v??"").replace(/[^0-9.-]/g,""))||0;
+/* リサーチに登録済みブランド（先頭語）を辞書化。長い順で返す */
+function knownBrands(){ let d={}; try{ d=JSON.parse(localStorage.getItem("kr_research_coupang_v1"))||{}; }catch(e){}
+  const map=new Map();
+  const add=v=>{ v=String(v||"").trim(); if(!v) return; if(/^[\x00-\x7F]+$/.test(v)&&v.length<3) return; const k=v.toLowerCase(); if(!map.has(k)) map.set(k,v); };
+  ["soldA","soldB","soldC","compe","wake"].forEach(cat=>{ (Array.isArray(d[cat])?d[cat]:[]).forEach(r=>{ add(String(r.name||"").trim().split(/[\s　]+/)[0]); }); });
+  return [...map.values()].sort((a,b)=>b.length-a.length); }
+/* 商品タイトルからブランド名を推定：リサーチのブランドに一致すればそれ、無ければ先頭語 */
+function brandOf(title, kb){ const t=String(title||"").trim(); if(!t) return "";
+  const list=kb||knownBrands(); const low=t.toLowerCase();
+  for(const b of list){ if(low.includes(b.toLowerCase())) return b; }
+  return t.split(/[\s　]+/)[0]; }
+window.toggleClip=(el)=>{ if(el) el.classList.toggle("open"); };
+function getRate(){ const r=parseFloat(localStorage.getItem(RATE_KEY)); return r>0?r:0.1087; }
+function setRate(v){ localStorage.setItem(RATE_KEY,String(v)); }
+
+function loadSales(key){ key=key||curSalesKey(); try{ const d=JSON.parse(localStorage.getItem(key)); if(Array.isArray(d)) return d; }catch(e){} return []; }
+function saveSales(l,key){ localStorage.setItem(key||curSalesKey(), JSON.stringify(l)); }
+function ledgerMap(){ const m={}; loadSales().forEach(x=>m[String(x.order)]=x); return m; }
+function monthKey(d){ const p=parseDate(d); return p?p.getFullYear()+"-"+String(p.getMonth()+1).padStart(2,"0"):"（日付なし）"; }
+
+/* ---- ステータス変更（履歴つき・雲へ反映） ---- */
+function statusOf(s){ return s&&s.status?s.status:DEFAULT_STATUS; }
+function syncSaleStatus(id,val){ const l=loadSales(); const s=l.find(x=>String(x.order)===String(id));
+  if(s){ if(s.status!==val){ s.hist=s.hist||[]; s.hist.push({t:new Date().toISOString(),s:val}); if(s.hist.length>30) s.hist=s.hist.slice(-30); }
+    s.status=val; saveSales(l); pushLedger([s]); } }
+function setSaleMsg(id,val){ const l=loadSales(); const s=l.find(x=>String(x.order)===String(id)); if(s){ s.msg=val; saveSales(l); pushLedger([s]); render(); } }
+function removeSale(id){ saveSales(loadSales().filter(x=>String(x.order)!==String(id))); delLedger(id); }
+function histTip(s){ if(!s||!s.hist||!s.hist.length) return ""; return "ステータス変更履歴\n"+s.hist.slice(-8).map(h=>(h.t||"").slice(0,16).replace("T"," ")+" → "+h.s).join("\n"); }
+/* 顧客データ→売上台帳へ不足分を追加（削除しない=履歴保持／手入力欄は保持） */
+function syncLedger(rows){ const spec=platforms[current], m=spec.map; const l=loadSales(); const map={}; l.forEach(x=>map[String(x.order)]=x); const added=[];
+  rows.forEach(r=>{ const id=String(r[spec.orderKey]||""); if(!id) return;
+    const title=r[m.title]||""; let s=map[id];
+    if(!s){ const won=num(r[m.won]);
+      const feeAuto=spec.feeInline?(Math.abs(num(r[m.feeA]))+Math.abs(num(r[m.feeB]))):0;
+      s={ order:id, dorder:(spec.displayOrder?String(r[spec.displayOrder]||""):""),
+          date:r[m.date]||"", deadline:r[m.deadline]||"", asin:r[m.asin]||"", title,
+          won, qty:num(r[m.qty])||1, status:r._status||DEFAULT_STATUS, msg:autoMsg(won),
+          rate:getRate(), track:"", cost:0, fee:feeAuto, ship:0, expense:0,
+          discount:(m.discount?num(r[m.discount]):0), plat:current, url:"", note:"", hist:[] };  /* 取込時のレートを固定記録 */
+      l.push(s); map[id]=s; added.push(s);
+    } else if(!s.title && title){ s.title=title; added.push(s); } });
+  if(added.length){ saveSales(l); pushLedger(added); } }
+
+/* ===== クラウド同期（Googleスプレッドシート / Apps Script Web App） ===== */
+const CLOUD_URL_KEY="kr_cloud_url", CLOUD_SYNC_KEY="kr_cloud_lastsync";
+function cloudURL(){ return (localStorage.getItem(CLOUD_URL_KEY)||"").trim(); }
+function setCloudURL(u){ localStorage.setItem(CLOUD_URL_KEY,(u||"").trim()); }
+async function cloudPull(){ const u=cloudURL(); if(!u) return false;
+  try{ const r=await fetch(u,{method:"GET"}); const data=await r.json();
+    if(Array.isArray(data)){ mergeServer(data); }                                   /* 旧サーバー（ordersのみ） */
+    else if(data&&typeof data==="object"){
+      if(Array.isArray(data.orders)) mergeServer(data.orders);
+      if(Array.isArray(data.research)) mergeServerResearch(data.research);
+    } else return false;
+    localStorage.setItem(CLOUD_SYNC_KEY,new Date().toISOString()); return true;
+  }catch(e){ console.warn("cloudPull",e); } return false; }
+/* リサーチ：サーバー内容をローカルへ反映（idで統合、ローカルのみの行はサーバーへ送る） */
+function mergeServerResearch(serverRows){
+  const local=loadResearch(); const byId={};
+  Object.keys(local).forEach(cat=>{ (Array.isArray(local[cat])?local[cat]:[]).forEach(r=>{ byId[String(r.id)]={cat, ...r}; }); });
+  const seen={};
+  serverRows.forEach(sr=>{ if(!sr||!sr.id) return; const id=String(sr.id);
+    byId[id]={ id, cat:sr.cat||"soldA", name:sr.name||"", amazon:sr.amazon||"", rakuten:sr.rakuten||"", coupang:sr.coupang||"", memo:sr.memo||"", date:sr.date||"" };
+    seen[id]=1; });
+  const grouped={};
+  Object.values(byId).forEach(r=>{ const cat=rcat(r.cat).id; if(!grouped[cat]) grouped[cat]=[]; const {cat:_c,...rest}=r; grouped[cat].push(rest); });
+  saveResearch(grouped);
+  const localOnly=Object.values(byId).filter(r=>!seen[String(r.id)]);
+  if(localOnly.length) cloudPushResearch(localOnly);
+}
+async function cloudPushResearch(rows){ const u=cloudURL(); if(!u||!rows||!rows.length) return;
+  try{ await fetch(u,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify({action:"saveResearch",rows})}); localStorage.setItem(CLOUD_SYNC_KEY,new Date().toISOString()); }catch(e){ console.warn("cloudPushResearch",e); } }
+async function cloudDeleteResearch(id){ const u=cloudURL(); if(!u) return;
+  try{ await fetch(u,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify({action:"deleteResearch",id:String(id)})}); }catch(e){ console.warn("cloudDeleteResearch",e); } }
+/* 同期対象はクーパン台帳のみ（SALES_KEYを明示） */
+function mergeServer(server){ const l=loadSales(SALES_KEY); const map={}; l.forEach(x=>map[String(x.order)]=x);
+  const seen={}; server.forEach(x=>{ if(!x||!x.order) return; map[String(x.order)]=x; seen[String(x.order)]=1; });
+  saveSales(Object.values(map),SALES_KEY);
+  const localOnly=l.filter(x=>!seen[String(x.order)]); if(localOnly.length) cloudPushRows(localOnly); }
+async function cloudPushRows(rows){ const u=cloudURL(); if(!u||!rows||!rows.length) return;
+  try{ await fetch(u,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify({action:"save",rows})}); localStorage.setItem(CLOUD_SYNC_KEY,new Date().toISOString()); }catch(e){ console.warn("cloudPush",e); } }
+async function cloudDelete(order){ const u=cloudURL(); if(!u) return;
+  try{ await fetch(u,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify({action:"delete",order:String(order)})}); }catch(e){ console.warn("cloudDelete",e); } }
+/* 1注文の損益計算（キャンセルは売上0・仕入れ額は残す＝赤字判定） */
+function calcSale(s,rate){ const cancel=s.status==="キャンセル"; const qty=num(s.qty)||1;
+  const r=(s.rate>0)?s.rate:rate;  /* 取込時に記録したレートを優先（過去分はその時のレートで固定） */
+  const cost=num(s.cost), fee=cancel?0:num(s.fee), ship=cancel?0:num(s.ship), exp=num(s.expense);
+  const costTotal=cost*qty; const won=cancel?0:num(s.won); const yen=Math.round(won*r);
+  const saleTotal=yen; const shipFee=ship+fee; const profit=saleTotal-costTotal-ship-fee-exp;
+  return {qty,cost,costTotal,won,yen,saleTotal,ship,fee,exp,shipFee,profit,cancel}; }
+function resolveUrl(v){ v=String(v||"").trim(); if(!v) return ""; return /^https?:\/\//i.test(v)?v:"https://www.amazon.co.jp/dp/"+v; }
+
+function canonical(h){ h=String(h||"").trim(); const c=COUPANG_COLS.find(c=>c.en===h||c.kr===h||c.kr.replace(/\s/g,"")===h.replace(/\s/g,"")); return c?c.en:h; }
+const esc = s => String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const won = n => "₩"+Number(String(n).replace(/[^0-9.-]/g,"")||0).toLocaleString("ja-JP");
+
+function parseDate(s){ if(!s) return null; if(s instanceof Date) return s;
+  const m=String(s).match(/(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})(?:[ T](\d{1,2}):(\d{2})(?::(\d{2}))?)?/);
+  if(!m) return null; return new Date(+m[1],+m[2]-1,+m[3],+m[4]||0,+m[5]||0,+m[6]||0); }
+function dayStart(d){ return new Date(d.getFullYear(),d.getMonth(),d.getDate()).getTime(); }
+function daysLeft(row){ const d=parseDate(row[orderDateField()]); if(!d) return null; return RETENTION_DAYS-Math.floor((Date.now()-d.getTime())/86400000); }
+/* 発送期日: 'today' | 'over' | 'future' | null */
+function deadlineStateVal(dval){ const d=parseDate(dval); if(!d) return null;
+  const t=dayStart(new Date()), x=dayStart(d); return x===t?"today":(x<t?"over":"future"); }
+function deadlineState(row){ return deadlineStateVal(row[deadlineField()]); }
+function isDue(row){ const s=deadlineState(row); return (s==="today"||s==="over") && !CLOSED.includes(row._status); }
+
+function load(){ try{ const d=JSON.parse(localStorage.getItem(platforms[current].key)); if(Array.isArray(d)) return d; }catch(e){} return current==="coupang"?seed():[]; }
+function save(rows){ localStorage.setItem(platforms[current].key, JSON.stringify(rows)); }
+/* 配送指示チェック用ハイライト（クリックで黄色トグル） */
+const HI_KEY="kr_hi_coupang";
+function hiSet(){ try{ return new Set(JSON.parse(localStorage.getItem(HI_KEY))||[]); }catch(e){ return new Set(); } }
+function saveHi(s){ localStorage.setItem(HI_KEY, JSON.stringify([...s])); }
+window.setHi=(cb,id)=>{ const set=hiSet(); if(cb.checked) set.add(String(id)); else set.delete(String(id)); saveHi(set);
+  const tr=cb.closest("tr"); if(tr) tr.classList.toggle("hi", cb.checked); };
+function purge(rows){ return rows.filter(r=>{ const dl=daysLeft(r); return dl===null||dl>0; }); }
+/* 発送期日が近い順（上から）。ただし発送済みは最下部。期日なしは日付ありの後。 */
+function sortRows(rows){ const BIG=8.64e15; const df=deadlineField(); return rows.slice().sort((a,b)=>{
+  const sa=CLOSED.includes(a._status)?1:0, sb=CLOSED.includes(b._status)?1:0; if(sa!==sb) return sa-sb;
+  const da=parseDate(a[df]), db=parseDate(b[df]);
+  return (da?da.getTime():BIG)-(db?db.getTime():BIG);
+}); }
+
+function seed(){ return []; }  /* サンプルなし：最初は空の状態から開始 */
+function todayStr(){ const d=new Date(); return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"); }
+
+/* ===== router ===== */
+function render(){
+  const sales=section==="sales", research=section==="research", list=section==="list", banned=section==="banned", banlist=section==="banlist", shortcut=section==="shortcut", blog=section==="blog", manual=section==="manual", tblman=section==="tblman";
+  document.getElementById("view-cust").style.display=(sales||research||list||banned||banlist||shortcut||blog||manual||tblman)?"none":"";
+  document.getElementById("view-sales").style.display=sales?"":"none";
+  document.getElementById("view-research").style.display=research?"":"none";
+  document.getElementById("view-list").style.display=list?"":"none";
+  document.getElementById("view-banned").style.display=banned?"":"none";
+  document.getElementById("view-banlist").style.display=banlist?"":"none";
+  document.getElementById("view-shortcut").style.display=shortcut?"":"none";
+  document.getElementById("view-blog").style.display=blog?"":"none";
+  document.getElementById("view-manual").style.display=manual?"":"none";
+  document.getElementById("view-tblman").style.display=tblman?"":"none";
+  if(tblman) renderTblMan(); else if(manual) renderManual(); else if(blog) renderBlog(); else if(shortcut) renderShortcut(); else if(banlist) renderBanlist(); else if(banned) renderBanned(); else if(list) renderList(); else if(research) renderResearch(); else if(sales) renderSales(); else renderCust();
+}
+/* ===== 管理表マニュアル（ブログマニュアルと同じフォーマット・モール別） ===== */
+const TBLMAN_SEED=[{title:"",url:""},{title:"",url:""},{title:"",url:""},{title:"",url:""}];
+function renderTblMan(){
+  const p=current;
+  document.getElementById("tblman-head").innerHTML=`管理表マニュアル：${PNAME[p]||p} <small>管理表マニュアルを準備します</small>`;
+  document.getElementById("tblman-body").innerHTML=`<div class="man-note">タイトルを入れ、動画URL（Loom等）を貼るとその場で再生できます。「＋ 項目を追加」で箱を増やせます。</div><div id="tblman-list"></div>`;
+  renderManInto("tblman-list","kr_tblman_"+p, TBLMAN_SEED);
+}
+/* ===== ショートカット50 一覧 ===== */
+const SHORTCUTS=[
+ {name:"共通", color:"green", items:[
+   ["Ctrl + C","コピー"],["Ctrl + V","貼り付け"],["Ctrl + X","切り取り"],["Ctrl + Z","元に戻す"],["Ctrl + Y","やり直し"],
+   ["Ctrl + A","全選択"],["Ctrl + B","太字"],["Ctrl + U","下線"],["Ctrl + I","斜体"],["Ctrl + S","上書き保存"],
+   ["Ctrl + P","印刷プレビュー"],["Ctrl + F","検索"],["Ctrl + H","置換"],["Ctrl + N","新規ファイルを開く"],["Ctrl + O","既存ファイルを開く"]
+ ]},
+ {name:"Excel", color:"green", items:[
+   ["Ctrl + Enter","選択セル一括入力"],["Ctrl + 矢印キー","ワープ移動"],["Ctrl + D","上のセルコピー"],["Ctrl + R","左のセルコピー"],
+   ["Alt + Shift + =","オートSUM"],["F2（Fn on状態）","セル編集"],["Alt + Enter","セル内改行"],["Ctrl + Space","列全体を選択"],
+   ["Shift + Space","行全体を選択"],["Ctrl + Shift + +","列や行を挿入"],["Ctrl + ー","列や行を削除"],["Ctrl + Shift + ！","数値表記(,)"],
+   ["Ctrl + Shift + $","通貨表記(¥)"],["F4（Fn on状態）","直前操作繰返し"],["Ctrl + E","フラッシュフィル"],["Ctrl + T","テーブル作成"],["Ctrl + Q","クイック分析"]
+ ]},
+ {name:"Word", color:"blue", items:[
+   ["Ctrl + E","中央揃え"],["Ctrl + R","右揃え"],["Ctrl + L","左揃え"],["Ctrl + J","両端揃え"],["Ctrl + Shift + J","均等割り付け"],
+   ["Ctrl + Enter","次ページへ改行"],["Alt + Shift + D","今日の日付"],["Alt + Shift + T","今の時刻"],["Ctrl + 「 or 」","フォントサイズ変更"]
+ ]},
+ {name:"PowerPoint", color:"orange", items:[
+   ["Ctrl + D","コピー&ペースト"],["Ctrl + G","グループ化"],["Ctrl + M","新規スライド"],["Ctrl + 矢印","コピーして移動"],
+   ["Shift + 矢印","水平・垂直移動"],["Alt → N→X→H","テキストボックス挿入"],["F5（Fn on状態）","スライドショー"],
+   ["Shift + F5","現在のスライドからスライドショー"],["Ctrl + Shift + 「 or 」","前面・後面調整"]
+ ]}
+];
+function renderShortcut(){
+  const html=SHORTCUTS.map(sec=>{
+    const items=sec.items.map(it=>`<div class="sc-item"><span class="k">${esc(it[0])}</span><span class="d">${esc(it[1])}</span></div>`).join("");
+    return `<div class="sc-sec sc-${sec.color}"><div class="sc-h ${sec.color}">${esc(sec.name)}</div><div class="sc-grid">${items}</div></div>`;
+  }).join("");
+  document.getElementById("shortcut-body").innerHTML=html;
+}
+/* ===== ブログ（販売済み商品のASINを投稿管理・モール別） ===== */
+let blogTab="todo";  // todo=未投稿 / done=投稿済み
+function loadBlog(p){ try{ const d=JSON.parse(localStorage.getItem("kr_blog_"+p)); if(d&&typeof d==="object") return d; }catch(e){} return {}; }
+function saveBlog(p,d){ localStorage.setItem("kr_blog_"+p, JSON.stringify(d)); }
+window.blogSetDate=(asin,val)=>{ const b=loadBlog(current); if(!b[asin]) b[asin]={posted:false,date:""}; b[asin].date=val; saveBlog(current,b); };
+window.blogPost=(asin)=>{ const b=loadBlog(current); if(!b[asin]) b[asin]={date:""}; if(!b[asin].date) b[asin].date=todayStr(); b[asin].posted=true; saveBlog(current,b); renderBlog(); };
+window.blogUnpost=(asin)=>{ const b=loadBlog(current); if(b[asin]) b[asin].posted=false; saveBlog(current,b); renderBlog(); };
+function blogData(p){ const l=loadSales(platforms[p].salesKey); const g={};
+  l.forEach(s=>{ if(s.status==="キャンセル"||s.status==="返品") return; const a=String(s.asin||"").trim(); if(!a) return;
+    if(!g[a]) g[a]={asin:a,title:s.title||"",qty:0,lastT:0,last:""};
+    g[a].qty+=num(s.qty)||1; const pd=parseDate(s.date),t=pd?pd.getTime():0; if(t>=g[a].lastT){ g[a].lastT=t; g[a].last=s.date; if(s.title) g[a].title=s.title; } });
+  return Object.values(g); }
+function renderBlog(){
+  const p=current, blog=loadBlog(p);
+  document.querySelectorAll("#blog-tabs .segbtn").forEach(b=>b.classList.toggle("active",b.dataset.bt===blogTab));
+  document.getElementById("blog-head").innerHTML=`ブログ：${PNAME[p]||p} <small>販売済み商品のASINを投稿管理</small>`;
+  let arr=blogData(p);
+  const q=(document.getElementById("blog-search").value||"").trim().toLowerCase();
+  if(q) arr=arr.filter(x=>x.asin.toLowerCase().includes(q)||String(x.title).toLowerCase().includes(q));
+  const isDone=a=>!!(blog[a]&&blog[a].posted);
+  const doneCount=arr.filter(x=>isDone(x.asin)).length, todoCount=arr.length-doneCount;
+  let list=arr.filter(x=> blogTab==="done"?isDone(x.asin):!isDone(x.asin));
+  const z=n=>('0'+n).slice(-2); const fmtd=ds=>{const pp=parseDate(ds);return pp?pp.getFullYear()+"-"+z(pp.getMonth()+1)+"-"+z(pp.getDate()):"";};
+  if(blogTab==="done") list.sort((a,b)=>String((blog[b.asin]||{}).date||"").localeCompare(String((blog[a.asin]||{}).date||"")));
+  else list.sort((a,b)=>b.lastT-a.lastT);
+  const amz=a=>`<a class="srclink" href="https://www.amazon.co.jp/dp/${esc(a)}" target="_blank" title="Amazonで開く">${esc(a)}</a>`;
+  const titleCell=t=>`<td><span class="clip" title="${esc(t)}" onclick="toggleClip(this)">${esc(t)}</span></td>`;
+  if(blogTab==="done"){
+    document.getElementById("bloghead").innerHTML="<tr><th>ASIN</th><th>商品タイトル</th><th>投稿日</th><th>操作</th></tr>";
+    document.getElementById("blogbody").innerHTML = list.length? list.map(x=>{ const a=esc(x.asin), d=(blog[x.asin]||{}).date||"";
+      return `<tr><td>${amz(x.asin)}</td>${titleCell(x.title)}<td class="mono">${esc(d)}</td>`+
+        `<td><button class="rowbtn btn-sm" onclick="blogUnpost('${a}')">未投稿に戻す</button></td></tr>`; }).join("")
+      : `<tr><td class="empty" colspan="4"><b>投稿済みはまだありません</b>「未投稿」で投稿日を選び「投稿する」を押すと、ここへ移動します。</td></tr>`;
+  } else {
+    document.getElementById("bloghead").innerHTML="<tr><th>ASIN</th><th>商品タイトル</th><th>投稿日</th><th>操作</th></tr>";
+    document.getElementById("blogbody").innerHTML = list.length? list.map(x=>{ const a=esc(x.asin), d=(blog[x.asin]||{}).date||"";
+      return `<tr><td>${amz(x.asin)}</td>${titleCell(x.title)}`+
+        `<td><input class="rvdate" type="date" value="${esc(d)}" onchange="blogSetDate('${a}',this.value)"></td>`+
+        `<td><button class="btn-primary btn-sm" onclick="blogPost('${a}')">投稿する</button></td></tr>`; }).join("")
+      : `<tr><td class="empty" colspan="4"><b>未投稿のASINがありません</b>売上管理に販売データが入ると、ここへASINが並びます。</td></tr>`;
+  }
+  document.getElementById("blogcount").textContent=`${PNAME[p]} ・ 未投稿 ${todoCount}件 ／ 投稿済み ${doneCount}件`;
+}
+/* ===== ブログ マニュアル（動画リスト＋ジェミニプロンプト） ===== */
+const MANUAL_SEED=[
+ {title:"はじめに", url:"https://www.loom.com/share/c190c96636fa4d8ba508b18a9f7f370d"},
+ {title:"準備", url:"https://www.loom.com/share/1203cd3fe915448b938e82279cfa117f"},
+ {title:"Gemini", url:"https://www.loom.com/share/6d8f3bcfe11649e8b7562a73d7539de3"},
+ {title:"画像", url:"https://www.loom.com/share/92da7d1f121649039f72b0d6cb57ad03"},
+ {title:"日報", url:"https://www.loom.com/share/100f199087214edea49a805af9634036"},
+ {title:"メッセージ", url:""},
+ {title:"投稿（手出品）", url:"https://www.loom.com/share/f79892665437476cb18724e11ab53ca2"},
+ {title:"クーパン", url:"https://www.loom.com/share/3c11be44450b40b3bdc928d4a817a906"},
+ {title:"スマートストア", url:""},
+ {title:"廃版・中古", url:""},
+ {title:"予約", url:""},
+ {title:"カテゴリー選定", url:""}
+];
+function loomEmbed(u){ u=String(u||"").trim(); const m=u.match(/loom\.com\/(?:share|embed)\/([a-z0-9]+)/i); return m?("https://www.loom.com/embed/"+m[1]):""; }
+window.copyPrompt=(btn)=>{ const el=document.getElementById("gemini-prompt"); copyText(el?el.textContent:""); flashBtn(btn); };
+/* ===== マニュアル 汎用（タイトル＋動画カード・追加/削除/編集） ===== */
+function loadMan(key, seed){ try{ const d=JSON.parse(localStorage.getItem(key)); if(Array.isArray(d)) return d; }catch(e){}
+  const s=(seed||[]).map(x=>({id:uid(),title:x.title||"",url:x.url||""})); localStorage.setItem(key,JSON.stringify(s)); return s; }
+function saveMan(key,l){ localStorage.setItem(key,JSON.stringify(l)); }
+window.manEdit=(key,id,field,val)=>{ const l=loadMan(key); const it=l.find(x=>x.id===id); if(it){ it[field]=String(val); saveMan(key,l); if(field==="url") render(); } };
+window.manDel=(key,id)=>{ if(!confirm("この項目を削除しますか？")) return; saveMan(key, loadMan(key).filter(x=>x.id!==id)); render(); };
+window.manAdd=(key)=>{ const l=loadMan(key); l.push({id:uid(),title:"",url:""}); saveMan(key,l); render(); };
+function manCardHTML(it,i,key){ const emb=loomEmbed(it.url);
+  const video= emb ? `<div class="man-video"><iframe src="${esc(emb)}" allowfullscreen></iframe></div>`
+    : `<div class="man-empty">動画は後日追加予定<br>下の欄にURLを貼ると、ここに表示されます</div>`;
+  return `<div class="man-card" data-id="${esc(it.id)}"><div class="man-h"><span class="man-no">${i+1}</span>`+
+    `<input class="man-title" value="${esc(it.title)}" placeholder="タイトル" onchange="manEdit('${key}','${it.id}','title',this.value)">`+
+    `<button class="rowbtn del btn-sm" onclick="manDel('${key}','${it.id}')" title="この項目を削除">削除</button></div>`+
+    video+
+    `<div class="man-url"><input type="text" placeholder="Loom等のURLを貼り付け" value="${esc(it.url)}" onchange="manEdit('${key}','${it.id}','url',this.value)">${it.url?`<a class="ctool-ext" href="${esc(it.url)}" target="_blank">開く↗</a>`:""}</div></div>`;
+}
+function renderManInto(containerId,key,seed){ const l=loadMan(key,seed);
+  document.getElementById(containerId).innerHTML=`<div class="man-grid">${l.map((it,i)=>manCardHTML(it,i,key)).join("")}</div>`+
+    `<div class="man-addwrap"><button class="btn-ghost" onclick="manAdd('${key}')">＋ 項目を追加</button></div>`; }
+/* 旧ブログマニュアル（title→url）から新形式へ一度だけ移行 */
+function blogManualSeed(){ let ov={}; try{ ov=JSON.parse(localStorage.getItem("kr_manual_urls"))||{}; }catch(e){}
+  return MANUAL_SEED.map(x=>({title:x.title, url:(ov[x.title]!==undefined?ov[x.title]:x.url)})); }
+function renderManual(){ renderManInto("manual-videos","kr_manual_v2", blogManualSeed()); }
+/* ===== 禁止ブランド（枠のみ・中身はこれから） ===== */
+function renderBanned(){
+  document.getElementById("banned-head").innerHTML=`禁止ブランド：${PNAME[current]||current} <small>準備中</small>`;
+  document.getElementById("banned-body").innerHTML=`<div class="empty"><b>禁止ブランド（${PNAME[current]||current}）はこれから作ります</b>どんな項目が必要か教えてください。<br>（例：ブランド名・禁止理由・登録日・メモ など）</div>`;
+}
+/* ===== 出品禁止（NGカテゴリー一覧・参照表） ===== */
+const BANLIST=[
+ {g:"出品×", band:"x", rows:[
+   {t:'・<b class="hl">韓国ブランド</b>の商品（本社が韓国にあるブランド）※1発アウトなのでNG!!', m:["x","x","x"]},
+   {t:'・殺菌・除菌系の商品（マスク、除菌スプレー、除菌シート、殺菌・除菌系の加湿器、空気清浄機、除菌ジェル、などなど）', m:["x","x","x"]},
+   {t:'・「加湿器オイル」「セラピー」「アロマ」「ディフューザー」など <b class="hl">生活化学製品</b>を連想させるキーワードが入ってる商品', m:["x","x","x"]},
+   {t:'・<b class="hl">日本国旗や韓国国旗</b>、アメリカ国旗が画像に有る商品（日の丸がどこかに写ってる商品は絶対に出しちゃダメ）', m:["x","x","x"]},
+   {t:'・<b class="hl">引火性</b>のある商品（バッテリー、ライター、お酒、アルコール、エタノールが含まれる製品）※バッテリーが内蔵されているものは可だが…', m:["x","x","x"]},
+   {t:'・液体系や<b class="hl">ナマモノ、食品</b>系', m:["x","x","x"]},
+   {t:'・香水', m:["x","x","x"]},
+   {t:'・医薬品', m:["x","x","x"]},
+   {t:'・医療機器（体温計、血圧計もNG）', m:["x","x","x"]},
+   {t:'・<b class="hl">度入りのメガネ</b>系（老眼鏡やコンタクトレンズ、ルーペなどは医療系に該当されてしまう。）', m:["x","x","x"]},
+   {t:'・化粧品（液体系）', m:["x","x","x"]},
+   {t:'・<b class="hl">幼児系</b>商品（韓国内での許認可番号が必要だから）', m:["x","x","x"]},
+   {t:'・<b class="hl">戦争系</b>の商品', m:["x","x","x"]},
+   {t:'・<b class="hl">軍事系</b>の商品（サバゲーも含む）', m:["x","x","x"]},
+   {t:'・<b class="hl">戦艦系</b>（プラモデルとかで多い、日本の昔の船とかも含む）', m:["x","x","x"]},
+   {t:'・アダルト商品（露出が高い画像の商品も含む）', m:["x","x","x"]}
+ ]},
+ {g:"出品×(SDS)", band:"x", rows:[
+   {t:'・インク系', m:["x","x","x"]},
+   {t:'・絵の具や色鉛筆、マジック', m:["x","x","x"]},
+   {t:'・万年筆', m:["x","x","x"]},
+   {t:'・化粧品など', m:["x","x","x"]},
+   {t:'※SDSを取得してもSDSに航空危険物に該当すると記載がある場合は発送不可', m:["x","x","x"]},
+   {t:'※SDS取得依頼が多い商品例 <b class="hl">マーカーペン・油性（水性）ペン・ボールペン・絵具・万年筆のカートリッジ・お灸・お香・洗剤、株式会社ミツ…</b>', m:["x","x","x"]}
+ ]},
+ {g:"出品△", band:"tri", rows:[
+   {t:'・<b class="hl">ブランド系</b>はクーパンはNG', m:["x","o","o"]},
+   {t:'・有名人や著名人などの画像がパッケージや商品名に入っている商品（肖像権が関係してくる）', m:["x","o","o"]},
+   {t:'・度なしメガネやサングラス（ブランドアイテムが多いのでクーパンは×）', m:["x","o","o"]},
+   {t:'・ゲーム関連商品（ハード、ソフト）で韓国に流通していない商品', m:["x","x","o"]},
+   {t:'・乾物の食品（お菓子や粉物などの乾燥されてるものはテストしてみてもOK）：ちなみに健康機能食品やサプリはOKです。', m:["tri","tri","tri"], grey:true},
+   {t:'・<b class="hl">露出が高すぎるフィギュア系</b>（露出が高すぎるものは韓国ではNG。韓国の方がアダルト規制は厳しい。）', m:["tri","tri","tri"], grey:true}
+ ]}
+];
+function renderBanlist(){
+  const mk=v=> v==="x"?'<td class="bl-mark bl-x">×</td>':(v==="o"?'<td class="bl-mark bl-o">○</td>':'<td class="bl-mark bl-tri">△</td>');
+  let body="";
+  BANLIST.forEach(grp=>{ grp.rows.forEach((r,i)=>{
+    const rowCls=r.grey?"bl-g-grey":("bl-g-"+grp.band);
+    const gcell=i===0?`<td class="bl-group" rowspan="${grp.rows.length}">${grp.g}</td>`:"";
+    body+=`<tr class="${rowCls}">${gcell}<td>${r.t}</td>${mk(r.m[0])}${mk(r.m[1])}${mk(r.m[2])}</tr>`;
+  }); });
+  document.getElementById("banlist-body").innerHTML=
+    `<div class="retnote" style="background:#fafbff;color:var(--muted)">出品してはいけない・注意が必要な商品カテゴリーの一覧です（<b class="bl-x">×</b>=NG／<b class="bl-o">○</b>=OK／<b class="bl-tri">△</b>=要確認）。出品前に必ず確認してください。</div>`+
+    `<div class="tablewrap"><table class="bl-table"><thead><tr><th style="width:92px">区分</th><th>商品カテゴリー</th><th class="bl-mark">クーパン</th><th class="bl-mark">11番街</th><th class="bl-mark">スマートストア</th></tr></thead><tbody>${body}</tbody></table></div>`;
+}
+/* ===== 出品 ===== */
+let coupangListTab="attr", bruTab="sold";
+window.setCoupangListTab=(t)=>{ coupangListTab=t; renderList(); };
+window.setBruTab=(t)=>{ bruTab=t; renderList(); };
+function renderList(){
+  const head=document.getElementById("list-head"), body=document.getElementById("list-body");
+  if(current==="coupang"){
+    head.innerHTML=`出品：クーパン <small>${coupangListTab==="cat"?"カテゴリー":"Attributes（出品時の参考・コピペ用）"}</small>`;
+    const toggle=`<div class="seg" style="margin-bottom:14px"><button class="segbtn ${coupangListTab==="attr"?"active":""}" onclick="setCoupangListTab('attr')">Attributes</button><button class="segbtn ${coupangListTab==="cat"?"active":""}" onclick="setCoupangListTab('cat')">カテゴリー</button></div>`;
+    body.innerHTML=toggle+`<div id="attr-host"></div>`;
+    attrStore = coupangListTab==="cat"?CAT_KEY:ATTR_KEY;
+    renderAttr(document.getElementById("attr-host"));
+  } else if(current==="smart"){
+    head.innerHTML=`出品：スマートストア <small>ブラッシュアップ（販売済み商品を投稿）</small>`;
+    renderBrushup(body);
+  } else {
+    head.innerHTML=`出品：${PNAME[current]||current} <small>準備中</small>`;
+    body.innerHTML=`<div class="empty"><b>出品（${PNAME[current]||current}）はこれから作ります</b>必要な項目を教えてください。</div>`;
+  }
+}
+/* ===== ブラッシュアップ（出品/スマートストア：販売済み＋任意商品を投稿管理） ===== */
+function bruSold(){ try{ return JSON.parse(localStorage.getItem("kr_bru_smart_sold"))||{}; }catch(e){ return {}; } }
+function bruSoldSave(o){ localStorage.setItem("kr_bru_smart_sold",JSON.stringify(o)); }
+function bruCustom(){ try{ const d=JSON.parse(localStorage.getItem("kr_bru_smart_custom")); return Array.isArray(d)?d:[]; }catch(e){ return []; } }
+function bruCustomSave(l){ localStorage.setItem("kr_bru_smart_custom",JSON.stringify(l)); }
+window.bruDateSold=(a,v)=>{ const o=bruSold(); if(!o[a])o[a]={posted:false,date:""}; o[a].date=v; bruSoldSave(o); };
+window.bruPostSold=(a)=>{ const o=bruSold(); if(!o[a])o[a]={date:""}; if(!o[a].date)o[a].date=todayStr(); o[a].posted=true; bruSoldSave(o); renderList(); };
+window.bruUnpostSold=(a)=>{ const o=bruSold(); if(o[a])o[a].posted=false; bruSoldSave(o); renderList(); };
+window.bruCustAdd=()=>{ const l=bruCustom(); l.push({id:uid(),title:"",url:"",posted:false,date:""}); bruCustomSave(l); renderList(); };
+window.bruCustEdit=(id,f,v)=>{ const l=bruCustom(); const it=l.find(x=>x.id===id); if(it){ it[f]=String(v); bruCustomSave(l); } };
+window.bruCustDel=(id)=>{ if(!confirm("この任意商品を削除しますか？"))return; bruCustomSave(bruCustom().filter(x=>x.id!==id)); renderList(); };
+window.bruCustPost=(id)=>{ const l=bruCustom(); const it=l.find(x=>x.id===id); if(it){ if(!it.date)it.date=todayStr(); it.posted=true; bruCustomSave(l); } renderList(); };
+window.bruCustUnpost=(id)=>{ const l=bruCustom(); const it=l.find(x=>x.id===id); if(it)it.posted=false; bruCustomSave(l); renderList(); };
+function renderBrushup(body){
+  const soldMap=bruSold(), custom=bruCustom(), soldAll=blogData("smart");
+  const soldDone=a=>!!(soldMap[a]&&soldMap[a].posted);
+  const z=n=>('0'+n).slice(-2), fmtd=ds=>{const pp=parseDate(ds);return pp?pp.getFullYear()+"-"+z(pp.getMonth()+1)+"-"+z(pp.getDate()):"";};
+  const amz=a=>`<a class="srclink" href="https://www.amazon.co.jp/dp/${esc(a)}" target="_blank">${esc(a)}</a>`;
+  const clip=t=>`<span class="clip" title="${esc(t)}" onclick="toggleClip(this)">${esc(t)}</span>`;
+  const tabs=`<div class="seg"><button class="segbtn ${bruTab==="sold"?"active":""}" onclick="setBruTab('sold')">販売済み</button><button class="segbtn ${bruTab==="custom"?"active":""}" onclick="setBruTab('custom')">任意商品</button><button class="segbtn ${bruTab==="done"?"active":""}" onclick="setBruTab('done')">投稿済み</button></div>`;
+  let inner="";
+  if(bruTab==="sold"){
+    const list=soldAll.filter(x=>!soldDone(x.asin)).sort((a,b)=>b.lastT-a.lastT);
+    const rows=list.length?list.map(x=>{ const a=esc(x.asin), d=(soldMap[x.asin]||{}).date||"";
+      return `<tr><td>${amz(x.asin)}</td><td>${clip(x.title)}</td><td><input class="rvdate" type="date" value="${esc(d)}" onchange="bruDateSold('${a}',this.value)"></td><td><button class="btn-primary btn-sm" onclick="bruPostSold('${a}')">投稿する</button></td></tr>`;
+    }).join(""):`<tr><td class="empty" colspan="4"><b>未投稿の販売済み商品がありません</b>スマートストアの売上データが入ると、ここへASINが並びます。</td></tr>`;
+    inner=`<table><thead><tr><th>ASIN</th><th>商品タイトル</th><th>投稿日</th><th>操作</th></tr></thead><tbody>${rows}</tbody></table>`;
+  } else if(bruTab==="custom"){
+    const list=custom.filter(x=>!x.posted);
+    const rows=list.length?list.map(x=>{ const id=esc(x.id);
+      return `<tr><td><input class="rvmemo" style="width:160px" value="${esc(x.title)}" placeholder="商品名/メモ" onchange="bruCustEdit('${id}','title',this.value)"></td>`+
+      `<td><input class="rvname" style="width:280px" value="${esc(x.url)}" placeholder="商品URLを手入力" onchange="bruCustEdit('${id}','url',this.value)">${x.url?` <a class="ctool-ext" href="${esc(x.url)}" target="_blank">開く↗</a>`:""}</td>`+
+      `<td><input class="rvdate" type="date" value="${esc(x.date||"")}" onchange="bruCustEdit('${id}','date',this.value)"></td>`+
+      `<td><button class="btn-primary btn-sm" onclick="bruCustPost('${id}')">投稿する</button> <button class="rowbtn del btn-sm" onclick="bruCustDel('${id}')">削除</button></td></tr>`;
+    }).join(""):`<tr><td class="empty" colspan="4"><b>任意商品はまだありません</b>「＋ 任意商品を追加」で、手入力のURLを登録できます。</td></tr>`;
+    inner=`<table><thead><tr><th>商品名/メモ</th><th>URL（手入力）</th><th>投稿日</th><th>操作</th></tr></thead><tbody>${rows}</tbody></table><div style="padding:12px 14px"><button class="btn-ghost" onclick="bruCustAdd()">＋ 任意商品を追加</button></div>`;
+  } else {
+    const sp=soldAll.filter(x=>soldDone(x.asin)).map(x=>({t:"販売",asin:x.asin,title:x.title,url:"",date:(soldMap[x.asin]||{}).date||""}));
+    const cp=custom.filter(x=>x.posted).map(x=>({t:"任意",asin:"",title:x.title,url:x.url,date:x.date||"",id:x.id}));
+    const all=sp.concat(cp).sort((a,b)=>String(b.date).localeCompare(String(a.date)));
+    const rows=all.length?all.map(x=>{
+      const content=x.asin? `${amz(x.asin)} ${clip(x.title)}` : `${clip(x.title||"（無題）")}${x.url?` <a class="ctool-ext" href="${esc(x.url)}" target="_blank">開く↗</a>`:""}`;
+      const undo=x.asin? `<button class="rowbtn btn-sm" onclick="bruUnpostSold('${esc(x.asin)}')">未投稿に戻す</button>` : `<button class="rowbtn btn-sm" onclick="bruCustUnpost('${esc(x.id)}')">未投稿に戻す</button>`;
+      return `<tr><td>${x.t}</td><td>${content}</td><td class="mono">${esc(fmtd(x.date))}</td><td>${undo}</td></tr>`;
+    }).join(""):`<tr><td class="empty" colspan="4"><b>投稿済みはまだありません</b>「販売済み」「任意商品」で投稿日を選び「投稿する」を押すと、ここへ移動します。</td></tr>`;
+    inner=`<table><thead><tr><th>区分</th><th>内容</th><th>投稿日</th><th>操作</th></tr></thead><tbody>${rows}</tbody></table>`;
+  }
+  body.innerHTML=`<div class="toolbar" style="border:0;padding-bottom:6px">${tabs}</div><div class="retnote" style="background:#fafbff;color:var(--muted)">スマートストアの販売済み商品（ASIN）と、手入力の任意商品を投稿管理します。投稿日を選んで「投稿する」で「投稿済み」に移動（投稿済みASINは再取込しません）。</div><div class="tablewrap">${inner}</div>`;
+}
+
+/* ---- Attributes（クーパン出品の参考表） ---- */
+const ATTR_KEY="kr_list_attr_coupang_v2";
+const ATTR_SEED=[
+  {kr:"색상", jp:"色", val:"혼합색상"},
+  {kr:"수량", jp:"数量", val:"1개"},
+  {kr:"모델명/품번", jp:"モデル名/品番", val:"단일상품"},
+  {kr:"사이즈", jp:"サイズ", val:"FREE"},
+  {kr:"용량", jp:"容量", val:"NO"},
+  {kr:"최대배율", jp:"最大倍率", val:"1"},
+  {kr:"길이", jp:"長さ", val:"FREE"},
+  {kr:"저장용량", jp:"保管容量", val:"NO"},
+  {kr:"렌즈 크기", jp:"レンズサイズ", val:"1cm"},
+  {kr:"적용모델", jp:"適用モデル", val:"단일상품"},
+  {kr:"단수", jp:"段数", val:"1개"},
+  {kr:"패션의류/잡화 사이즈", jp:"ファッション", val:"FREE"},
+  {kr:"최대커버사이즈", jp:"最大カバーサイズ", val:"FREE"},
+  {kr:"카테고리", jp:"カテゴリー", val:""}
+];
+const editingAttr=new Set();
+const CAT_KEY="kr_list_cat_coupang_v1";
+let attrStore=ATTR_KEY;   // Attributes と カテゴリー で保存先を切替
+function loadAttr(){ const key=attrStore; try{ const d=JSON.parse(localStorage.getItem(key)); if(Array.isArray(d)) return d; }catch(e){}
+  const seed=(key===ATTR_KEY)?ATTR_SEED.map(x=>({id:uid(),...x})):[]; localStorage.setItem(key,JSON.stringify(seed)); return seed; }
+function saveAttr(l){ localStorage.setItem(attrStore,JSON.stringify(l)); }
+/* 既存ユーザーにも「カテゴリー」項目を1回だけ追加（消したら再追加しない） */
+function seedAttrCategory(){ const FLAG="kr_attr_cat_v1"; if(localStorage.getItem(FLAG)) return;
+  const l=loadAttr(); if(!l.some(r=>String(r.jp).trim()==="カテゴリー"||String(r.kr).trim()==="카테고리")){ l.push({id:uid(),kr:"카테고리",jp:"カテゴリー",val:""}); saveAttr(l); }
+  localStorage.setItem(FLAG,"1"); }
+seedAttrCategory();
+function fallbackCopy(t){ try{ const ta=document.createElement("textarea"); ta.value=t; ta.style.position="fixed"; ta.style.opacity="0"; document.body.appendChild(ta); ta.select(); document.execCommand("copy"); document.body.removeChild(ta); return true; }catch(e){ return false; } }
+function copyText(t){ t=String(t==null?"":t);
+  if(navigator.clipboard&&navigator.clipboard.writeText) return navigator.clipboard.writeText(t).catch(()=>fallbackCopy(t));
+  return Promise.resolve(fallbackCopy(t)); }
+function flashBtn(btn){ if(!btn) return; const o=btn.textContent; btn.textContent="✓"; setTimeout(()=>{ btn.textContent=o; },900); }
+window.copyBtn=(btn)=>{ copyText(btn&&btn.dataset?btn.dataset.copy:""); flashBtn(btn); };
+window.attrCopy=(id,field,btn)=>{ const r=loadAttr().find(x=>x.id===id); if(!r) return; copyText(r[field]); flashBtn(btn); };
+window.attrSet=(id,f,v)=>{ const l=loadAttr(); const r=l.find(x=>x.id===id); if(r){ r[f]=v; saveAttr(l); } };
+window.attrEdit=(id)=>{ editingAttr.add(id); renderList(); };
+window.attrEditDone=(id)=>{ editingAttr.delete(id); renderList(); };
+window.attrDel=(id)=>{ if(!confirm("この項目を削除しますか？")) return; saveAttr(loadAttr().filter(x=>x.id!==id)); editingAttr.delete(id); renderList(); };
+window.attrAdd=()=>{ const l=loadAttr(); const nid=uid(); l.push({id:nid,kr:"",jp:"",val:""}); saveAttr(l); editingAttr.add(nid); renderList();
+  const el=document.querySelector(`#attrtbl tr[data-id="${nid}"] input.attr-in`); if(el) el.focus(); };
+function renderAttr(body){
+  const rows=loadAttr();
+  const head=`<div class="toolbar"><span class="lst-hint">出品時の参考表です。記入欄は <b>📋</b> でコピー、内容は <b>✎</b> で編集できます。項目の追加・削除も可能です。</span><div class="grow"></div><button class="btn-ghost btn-sm" onclick="attrAdd()">＋ 項目を追加</button></div>`;
+  const th=`<thead><tr><th>韓国語</th><th>日本語</th><th>記入欄</th><th>操作</th></tr></thead>`;
+  const tb=rows.map(r=>{ const id=esc(r.id); const editing=editingAttr.has(r.id);
+    if(editing){
+      return `<tr data-id="${id}">`+
+        `<td><input class="attr-in" value="${esc(r.kr)}" placeholder="韓国語" onchange="attrSet('${id}','kr',this.value)"></td>`+
+        `<td><input class="attr-in" value="${esc(r.jp)}" placeholder="日本語" onchange="attrSet('${id}','jp',this.value)"></td>`+
+        `<td><input class="attr-in" value="${esc(r.val)}" placeholder="記入欄" onchange="attrSet('${id}','val',this.value)"></td>`+
+        `<td class="rvop"><button class="mini add" onclick="attrEditDone('${id}')" title="完了">完了</button><button class="rowbtn del btn-sm" onclick="attrDel('${id}')" title="削除">削除</button></td>`+
+      `</tr>`;
+    }
+    return `<tr data-id="${id}">`+
+      `<td class="attr-kr">${esc(r.kr)}<button class="cbtn" onclick="attrCopy('${id}','kr',this)" title="韓国語をコピー">📋</button></td>`+
+      `<td class="attr-jp"><b>${esc(r.jp)}</b></td>`+
+      `<td><span class="attr-v">${esc(r.val)}</span><button class="cbtn" onclick="attrCopy('${id}','val',this)" title="記入欄をコピー">📋</button></td>`+
+      `<td class="rvop"><button class="mini" onclick="attrEdit('${id}')" title="編集">✎</button><button class="rowbtn del btn-sm" onclick="attrDel('${id}')" title="削除">削除</button></td>`+
+    `</tr>`;
+  }).join("");
+  const boxTitle=(attrStore===ATTR_KEY)?"Attributes":"カテゴリー";
+  body.innerHTML=head+`<div class="attrbox"><div class="attr-title">${esc(boxTitle)}</div><div class="tablewrap"><table id="attrtbl">${th}<tbody>${tb}</tbody></table></div></div><div class="count">${rows.length}項目</div>`;
+}
+
+/* ===== 売上管理：ディスパッチャ ===== */
+function renderSales(){
+  const t=salesTab;
+  document.getElementById("ctl-search").style.display= t==="detail"?"flex":"none";
+  document.getElementById("ctl-month").style.display= (t==="detail"||t==="rank")?"flex":"none";
+  document.getElementById("ctl-year").style.display= t==="year"?"flex":"none";
+  document.getElementById("sv-stats").style.display= t==="detail"?"grid":"none";
+  document.getElementById("sv-detail").style.display= t==="detail"?"":"none";
+  document.getElementById("sv-rank").style.display= t==="rank"?"":"none";
+  document.getElementById("sv-year").style.display= t==="year"?"":"none";
+  document.getElementById("tab-detail").classList.toggle("active",t==="detail");
+  document.getElementById("tab-rank").classList.toggle("active",t==="rank");
+  document.getElementById("tab-year").classList.toggle("active",t==="year");
+  document.getElementById("sv-rate").value=getRate();
+  if(t==="detail") renderSalesDetail(); else if(t==="rank") renderSalesRank(); else renderSalesYear();
+}
+
+/* ===== 売上管理：月間売上ランキング（ASIN別・2個以上） ===== */
+function renderSalesRank(){
+  const rate=getRate(), l=loadSales(); const yen=n=>"¥"+Math.round(n).toLocaleString("ja-JP");
+  const months=[...new Set(l.map(s=>monthKey(s.date)))].sort((a,b)=>b.localeCompare(a));
+  if(!svMonth||!months.includes(svMonth)) svMonth=months[0]||monthKey(todayStr());
+  document.getElementById("sv-month").innerHTML=months.length?months.map(m=>`<option ${m===svMonth?"selected":""}>${m}</option>`).join(""):`<option>${svMonth}</option>`;
+  const src=l.filter(s=>monthKey(s.date)===svMonth && s.status!=="キャンセル" && s.status!=="返品");
+  const g={};
+  src.forEach(s=>{ const key=(s.asin||"").trim()||"__none__"; if(!g[key]) g[key]={asin:(s.asin||"").trim(),title:s.title||"",qty:0,orders:0,rev:0};
+    g[key].qty+=num(s.qty)||1; g[key].orders++; g[key].rev+=calcSale(s,rate).saleTotal; if(!g[key].title&&s.title) g[key].title=s.title; });
+  const arr=Object.values(g).filter(x=>x.qty>=2).sort((a,b)=> b.qty-a.qty || b.rev-a.rev);
+  document.getElementById("rkhead").innerHTML="<tr><th class='right'>順位</th><th>ASIN</th><th>商品名</th><th class='right'>販売個数</th><th class='right'>注文件数</th><th class='right'>売上高</th></tr>";
+  document.getElementById("rkbody").innerHTML = arr.length ? arr.map((x,i)=>{
+    const asin=x.asin?`<a class="srclink" href="https://www.amazon.co.jp/dp/${esc(x.asin)}" target="_blank" title="Amazonで開く">${esc(x.asin)}</a>`:"—";
+    const rk=i===0?"🥇":i===1?"🥈":i===2?"🥉":(i+1);
+    return `<tr><td class="right mono"><b>${rk}</b></td><td>${asin}</td><td>${esc(x.title||"")}</td><td class="right mono"><b>${x.qty}</b> 個</td><td class="right mono">${x.orders}</td><td class="right mono">${yen(x.rev)}</td></tr>`;
+  }).join("") : `<tr><td class="empty" colspan="6"><b>2個以上売れた商品がありません</b>同じASINがこの月に2個以上売れると、ここにランキングで表示されます。</td></tr>`;
+  const ym=svMonth.split("-"); const ml=ym.length===2?`${ym[0]}年${Number(ym[1])}月`:svMonth;
+  document.getElementById("sv-head").innerHTML=`${ml} <small>売れ筋ランキング（同一ASIN 2個以上）</small>`;
+  document.getElementById("rkcount").textContent=`${arr.length}商品`;
+}
+
+/* ===== 売上管理：年間サマリー（数字のみ） ===== */
+function renderSalesYear(){
+  const rate=getRate(), l=loadSales(); const yen=n=>"¥"+Math.round(n).toLocaleString("ja-JP");
+  const years=[...new Set(l.map(s=>{const p=parseDate(s.date);return p?String(p.getFullYear()):null;}).filter(Boolean))].sort((a,b)=>b.localeCompare(a));
+  if(!years.length) years.push(String(new Date().getFullYear()));
+  if(!svYear||!years.includes(svYear)) svYear=years[0];
+  document.getElementById("sv-year").innerHTML=years.map(y=>`<option value="${y}" ${y===svYear?"selected":""}>${y}年</option>`).join("");
+  const H=["月","売上高","仕入れ額","利益額","還付金込み利益","発送件数","キャンセル件数","返品件数","注文件数"];
+  document.getElementById("ythead").innerHTML="<tr>"+H.map((h,i)=>`<th${i===0?"":' class="right"'}>${h}</th>`).join("")+"</tr>";
+  const T={rev:0,cost:0,prof:0,ref:0,ship:0,can:0,ret:0,cnt:0}; const rowsD=[];
+  for(let m=1;m<=12;m++){ const mkk=svYear+"-"+String(m).padStart(2,"0"); const g=l.filter(s=>monthKey(s.date)===mkk);
+    let rev=0,cost=0,prof=0; g.forEach(s=>{const c=calcSale(s,rate);rev+=c.saleTotal;cost+=c.costTotal;prof+=c.profit;});
+    const ref=prof+cost*REFUND_RATE, ship=g.filter(s=>s.status==="発送済み").length, can=g.filter(s=>s.status==="キャンセル").length, ret=g.filter(s=>s.status==="返品").length, cnt=g.length;
+    T.rev+=rev;T.cost+=cost;T.prof+=prof;T.ref+=ref;T.ship+=ship;T.can+=can;T.ret+=ret;T.cnt+=cnt;
+    rowsD.push({m,rev,cost,prof,ref,ship,can,ret,cnt}); }
+  const maxRev=Math.max(1,...rowsD.map(r=>r.rev)), maxProf=Math.max(1,...rowsD.map(r=>Math.abs(r.prof)));
+  let bestM=0,bestV=0; rowsD.forEach(r=>{ if(r.rev>bestV){ bestV=r.rev; bestM=r.m; } });
+  const body=rowsD.map(r=>{
+    const revW=Math.round(r.rev/maxRev*100), profW=Math.round(Math.abs(r.prof)/maxProf*100);
+    const hot = (r.rev>0 && r.m===bestM);
+    return `<tr><td>${r.m}月${hot?' <span title="今年の最高月">🔝</span>':''}</td>`+
+      `<td class="right mono barcell"><div class="bar" style="width:${revW}%"></div><span class="v">${yen(r.rev)}</span></td>`+
+      `<td class="right mono">${yen(r.cost)}</td>`+
+      `<td class="right mono barcell"><div class="bar ${r.prof<0?'loss':'prof'}" style="width:${profW}%"></div><span class="v ${r.prof<0?'neg':''}">${yen(r.prof)}</span></td>`+
+      `<td class="right mono">${yen(r.ref)}</td>`+
+      `<td class="right mono">${r.ship}</td><td class="right mono">${r.can}</td><td class="right mono">${r.ret}</td><td class="right mono">${r.cnt}</td></tr>`;
+  });
+  body.push(`<tr class="total-row"><td>合計</td><td class="right mono">${yen(T.rev)}</td><td class="right mono">${yen(T.cost)}</td><td class="right mono ${T.prof<0?'neg':''}">${yen(T.prof)}</td><td class="right mono">${yen(T.ref)}</td><td class="right mono">${T.ship}</td><td class="right mono">${T.can}</td><td class="right mono">${T.ret}</td><td class="right mono">${T.cnt}</td></tr>`);
+  document.getElementById("ytbody").innerHTML=body.join("");
+  const avgP=Math.round(T.prof/12);
+  document.getElementById("sv-head").innerHTML=`${svYear}年 <small>年間サマリー ・ 売上 ${yen(T.rev)} ／ 利益 ${yen(T.prof)}（月平均 ${yen(avgP)}）</small>`;
+  document.getElementById("ycount").textContent=`${svYear}年 ・ 1〜12月 ・ 棒は月別の相対値（売上=青／利益=緑/赤）`;
+}
+
+/* ===== 売上管理：月別明細（注文ごと） ===== */
+function renderSalesDetail(){
+  const rate=getRate(), l=loadSales(); const yen=n=>"¥"+Math.round(n).toLocaleString("ja-JP");
+  const months=[...new Set(l.map(s=>monthKey(s.date)))].sort((a,b)=>b.localeCompare(a));
+  if(!svMonth||!months.includes(svMonth)) svMonth=months[0]||monthKey(todayStr());
+  document.getElementById("sv-month").innerHTML=months.length?months.map(m=>`<option ${m===svMonth?"selected":""}>${m}</option>`).join(""):`<option>${svMonth}</option>`;
+
+  const hasDisc=!!(platforms[current].map&&platforms[current].map.discount);
+  const q=(document.getElementById("sv-search").value||"").trim().toLowerCase();
+  let rows,scope;
+  if(q){ rows=l.filter(s=>[s.order,s.dorder,s.title,s.track,s.asin,s.url,s.status].some(v=>String(v||"").toLowerCase().includes(q))); scope="検索「"+q+"」"; }
+  else { rows=l.filter(s=>monthKey(s.date)===svMonth); scope=svMonth; }
+  rows=rows.sort((a,b)=>{const x=parseDate(a.date),y=parseDate(b.date);return (y?y.getTime():0)-(x?x.getTime():0);});  /* 新しい順（上から） */
+  const H=["ステータス","✓","ASIN","注文番号","商品タイトル","販売日","発送期日","追跡番号","仕入れ値","仕入れ数量","仕入れ額","売値(ウォン)","売値(円)","売上数","売値合計","発送料金","経費","手数料","発送料+手数料","純利益","備考","操作"];
+  if(hasDisc){ H.splice(H.indexOf("売値合計")+1,0,"割引(₩)"); }
+  const COL=H.length;
+  document.getElementById("sthead").innerHTML="<tr>"+H.map((h,i)=>`<th${i===0?' class="s1"':(i===1?' class="s2c"':'')}>${h}</th>`).join("")+"</tr>";
+
+  /* ステータス絞り込みチップ（件数は当月/検索の集合が基準） */
+  const cc={__all:rows.length}; STATUSES.forEach(st=>cc[st]=rows.filter(x=>x.status===st).length);
+  document.getElementById("sales-chips").innerHTML=statusChips(cc,salesStatusFilter,"setSalesStatus");
+  const vrows = salesStatusFilter? rows.filter(s=>s.status===salesStatusFilter): rows;
+  /* 上部カードは当月全体で集計（絞り込みに左右されない） */
+  let pSum=0,cSum=0; rows.forEach(s=>{ const c=calcSale(s,rate); pSum+=c.profit; cSum+=c.costTotal; });
+  const hi=hiSet();
+  const md=s=>String(s||"").slice(5,10).replace("-","/");
+  document.getElementById("stbody").innerHTML = vrows.length ? vrows.map(s=>{
+    const c=calcSale(s,rate);
+    const id=esc(s.order);
+    const sel=`<select class="stsel" data-v="${esc(s.status)}" onchange="setSaleStatus('${id}',this.value)">`+STATUSES.map(x=>`<option ${x===s.status?"selected":""}>${x}</option>`).join("")+`</select>`;
+    const dst=CLOSED.includes(s.status)?"":deadlineStateVal(s.deadline);
+    const dcls=dst==="today"?"dl-today":(dst==="over"?"dl-over":"");
+    const discCell=hasDisc?`<td class="money mono">${num(s.discount)?("₩"+num(s.discount).toLocaleString("ja-JP")):"—"}</td>`:"";
+    const asinCell = s.asin
+      ? `<a class="srclink" href="https://www.amazon.co.jp/dp/${esc(s.asin)}" target="_blank" title="クリックでAmazon（編集はダブルクリック）">${esc(s.asin)}</a><span class="edit-mark" onclick="editAsin('${id}')" title="ASINを編集">✎</span>`
+      : `<span class="edit-mark add" onclick="editAsin('${id}')" title="ASINを入力">＋</span>`;
+    const base=s.status==="トラブル"?"trouble":(s.status==="返品"?"returned":(s.status==="キャンセル"?"cancelled":(s.status==="仕入れ済み"?"stocked":"")));
+    const cls=[base, hi.has(String(s.order))?"hi":""].filter(Boolean).join(" ");
+    const checked=hi.has(String(s.order))?"checked":"";
+    return `<tr${cls?` class="${cls}"`:""}>`+
+      `<td class="s1">${sel}</td>`+
+      `<td class="s2c"><input type="checkbox" class="rowchk" ${checked} onclick="setHi(this,'${id}')" title="チェックで色付け"></td>`+
+      `<td ondblclick="editAsin('${id}')">${asinCell}</td>`+
+      `<td>${esc(s.dorder||s.order)}</td>`+
+      `<td><span class="clip" title="${esc(s.title||"")}" onclick="toggleClip(this)">${esc(s.title||"")}</span></td>`+
+      `<td>${esc(md(s.date))}</td>`+
+      `<td class="${dcls}">${esc(md(s.deadline))}</td>`+
+      `<td><input class="cellinput txt" value="${esc(s.track)}" onchange="setSaleField('${id}','track',this.value)"></td>`+
+      `<td><input class="cellinput" type="number" value="${s.cost||""}" onchange="setSaleField('${id}','cost',this.value)"></td>`+
+      `<td class="mono">${c.qty}</td>`+
+      `<td class="money mono">${yen(c.costTotal)}</td>`+
+      `<td class="money mono">${"₩"+c.won.toLocaleString("ja-JP")}</td>`+
+      `<td class="money mono">${yen(c.yen)}</td>`+
+      `<td class="mono">${c.cancel?0:c.qty}</td>`+
+      `<td class="money mono">${yen(c.saleTotal)}</td>`+
+      discCell+
+      `<td><input class="cellinput" type="number" value="${s.ship||""}" onchange="setSaleField('${id}','ship',this.value)"></td>`+
+      `<td><input class="cellinput" type="number" value="${s.expense||""}" onchange="setSaleField('${id}','expense',this.value)"></td>`+
+      `<td><input class="cellinput" type="number" value="${s.fee||""}" onchange="setSaleField('${id}','fee',this.value)"></td>`+
+      `<td class="money mono">${yen(c.shipFee)}</td>`+
+      `<td class="money mono ${c.profit<0?'neg':''}">${yen(c.profit)}</td>`+
+      `<td><input class="notein" value="${esc(s.note||"")}" placeholder="備考…" onchange="setNote('${id}',this.value)"></td>`+
+      `<td><button class="rowbtn del btn-sm" onclick="delSaleRow('${id}')" title="この行を削除">削除</button></td>`+
+    `</tr>`;
+  }).join("") : `<tr><td class="empty" colspan="${COL}"><b>該当する売上データがありません</b>${salesStatusFilter?`「${salesStatusFilter}」の注文はこの期間にありません。`:"顧客管理でExcelを取り込むと、購入日の月ごとにここへ自動で入ります。"}</td></tr>`;
+
+  const ym=svMonth.split("-"); const monthLbl=ym.length===2?`${ym[0]}年${Number(ym[1])}月`:svMonth;
+  document.getElementById("sv-head").innerHTML= q? `🔍 検索結果 <small>「${esc(q)}」・全期間から ${rows.length}件</small>` : `${monthLbl} <small>${rows.length}件</small>`;
+  document.getElementById("scount").textContent= salesStatusFilter? `${scope} ・ ${vrows.length}/${rows.length}件（${salesStatusFilter}）` : `${scope} ・ ${rows.length}件`;
+  document.getElementById("sv-profit").textContent=yen(pSum);
+  document.getElementById("sv-refund").textContent=yen(pSum+cSum*REFUND_RATE);
+  document.getElementById("sv-ship").innerHTML=rows.filter(s=>s.status==="発送済み").length+'<small> 件</small>';
+  document.getElementById("sv-cancel").innerHTML=rows.filter(s=>s.status==="キャンセル").length+'<small> 件</small>';
+  document.getElementById("sv-return").innerHTML=rows.filter(s=>s.status==="返品").length+'<small> 件</small>';
+}
+
+/* ===== 顧客管理 ===== */
+function renderCust(){
+  const pf=platforms[current];
+  const thead=document.getElementById("thead"), tbody=document.getElementById("tbody");
+  if(!pf.ready){
+    thead.innerHTML=""; tbody.innerHTML=`<tr><td class="empty"><b>${current==="smart"?"スマートストア":"11番街"}は準備中です</b>クーパンが完成したら、同じ仕組みでこのタブを作ります。</td></tr>`;
+    document.getElementById("count").textContent="";
+    ["s-due","s-paid","s-stock","s-arr","s-sent"].forEach(id=>document.getElementById(id).innerHTML='0<small> 件</small>'); return;
+  }
+  const spec=pf, okey=spec.orderKey, view=spec.view;
+  let rows=purge(load());
+  rows.forEach(r=>{ if(!r._status||r._status==="未発送") r._status=DEFAULT_STATUS; });
+  save(rows);
+  syncLedger(rows);
+  const lmap=ledgerMap();
+  const hi=hiSet();
+  rows.forEach(r=>{ const led=lmap[String(r[okey])]; if(led&&led.status) r._status=led.status; }); // ステータスは台帳(=クラウド)を正とする
+  rows=sortRows(rows);
+
+  const q=document.getElementById("search").value.trim().toLowerCase();
+  let view2=q?rows.filter(r=>Object.entries(r).some(([k,v])=>k[0]!=="_"&&String(v).toLowerCase().includes(q))):rows;
+  /* ステータス絞り込みチップ（件数は検索後の集合を基準） */
+  const cc={__all:view2.length}; STATUSES.forEach(s=>cc[s]=view2.filter(r=>r._status===s).length);
+  document.getElementById("cust-chips").innerHTML=statusChips(cc,custStatusFilter,"setCustStatus");
+  if(custStatusFilter) view2=view2.filter(r=>r._status===custStatusFilter);
+
+  thead.innerHTML="<tr>"+
+    `<th class="s1">ステータス<small>状態を選択</small></th>`+
+    `<th class="s2c">✓</th>`+
+    view.map(c=>`<th>${esc(c.jp)}</th>`).join("")+
+    `<th>備考</th><th>操作</th></tr>`;
+
+  tbody.innerHTML = view2.length ? view2.map(r=>{
+    const id=esc(r[okey]||"");
+    const led=lmap[String(r[okey])];
+    const sel=`<select class="stsel" data-v="${esc(r._status)}" onchange="setStatus('${id}',this.value)">`+
+      STATUSES.map(s=>`<option ${s===r._status?"selected":""}>${s}</option>`).join("")+`</select>`;
+    const checked=hi.has(String(r[okey]))?"checked":"";
+    const chk=`<td class="s2c"><input type="checkbox" class="rowchk" ${checked} onclick="setHi(this,'${id}')" title="配送指示チェック（コピペ用に色付け）"></td>`;
+    const cells=view.map(c=>{
+      let v=r[c.key||c.en];
+      if(c.money){ const has=v!=null&&String(v)!==""; return `<td class="money">${esc(won(v))}${(c.copy&&has)?`<button class="cbtn" data-copy="${esc(num(v))}" onclick="copyBtn(this)" title="金額をコピー">📋</button>`:""}</td>`; }
+      if(c.deadline){ const st=CLOSED.includes(r._status)?"":deadlineStateVal(v); const cls=st==="today"?"dl-today":(st==="over"?"dl-over":""); return `<td class="${cls}">${esc(v)}</td>`; }
+      if(c.asin) return v
+        ? `<td ondblclick="editAsin('${id}')"><a class="srclink" href="https://www.amazon.co.jp/dp/${esc(v)}" target="_blank" title="クリックでAmazon（編集はダブルクリック）">${esc(v)}</a><span class="edit-mark" onclick="editAsin('${id}')" title="ASINを編集">✎</span></td>`
+        : `<td ondblclick="editAsin('${id}')"><span class="edit-mark add" onclick="editAsin('${id}')" title="ASINを入力">＋</span></td>`;
+      if(c.copy){ const has=v!=null&&String(v)!==""; return `<td>${esc(v)}${has?`<button class="cbtn" data-copy="${esc(v)}" onclick="copyBtn(this)" title="コピー">📋</button>`:""}</td>`; }
+      if(c.clip) return `<td><span class="clip" title="${esc(v)}" onclick="toggleClip(this)">${esc(v)}</span></td>`;
+      return `<td>${esc(v)}</td>`;
+    }).join("");
+    const base=r._status==="トラブル"?"trouble":(r._status==="返品"?"returned":(r._status==="キャンセル"?"cancelled":(r._status==="仕入れ済み"?"stocked":"")));
+    const cls=[base, hi.has(String(r[okey]))?"hi":""].filter(Boolean).join(" ");
+    const note=led?(led.note||""):"";
+    return `<tr${cls?` class="${cls}"`:""}><td class="s1">${sel}</td>${chk}${cells}<td><input class="notein" value="${esc(note)}" placeholder="備考…" onchange="setNote('${id}',this.value)"></td><td><button class="rowbtn del btn-sm" onclick="delRow('${id}')" title="この行を削除">削除</button></td></tr>`;
+  }).join("") : `<tr><td class="empty" colspan="99"><b>データがありません</b>右上の「📥 Excelを取り込む」から${spec.name}のExcel(.xlsx)を読み込んでください。</td></tr>`;
+
+  document.getElementById("count").textContent=`全 ${rows.length} 件中 ${view2.length} 件を表示`;
+  const cnt=s=>rows.filter(r=>r._status===s).length;
+  document.getElementById("s-due").innerHTML=rows.filter(isDue).length+'<small> 件</small>';
+  document.getElementById("s-paid").innerHTML=cnt("入金済み")+'<small> 件</small>';
+  document.getElementById("s-stock").innerHTML=cnt("仕入れ済み")+'<small> 件</small>';
+  document.getElementById("s-arr").innerHTML=cnt("発送手配済み")+'<small> 件</small>';
+  document.getElementById("s-sent").innerHTML=cnt("発送済み")+'<small> 件</small>';
+}
+
+window.setStatus=(id,val)=>{ const ok=platforms[current].orderKey; const rows=load(); const r=rows.find(x=>String(x[ok])===String(id)); if(r){ r._status=val; save(rows); syncSaleStatus(id,val); render(); } };
+window.setSaleMsg=(id,val)=>setSaleMsg(id,val);
+window.delRow=id=>{ if(confirm("この注文を削除しますか？（売上台帳からも削除されます）")){ const ok=platforms[current].orderKey; let rows=load().filter(x=>String(x[ok])!==String(id)); save(rows); removeSale(id); render(); } };
+
+const PNAME={coupang:"クーパン",smart:"スマートストア",st11:"11番街"};
+/* サイドバー：グループ開閉 */
+document.querySelectorAll(".navhead").forEach(h=>h.addEventListener("click",()=>{
+  h.parentElement.classList.toggle("open");
+}));
+/* サイドバー：プラットフォーム選択（顧客管理グループのみ稼働） */
+document.querySelectorAll(".navsub a[data-p]").forEach(a=>a.addEventListener("click",()=>{
+  section=a.dataset.sec||"cust"; current=a.dataset.p;
+  document.querySelectorAll(".navsub a").forEach(x=>x.classList.remove("active"));
+  a.classList.add("active");
+  const secName=section==="sales"?"売上管理":(section==="research"?"リサーチ":(section==="list"?"出品":(section==="banned"?"禁止ブランド":(section==="blog"?"ブログ":(section==="tblman"?"管理表マニュアル":"顧客管理")))));
+  document.getElementById("crumb").innerHTML=`HOME / <b>${secName}</b> / ${PNAME[current]}`;
+  document.getElementById("search").value=""; render();
+}));
+/* 準備中メニュー */
+document.querySelectorAll(".navsub a.soon-item").forEach(a=>a.addEventListener("click",()=>alert("この項目は準備中です。顧客管理・クーパンが完成したら順番に作っていきます。")));
+/* 出品禁止（プラットフォーム分けなしの単独項目） */
+document.getElementById("nav-banlist").addEventListener("click",()=>{
+  section="banlist";
+  document.querySelectorAll(".navsub a").forEach(x=>x.classList.remove("active"));
+  document.getElementById("nav-banlist").classList.add("active");
+  document.getElementById("crumb").innerHTML=`HOME / <b>出品禁止</b>`;
+  document.getElementById("search").value=""; render();
+});
+document.getElementById("nav-shortcut").addEventListener("click",()=>{
+  section="shortcut";
+  document.querySelectorAll(".navsub a").forEach(x=>x.classList.remove("active"));
+  document.getElementById("nav-shortcut").classList.add("active");
+  document.getElementById("crumb").innerHTML=`HOME / <b>ショートカット</b>`;
+  document.getElementById("search").value=""; render();
+});
+/* マニュアル（プラットフォーム分けなしの単独項目） */
+document.getElementById("nav-manual").addEventListener("click",()=>{
+  section="manual";
+  document.querySelectorAll(".navsub a").forEach(x=>x.classList.remove("active"));
+  document.getElementById("nav-manual").classList.add("active");
+  document.getElementById("crumb").innerHTML=`HOME / <b>ブログ</b> / マニュアル`;
+  document.getElementById("search").value=""; render();
+});
+/* ブログ：タブ切替・検索・CSV出力 */
+document.querySelectorAll("#blog-tabs .segbtn").forEach(b=>b.addEventListener("click",()=>{ blogTab=b.dataset.bt; renderBlog(); }));
+document.getElementById("blog-search").addEventListener("input",renderBlog);
+document.getElementById("blog-export").onclick=()=>{
+  const p=current, blog=loadBlog(p), arr=blogData(p);
+  const z=n=>('0'+n).slice(-2); const fmtd=ds=>{const pp=parseDate(ds);return pp?pp.getFullYear()+"-"+z(pp.getMonth()+1)+"-"+z(pp.getDate()):"";};
+  const H=["ASIN","商品タイトル","販売数","最終販売日","状態","投稿日"];
+  const esccsv=v=>{const s=String(v??"");return /[",\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s;};
+  const body=arr.map(x=>{ const st=blog[x.asin]||{}; return [x.asin,x.title,x.qty,fmtd(x.last),st.posted?"投稿済み":"未投稿",st.date||""].map(esccsv).join(","); }).join("\n");
+  const blob=new Blob(["﻿"+H.join(",")+"\n"+body],{type:"text/csv;charset=utf-8"});
+  const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download="ブログ_"+(PNAME[p]||p)+".csv"; a.click();
+};
+document.getElementById("search").addEventListener("input",render);
+
+/* import */
+document.getElementById("btn-import").onclick=()=>{ if(!platforms[current].ready){alert("このプラットフォームは準備中です");return;} document.getElementById("file").click(); };
+document.getElementById("btn-import-sales").onclick=()=>{ document.getElementById("file").click(); };
+document.getElementById("file").addEventListener("change",e=>{
+  const f=e.target.files[0]; if(!f) return; const rd=new FileReader();
+  rd.onload=ev=>{ try{
+    const wb=XLSX.read(ev.target.result,{type:"array"});
+    const arr=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{header:1,raw:false,defval:""});
+    if(!arr.length){alert("空のファイルです");return;}
+    if(current==="coupang"){
+      const raw=arr[0].map(h=>String(h||"").trim());
+      // --- 精算明細（手数料）ファイルの自動判別 ---
+      if(raw.includes("Order ID") && raw.includes("Sales commission")){ importFees(arr,raw); e.target.value=""; return; }
+      // --- 配送リスト（注文取込） ---
+      const header=raw.map(canonical);
+      if(!header.includes("Order number")){ alert("対応していないExcel形式です。\nクーパンの『配送リスト』または『精算明細(手数料)』を選んでください。"); e.target.value=""; return; }
+      let rows=load(); const existing=new Set(rows.map(r=>String(r["Order number"]))); let added=0,dup=0;
+      for(let i=1;i<arr.length;i++){ const line=arr[i]; if(line.every(v=>String(v).trim()==="")) continue;
+        const rec={_status:DEFAULT_STATUS}; header.forEach((h,j)=>rec[h]=line[j]??"");
+        const on=String(rec["Order number"]||"");
+        if(on && existing.has(on)){ dup++; continue; }   // 同じ注文番号は取り込まない（重複スキップ）
+        rows.push(rec); if(on) existing.add(on); added++; }
+      rows=purge(rows); save(rows); syncLedger(rows); render();
+      alert(`取込完了（配送リスト）：${added}件を追加しました。\n重複（同じ注文番号）スキップ：${dup}件\n※購入日の新しい順に自動整列・60日超過分は自動削除`);
+    } else {
+      importPlatform(arr, platforms[current]); e.target.value=""; return;
+    }
+  }catch(err){ alert("取込エラー："+err.message); } e.target.value=""; };
+  rd.readAsArrayBuffer(f);
+});
+
+/* ===== スマートストア等：見出しを自動検出して取込（手数料・割引も自動反映） ===== */
+function importPlatform(arr, spec){
+  // 説明行があるため、先頭数行から見出し行（注文番号列を含む行）を検出
+  let hr=-1;
+  for(let i=0;i<Math.min(5,arr.length);i++){ const cells=(arr[i]||[]).map(x=>String(x||"").trim());
+    if(cells.includes(spec.orderKey)||cells.includes(spec.displayOrder)){ hr=i; break; } }
+  if(hr<0){ alert(`${spec.name}の見出し（${spec.orderKey}）が見つかりませんでした。\nダウンロードした発注発送管理ファイルをそのまま選んでください。`); return; }
+  const header=(arr[hr]||[]).map(x=>String(x||"").trim());
+  if(!header.includes(spec.orderKey)){ alert("対応していない形式です。"); return; }
+  let rows=load(); const existing=new Set(rows.map(r=>String(r[spec.orderKey]))); let added=0,dup=0;
+  for(let i=hr+1;i<arr.length;i++){ const line=arr[i]; if(!line||line.every(v=>String(v).trim()==="")) continue;
+    const rec={_status:DEFAULT_STATUS}; header.forEach((h,j)=>{ if(h) rec[h]=line[j]??""; });
+    const on=String(rec[spec.orderKey]||""); if(!on) continue;
+    if(existing.has(on)){ dup++; continue; }   // 商品注文番号ごとに重複スキップ（明細は落とさない）
+    rows.push(rec); existing.add(on); added++; }
+  rows=purge(rows); save(rows); syncLedger(rows); render();
+  alert(`取込完了（${spec.name}）：${added}件を追加しました。\n重複スキップ：${dup}件\n※手数料・割引は自動で反映されます（1行目の説明行は自動でスキップ）`);
+}
+
+/* 精算明細（MSF）→ 注文番号(Order ID)ごとに手数料(Sales commission=N列)を合算し、台帳に自動入力 */
+function importFees(arr,raw){
+  const oi=raw.indexOf("Order ID"), ci=raw.indexOf("Sales commission");
+  const feeMap={};
+  for(let i=1;i<arr.length;i++){ const line=arr[i]; const oid=String(line[oi]||"").trim(); if(!oid) continue;
+    feeMap[oid]=(feeMap[oid]||0)+ (num(line[ci])||0); }
+  const l=loadSales(); let matched=0,unmatched=0; const changed=[];
+  const orders=new Set(l.map(x=>String(x.order)));
+  Object.keys(feeMap).forEach(oid=>{ if(!orders.has(oid)) unmatched++; });
+  l.forEach(s=>{ const v=feeMap[String(s.order)]; if(v!==undefined){ s.fee=Math.round(v); matched++; changed.push(s); } });
+  saveSales(l); if(changed.length) pushLedger(changed);
+  if(section==="cust"){ section="sales"; salesTab="detail"; document.getElementById("crumb").innerHTML=`HOME / <b>売上管理</b> / クーパン`;
+    document.querySelectorAll(".navsub a").forEach(x=>x.classList.remove("active")); const a=document.querySelector('.navsub a[data-sec="sales"][data-p="coupang"]'); if(a) a.classList.add("active"); }
+  render();
+  alert(`手数料の自動入力が完了しました。\n手数料を反映した注文：${matched}件\n（明細にあるが台帳に無い注文：${unmatched}件 … 先に配送リストを取り込むと反映されます）`);
+}
+
+/* export（表示中の12列） */
+document.getElementById("btn-export").onclick=()=>{
+  const spec=platforms[current], view=spec.view, okey=spec.orderKey;
+  const rows=sortRows(purge(load())); const lmap=ledgerMap();
+  const head=["ステータス",...view.map(c=>c.jp),"備考"].join(",");
+  const body=rows.map(r=>{ const led=lmap[String(r[okey])]; const note=led?(led.note||""):"";
+    return [r._status,...view.map(c=>r[c.key||c.en]??""),note].map(v=>{const s=String(v);return /[",\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s;}).join(","); }).join("\n");
+  const blob=new Blob(["﻿"+head+"\n"+body],{type:"text/csv;charset=utf-8"});
+  const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download="顧客管理_"+spec.name+".csv"; a.click();
+};
+
+/* 売上：タブ切替・検索・月/年切替・レート・手入力・双方向連動 */
+document.getElementById("tab-detail").addEventListener("click",()=>{ salesTab="detail"; render(); });
+document.getElementById("tab-rank").addEventListener("click",()=>{ salesTab="rank"; render(); });
+document.getElementById("tab-year").addEventListener("click",()=>{ salesTab="year"; render(); });
+document.getElementById("sv-search").addEventListener("input",render);
+document.getElementById("sv-month").addEventListener("change",e=>{ svMonth=e.target.value; render(); });
+document.getElementById("sv-year").addEventListener("change",e=>{ svYear=e.target.value; render(); });
+document.getElementById("sv-rate").addEventListener("change",e=>{ setRate(parseFloat(e.target.value)||0.1087); render(); });
+function applyStatus(s,val){ if(s.status!==val){ s.hist=s.hist||[]; s.hist.push({t:new Date().toISOString(),s:val}); if(s.hist.length>30)s.hist=s.hist.slice(-30); s.status=val; } }
+window.setNote=(id,val)=>{ const l=loadSales(); const s=l.find(x=>String(x.order)===String(id)); if(s){ s.note=val; saveSales(l); pushLedger([s]); } };
+window.setSaleField=(id,f,v)=>{ const l=loadSales(); const s=l.find(x=>String(x.order)===String(id)); if(!s) return;
+  s[f]=(f==="track"||f==="url")?v:num(v);
+  // 仕入値を入れたら自動で「仕入れ済み」（入金済みのときだけ進める）
+  if(f==="cost" && num(v)>0 && s.status==="入金済み") applyStatus(s,"仕入れ済み");
+  // 追跡番号を入れたら自動で「発送済み」（キャンセル/返品は除く）
+  if(f==="track" && String(v).trim()!=="" && s.status!=="発送済み" && s.status!=="キャンセル" && s.status!=="返品") applyStatus(s,"発送済み");
+  saveSales(l); pushLedger([s]); render();
+};
+function shortUrl(u){ u=String(u||"").replace(/^https?:\/\//,"").replace(/^www\./,""); return u.length>26?u.slice(0,26)+"…":u; }
+/* 台帳のorder(=内部キー)から、対応する顧客行をどのプラットフォームでも探して更新 */
+function updateCustField(id,field,val){ for(const p of Object.keys(platforms)){ const sp=platforms[p]; try{ const rows=JSON.parse(localStorage.getItem(sp.key))||[]; const r=rows.find(x=>String(x[sp.orderKey])===String(id)); if(r){ r[field==="asin"?(sp.map&&sp.map.asin):"_status"]=val; localStorage.setItem(sp.key,JSON.stringify(rows)); return; } }catch(e){} } }
+window.editAsin=(id)=>{ const l=loadSales(); const s=l.find(x=>String(x.order)===String(id)); const cur=s?s.asin:"";
+  const v=prompt("ASIN（AmazonのB…コード）を入力してください。\n※間違っていた場合はここで修正できます。", cur||"");
+  if(v===null) return; const val=v.trim();
+  if(s){ s.asin=val; saveSales(l); pushLedger([s]); }
+  updateCustField(id,"asin",val);
+  render(); };
+window.editUrl=(id)=>{ const l=loadSales(); const s=l.find(x=>String(x.order)===String(id)); if(!s) return;
+  const v=prompt("仕入れ元URLを入力してください（Amazon / メルカリ / Yahoo等）\n※貼り付けたURLは表内でワンクリックで開けます。", s.url||"");
+  if(v===null) return; s.url=v.trim(); saveSales(l); pushLedger([s]); render(); };
+window.setSaleStatus=(id,val)=>{ syncSaleStatus(id,val);
+  updateCustField(id,"status",val);
+  render(); };
+window.delSaleRow=(id)=>{ if(!confirm("この売上行を削除しますか？（元に戻せません）")) return; removeSale(id); render(); };
+
+/* 売上CSV出力（表示中のタブに応じて） */
+function dl(name,csv){ const blob=new Blob(["﻿"+csv],{type:"text/csv;charset=utf-8"}); const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download=name; a.click(); }
+document.getElementById("btn-sexport").onclick=()=>{
+  const rate=getRate(), l=loadSales();
+  if(salesTab==="year"){
+    const H=["月","売上高","仕入れ額","利益額","還付金込み利益","発送件数","キャンセル件数","返品件数","注文件数"]; const lines=[];
+    for(let m=1;m<=12;m++){ const mkk=svYear+"-"+String(m).padStart(2,"0"); const g=l.filter(s=>monthKey(s.date)===mkk);
+      let rev=0,cost=0,prof=0; g.forEach(s=>{const c=calcSale(s,rate);rev+=c.saleTotal;cost+=c.costTotal;prof+=c.profit;});
+      lines.push([m+"月",Math.round(rev),Math.round(cost),Math.round(prof),Math.round(prof+cost*REFUND_RATE),g.filter(s=>s.status==="発送済み").length,g.filter(s=>s.status==="キャンセル").length,g.filter(s=>s.status==="返品").length,g.length].join(",")); }
+    dl("売上管理_クーパン_"+svYear+"年.csv", H.join(",")+"\n"+lines.join("\n")); return;
+  }
+  if(salesTab==="rank"){
+    const src=l.filter(s=>monthKey(s.date)===svMonth && s.status!=="キャンセル" && s.status!=="返品"); const g={};
+    src.forEach(s=>{ const key=(s.asin||"").trim()||"__none__"; if(!g[key]) g[key]={asin:(s.asin||"").trim(),title:s.title||"",qty:0,orders:0,rev:0};
+      g[key].qty+=num(s.qty)||1; g[key].orders++; g[key].rev+=calcSale(s,rate).saleTotal; if(!g[key].title&&s.title) g[key].title=s.title; });
+    const arr=Object.values(g).filter(x=>x.qty>=2).sort((a,b)=>b.qty-a.qty||b.rev-a.rev);
+    const H=["順位","ASIN","商品名","販売個数","注文件数","売上高"];
+    const lines=arr.map((x,i)=>[i+1,x.asin,x.title,x.qty,x.orders,Math.round(x.rev)].map(v=>{const t=String(v??"");return /[",\n]/.test(t)?'"'+t.replace(/"/g,'""')+'"':t;}).join(","));
+    dl("売上ランキング_クーパン_"+svMonth+".csv", H.join(",")+"\n"+lines.join("\n")); return;
+  }
+  const rows=l.filter(s=>monthKey(s.date)===svMonth).sort((a,b)=>{const x=parseDate(a.date),y=parseDate(b.date);return (y?y.getTime():0)-(x?x.getTime():0);});
+  const H=["ステータス","ASIN","注文番号","商品タイトル","販売日","発送期日","追跡番号","仕入れ値","仕入れ数量","仕入れ額","売値(ウォン)","売値(円)","売上数","売値合計","発送料金","経費","手数料","発送料+手数料","純利益","備考"];
+  const body=rows.map(s=>{const c=calcSale(s,rate);return [s.status,s.asin,(s.dorder||s.order),s.title,s.date,s.deadline,s.track,c.cost,c.qty,c.costTotal,c.won,c.yen,c.cancel?0:c.qty,c.saleTotal,c.ship,c.exp,c.fee,c.shipFee,c.profit,s.note||""].map(v=>{const t=String(v??"");return /[",\n]/.test(t)?'"'+t.replace(/"/g,'""')+'"':t;}).join(",");}).join("\n");
+  dl("売上管理_クーパン_"+svMonth+".csv", H.join(",")+"\n"+body);
+};
+
+/* ===== リサーチ（商品リサーチ・クーパン） ===== */
+const RESEARCH_KEY="kr_research_coupang_v1";
+const RCATS=[
+  {id:"soldA",  label:"Soldブランド ランクA", short:"Sold A",     type:"brand"},
+  {id:"soldB",  label:"Soldブランド ランクB", short:"Sold B",     type:"brand"},
+  {id:"compe",  label:"競合リサーチブランド", short:"競合リサーチ", type:"brand"},
+  {id:"rival",  label:"ライバルセラー",       short:"ライバルセラー", type:"seller"},
+  {id:"ngexp",  label:"輸出不可ブランド",     short:"輸出不可",    type:"brand"},
+  {id:"wake",   label:"訳ありブランド",       short:"訳あり",      type:"brand"},
+  {id:"brandrank", label:"ランキング（ブランド販売数）", short:"ランキング", type:"rank"}
+];
+let researchTab="soldA";
+function rcat(id){ return RCATS.find(c=>c.id===id)||RCATS[0]; }
+function loadResearch(){ try{ const d=JSON.parse(localStorage.getItem(RESEARCH_KEY)); if(d&&typeof d==="object"&&!Array.isArray(d)) return d; }catch(e){} return {}; }
+function saveResearch(d){ localStorage.setItem(RESEARCH_KEY, JSON.stringify(d)); }
+function catRows(cat){ const d=loadResearch(); return Array.isArray(d[cat])?d[cat]:[]; }
+function setCatRows(cat,rows){ const d=loadResearch(); d[cat]=rows; saveResearch(d); }
+function uid(){ return Date.now().toString(36)+Math.random().toString(36).slice(2,7); }
+/* 旧データ（url単一列）→ Amazon列へ自動移行 */
+function migrateResearch(){ const d=loadResearch(); let changed=false;
+  Object.keys(d).forEach(k=>{ if(Array.isArray(d[k])) d[k].forEach(r=>{ if(r && r.url!==undefined && r.amazon===undefined){ r.amazon=r.url; delete r.url; changed=true; } }); });
+  if(changed) saveResearch(d); }
+migrateResearch();
+/* （公開用: 初期データは削除。データは復元/同期から） */
+
+/* （公開用: 初期データは削除。データは復元/同期から） */
+
+function splitUrls(s){ return String(s||"").split(/[\s,]+/).map(x=>x.trim()).filter(Boolean).map(u=>/^https?:\/\//i.test(u)?u:"https://"+u); }
+function urlsOf(r){ return [...splitUrls(r.amazon),...splitUrls(r.rakuten),...splitUrls(r.coupang)]; }
+/* 最終確認日：古いものを上・新しいものを下（日付なしは最下部） */
+function sortResearch(rows){ const BIG=8.64e15; return rows.slice().sort((a,b)=>{
+  const da=parseDate(a.date), db=parseDate(b.date);
+  return (da?da.getTime():BIG)-(db?db.getTime():BIG); }); }
+function filteredResearchRows(){ let rows=catRows(researchTab);
+  const q=(document.getElementById("rv-search").value||"").trim().toLowerCase();
+  if(q) rows=rows.filter(r=>[r.name,r.memo,r.brands,r.count,r.amazon,r.rakuten].some(v=>String(v||"").toLowerCase().includes(q)));
+  return sortResearch(rows); }
+let rvLastAdded=null, rvFocusUrl=null;
+const editingUrl=new Set();  /* URL編集モード中のキー（id:field） */
+
+window.rvSet=(id,f,v)=>{ const rows=catRows(researchTab); const r=rows.find(x=>x.id===id); if(r){ r[f]=v; setCatRows(researchTab,rows);
+  cloudPushResearch([{cat:researchTab, ...r}]);
+  if(f==="date") renderResearch(); } };   /* 日付変更は並び替えを反映 */
+/* URL（Amazon/楽天）：✎で編集モード、入力後は小さなボタン表示に戻す */
+window.rvUrlEdit=(id,field)=>{ const key=id+":"+field; editingUrl.add(key); rvFocusUrl=key; renderResearch(); };
+window.rvUrlDone=(id,field,v)=>{ const rows=catRows(researchTab); const r=rows.find(x=>x.id===id); if(r){ r[field]=v; setCatRows(researchTab,rows); cloudPushResearch([{cat:researchTab, ...r}]); } editingUrl.delete(id+":"+field); renderResearch(); };
+window.rvOpenUrl=(id,field)=>{ const r=catRows(researchTab).find(x=>x.id===id); if(!r) return; const us=splitUrls(r[field]);
+  if(!us.length){ alert("URLが未入力です。"); return; } us.forEach(u=>window.open(u,"_blank")); };
+window.rvDel=(id)=>{ if(!confirm("この行を削除しますか？")) return; setCatRows(researchTab, catRows(researchTab).filter(x=>x.id!==id)); cloudDeleteResearch(id); renderResearch(); };
+/* 別カテゴリへ移動（プルダウン選択で即実行） */
+window.rvMove=(id,target)=>{ if(!target) return; const from=researchTab; if(target===from) return;
+  const rows=catRows(from); const idx=rows.findIndex(x=>x.id===id); if(idx<0) return;
+  const r=rows[idx]; rows.splice(idx,1); setCatRows(from,rows);
+  const seller=rcat(target).type==="seller"; const trows=catRows(target);
+  const common={id:r.id,name:r.name||"",memo:r.memo||"",date:r.date||todayStr()};
+  const moved = seller ? {...common, coupang:r.coupang||r.amazon||""} : {...common, amazon:r.amazon||"", rakuten:r.rakuten||""};
+  trows.push(moved); setCatRows(target,trows); cloudPushResearch([{cat:target, ...moved}]); renderResearch(); };
+function rvAdd(){ const cat=researchTab; const rows=catRows(cat); const seller=rcat(cat).type==="seller";
+  const nid=uid();
+  rows.push(seller?{id:nid,name:"",coupang:"",memo:"",date:todayStr()}:{id:nid,name:"",amazon:"",rakuten:"",memo:"",date:todayStr()});
+  setCatRows(cat,rows); rvLastAdded=nid; renderResearch(); }
+function rvBulkOpen(){ const rows=filteredResearchRows();
+  const checked=[...document.querySelectorAll("#rvbody .rvchk:checked")].map(c=>c.dataset.id);
+  if(!checked.length){ alert("開きたい行の左の ✓ にチェックを入れてから「選択を一括で開く」を押してください。"); return; }
+  const targets=rows.filter(r=>checked.includes(r.id));
+  const urls=[]; targets.forEach(r=>urlsOf(r).forEach(u=>{ if(!urls.includes(u)) urls.push(u); }));
+  if(!urls.length){ alert("選択した行にURLが入っていません。URL欄に貼り付けてから開いてください。"); return; }
+  /* 直接ひらく（confirm等を挟むとブラウザがポップアップを止めるため、ここでは確認を挟まない） */
+  let anyBlocked=false;
+  urls.forEach(u=>{ const win=window.open(u,"_blank","noopener"); if(!win) anyBlocked=true; });
+  if(anyBlocked){ alert("ブラウザにポップアップ（新しいタブ）がブロックされました。\nアドレスバー右のブロック表示から「このサイトのポップアップとリダイレクトを常に許可」を選び、もう一度押すと、選択したものがまとめて開きます。"); } }
+
+/* URLセル（Amazon/楽天共通）：入力済みは小ボタン表示、未入力・編集中は入力欄 */
+function urlCellFor(r,field,ph){ const id=String(r.id), key=id+":"+field, val=r[field]||"";
+  const has=String(val).trim()!=="", editing=editingUrl.has(key);
+  if(has && !editing){ const us=splitUrls(val); const label=us.length>1?`${us.length}件`:shortUrl(us[0]);
+    return `<td><a class="srclink" href="${esc(us[0])}" target="_blank" title="${esc(us.join('\n'))}">${esc(label)}</a><button class="mini add" onclick="rvOpenUrl('${id}','${field}')" title="このURLを開く">↗</button><span class="edit-mark" onclick="rvUrlEdit('${id}','${field}')" title="URLを編集">✎</span></td>`; }
+  return `<td><textarea class="rvurl" data-uk="${key}" placeholder="${ph}" onchange="rvUrlDone('${id}','${field}',this.value)">${esc(val)}</textarea></td>`; }
+
+/* ランキング：売上台帳から、商品タイトルのブランド名ごとに販売個数を集計 */
+function renderBrandRank(cat){
+  const l=loadSales("kr_sales_coupang_v3");
+  const q=(document.getElementById("rv-search").value||"").trim().toLowerCase();
+  const KB=knownBrands();
+  const g={};
+  l.forEach(s=>{ if(s.status==="キャンセル"||s.status==="返品") return; const b=brandOf(s.title,KB); if(!b) return;
+    if(!g[b]) g[b]={brand:b, qty:0, lastT:0, last:""};
+    g[b].qty += num(s.qty)||1;
+    const p=parseDate(s.date), t=p?p.getTime():0; if(t>g[b].lastT){ g[b].lastT=t; g[b].last=s.date; } });
+  let arr=Object.values(g);
+  if(q) arr=arr.filter(x=>x.brand.toLowerCase().includes(q));
+  arr.sort((a,b)=> b.qty-a.qty || b.lastT-a.lastT);
+  const z=n=>('0'+n).slice(-2);
+  const fmtd=dstr=>{ const p=parseDate(dstr); return p? p.getFullYear()+"-"+z(p.getMonth()+1)+"-"+z(p.getDate()) : ""; };
+  document.getElementById("rvhead").innerHTML="<tr><th class='rvc'>順位</th><th>ブランド名</th><th class='right'>販売個数</th><th>最終販売日</th></tr>";
+  document.getElementById("rvbody").innerHTML = arr.length ? arr.map((x,i)=>{
+    const rk=i===0?"🥇":i===1?"🥈":i===2?"🥉":(i+1);
+    return `<tr><td class="rvc mono"><b>${rk}</b></td><td class="clip-brand" title="${esc(x.brand)}">${esc(x.brand)}</td><td class="right mono"><b>${x.qty}</b> 個</td><td>${esc(fmtd(x.last))}</td></tr>`;
+  }).join("") : `<tr><td class="empty" colspan="4"><b>まだ販売データがありません</b>売上管理にデータが入ると、商品タイトルのブランド名ごとに販売個数を集計してここへランキング表示します。</td></tr>`;
+  document.getElementById("rv-head").innerHTML=`${esc(cat.label)} <small>${arr.length}ブランド</small>`;
+  document.getElementById("rvcount").textContent=`${cat.label} ・ ${arr.length}ブランド ・ 販売個数の多い順`;
+}
+function renderResearch(){
+  const cat=rcat(researchTab), seller=cat.type==="seller", rank=cat.type==="rank";
+  document.querySelectorAll("#rv-tabs .segbtn").forEach(b=>b.classList.toggle("active",b.dataset.cat===researchTab));
+  ["rv-add","rv-open","rv-import-btn","rv-export"].forEach(id=>{ const el=document.getElementById(id); if(el) el.style.display= rank?"none":""; });
+  const hint=document.getElementById("rv-hint"); if(hint) hint.style.display= rank?"none":"";
+  if(rank){ renderBrandRank(cat); return; }
+  const rows=filteredResearchRows();
+  const H = seller
+    ? ["✓","セラー名","クーパンURL","メモ","最終確認日","操作"]
+    : ["✓","ブランド名","Amazon URL","楽天 URL","メモ","最終確認日","操作"];
+  document.getElementById("rvhead").innerHTML="<tr>"+H.map((h,i)=>`<th${i===0?' class="rvc"':''}>${esc(h)}</th>`).join("")+"</tr>";
+  const moveSel=id=>{ const opts=RCATS.filter(c=>c.id!==researchTab).map(c=>`<option value="${c.id}">${esc(c.short)}へ移動</option>`).join("");
+    return `<select class="rvmove" title="別カテゴリへ移動" onchange="rvMove('${id}',this.value)"><option value="">移動…</option>${opts}</select>`; };
+  const delBtn=id=>`<button class="rowbtn del btn-sm" onclick="rvDel('${id}')" title="この行を削除">削除</button>`;
+  const opCell=id=>`<td class="rvop">${moveSel(id)}${delBtn(id)}</td>`;
+  const colspan=seller?6:7;
+  document.getElementById("rvbody").innerHTML = rows.length ? rows.map(r=>{
+    const id=esc(r.id);
+    const chk=`<td class="rvc"><input type="checkbox" class="rvchk" data-id="${id}" title="一括で開く対象に選択"></td>`;
+    const nameCell=`<td><input class="rvname" value="${esc(r.name)}" placeholder="${seller?'セラー名':'ブランド名'}" onchange="rvSet('${id}','name',this.value)"></td>`;
+    const memoCell=`<td><input class="rvmemo" value="${esc(r.memo)}" placeholder="メモ" onchange="rvSet('${id}','memo',this.value)"></td>`;
+    const dateCell=`<td><input class="rvdate" type="date" value="${esc(r.date)}" onchange="rvSet('${id}','date',this.value)"></td>`;
+    if(seller){
+      const cpCell=urlCellFor(r,'coupang','クーパンURL');
+      return `<tr data-id="${id}">${chk}${nameCell}${cpCell}${memoCell}${dateCell}${opCell(id)}</tr>`;
+    }
+    const amzCell=urlCellFor(r,'amazon','Amazon URL');
+    const rakCell=urlCellFor(r,'rakuten','楽天 URL');
+    return `<tr data-id="${id}">${chk}${nameCell}${amzCell}${rakCell}${memoCell}${dateCell}${opCell(id)}</tr>`;
+  }).join("") : `<tr><td class="empty" colspan="${colspan}"><b>まだ登録がありません</b>右上の「＋ 行を追加」または「CSV取込」で${seller?'セラー':'ブランド'}を登録してください。</td></tr>`;
+  document.getElementById("rv-head").innerHTML=`${esc(cat.label)} <small>${rows.length}件</small>`;
+  document.getElementById("rvcount").textContent=`${cat.label} ・ ${rows.length}件 ・ 古い順（最終確認日）`;
+  if(rvLastAdded){ const el=document.querySelector(`#rvbody tr[data-id="${rvLastAdded}"] input.rvname`); if(el){ el.focus(); if(el.scrollIntoView) el.scrollIntoView({block:"nearest"}); } rvLastAdded=null; }
+  if(rvFocusUrl){ const el=document.querySelector(`#rvbody textarea[data-uk="${rvFocusUrl}"]`); if(el) el.focus(); rvFocusUrl=null; }
+}
+
+/* リサーチ：タブ・検索・追加・一括開く */
+document.querySelectorAll("#rv-tabs .segbtn").forEach(b=>b.addEventListener("click",()=>{ researchTab=b.dataset.cat; document.getElementById("rv-search").value=""; renderResearch(); }));
+document.getElementById("rv-search").addEventListener("input",renderResearch);
+document.getElementById("rv-add").onclick=rvAdd;
+document.getElementById("rv-open").onclick=rvBulkOpen;
+
+/* リサーチ：CSV出力（表示中のカテゴリ） */
+document.getElementById("rv-export").onclick=()=>{
+  const cat=rcat(researchTab), seller=cat.type==="seller", rows=catRows(cat.id);
+  const H = seller?["セラー名","クーパンURL","メモ","最終確認日"]
+                  :["ブランド名","Amazon URL","楽天URL","メモ","最終確認日"];
+  const esccsv=v=>{ const s=String(v??""); return /[",\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s; };
+  const body=rows.map(r=>(seller?[r.name,r.coupang,r.memo,r.date]:[r.name,r.amazon,r.rakuten,r.memo,r.date]).map(esccsv).join(",")).join("\n");
+  const blob=new Blob(["﻿"+H.join(",")+"\n"+body],{type:"text/csv;charset=utf-8"});
+  const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download="リサーチ_"+cat.label+".csv"; a.click();
+};
+
+/* リサーチ：CSV/Excel取込（1列目=名前, 2列目=URL, 以降 型に応じて） */
+document.getElementById("rv-import-btn").onclick=()=>document.getElementById("rv-file").click();
+document.getElementById("rv-file").addEventListener("change",e=>{
+  const f=e.target.files[0]; if(!f) return; const rd=new FileReader();
+  rd.onload=ev=>{ try{
+    const wb=XLSX.read(ev.target.result,{type:"array"});
+    const arr=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{header:1,raw:false,defval:""});
+    if(!arr.length){ alert("空のファイルです"); e.target.value=""; return; }
+    const cat=researchTab, seller=rcat(cat).type==="seller";
+    // --- 見出し行を検出し、列を名前で自動マッピング（スプレッドシートの並びが違ってもOK） ---
+    const KEYS={ name:["ブランド名","セラー名","商品名","メーカー","ブランド","セラー","名前","name"],
+      coupang:["クーパン","coupang","クパン"], amazon:["amazon","アマゾン"], rakuten:["楽天","rakuten"], url:["url","リンク","link","アドレス","ストア"],
+      date:["最終確認","確認日","登録日","日付","date"], memo:["メモ","備考","note","コメント"],
+      count:["取扱商品数","商品数","出品数","点数","個数"], brands:["主力","取扱ブランド","カテゴリ"] };
+    const first=(arr[0]||[]).map(x=>String(x||"").trim());
+    const firstLc=first.map(x=>x.toLowerCase());
+    const isHeader=firstLc.some(h=>[].concat(...Object.values(KEYS)).some(k=>h.includes(k.toLowerCase())));
+    // 見出しなしの位置指定
+    let map = seller?{name:0,coupang:1,memo:2,date:3}
+                    :{name:0,amazon:1,rakuten:2,memo:3,date:4};
+    let start=0;
+    if(isHeader){ start=1; const used=new Set();
+      const findCol=keys=>{ for(let i=0;i<firstLc.length;i++){ if(used.has(i))continue; if(keys.some(k=>firstLc[i].includes(k.toLowerCase()))){ used.add(i); return i; } } return -1; };
+      if(seller){
+        map={ name:findCol(KEYS.name), coupang:findCol(KEYS.coupang), memo:findCol(KEYS.memo), date:findCol(KEYS.date) };
+        if(map.coupang<0) map.coupang=findCol(KEYS.url);   // クーパン列が無ければ汎用URL列を
+      } else {
+        map={ name:findCol(KEYS.name), amazon:findCol(KEYS.amazon), rakuten:findCol(KEYS.rakuten), memo:findCol(KEYS.memo), date:findCol(KEYS.date) };
+        if(map.amazon<0) map.amazon=findCol(KEYS.url);   // Amazon列が無ければ汎用URL列をAmazonに
+      }
+      if(map.name<0) map.name=0;
+    }
+    const cell=(line,i)=> i>=0 ? String(line[i]||"").trim() : "";
+    const rows=catRows(cat); const newRows=[]; let added=0;
+    for(let i=start;i<arr.length;i++){ const line=arr[i]||[]; if(line.every(v=>String(v).trim()==="")) continue;
+      const name=cell(line,map.name); if(!name) continue;
+      const row = seller ? {id:uid(),name,coupang:cell(line,map.coupang),memo:cell(line,map.memo),date:cell(line,map.date)||todayStr()}
+                         : {id:uid(),name,amazon:cell(line,map.amazon),rakuten:cell(line,map.rakuten),memo:cell(line,map.memo),date:cell(line,map.date)||todayStr()};
+      rows.push(row); newRows.push(row); added++;
+    }
+    setCatRows(cat,rows); if(newRows.length) cloudPushResearch(newRows.map(r=>({cat, ...r}))); renderResearch();
+    alert(`${added}件を追加しました（${rcat(cat).label}）\n${isHeader?"※見出しを認識して列を自動対応しました":"※1列目=名前, 2列目=URL として取込みました"}`);
+  }catch(err){ alert("取込エラー："+err.message); } e.target.value=""; };
+  rd.readAsArrayBuffer(f);
+});
+
+/* guide */
+const ov=document.getElementById("overlay");
+document.getElementById("gbody").innerHTML=COUPANG_COLS.map((c,i)=>`<tr class="${VIEW_KEYS.has(c.en)?"ghi":""}"><td class="gnum">${i+1}</td><td class="gkr">${esc(c.kr)}<br><span style="color:var(--muted);font-weight:400;font-size:11px">${esc(c.en)}</span></td><td>${esc(c.jp)}</td></tr>`).join("");
+document.getElementById("btn-guide").onclick=()=>ov.classList.add("show");
+document.getElementById("gx").onclick=()=>ov.classList.remove("show");
+ov.addEventListener("click",e=>{ if(e.target===ov) ov.classList.remove("show"); });
+
+/* ===== 使い方メモ モーダル ===== */
+const hov=document.getElementById("helpOverlay");
+document.getElementById("hdr-help").onclick=()=>hov.classList.add("show");
+document.getElementById("helpClose").onclick=()=>hov.classList.remove("show");
+hov.addEventListener("click",e=>{ if(e.target===hov) hov.classList.remove("show"); });
+
+/* ===== クラウド同期 設定モーダル ===== */
+const sov=document.getElementById("syncOverlay");
+function fmtSync(){ const t=localStorage.getItem(CLOUD_SYNC_KEY); return t?new Date(t).toLocaleString("ja-JP"):"—"; }
+function refreshSyncUI(){
+  const on=!!cloudURL();
+  document.getElementById("sync-dot").className="sync-dot "+(on?"on":"off");
+  document.getElementById("sync-state").textContent=on?"接続済み":"未接続（このPC内のみ保存）";
+  document.getElementById("sync-url").value=cloudURL();
+  document.getElementById("sync-last").textContent=fmtSync();
+  document.getElementById("hdr-sync").className="btn-ghost btn-sm "+(on?"synced":"");
+}
+document.getElementById("hdr-sync").onclick=()=>{ refreshSyncUI(); sov.classList.add("show"); };
+document.getElementById("syncClose").onclick=()=>sov.classList.remove("show");
+sov.addEventListener("click",e=>{ if(e.target===sov) sov.classList.remove("show"); });
+document.getElementById("sync-save").onclick=async()=>{
+  setCloudURL(document.getElementById("sync-url").value);
+  refreshSyncUI();
+  if(cloudURL()){ document.getElementById("sync-state").textContent="同期中…"; const ok=await cloudPull(); refreshSyncUI(); render(); alert(ok?"接続して同期しました。":"URLを保存しました。※接続に失敗した可能性があります。デプロイURL（/exec）と公開設定をご確認ください。"); }
+};
+document.getElementById("sync-now").onclick=async()=>{ if(!cloudURL()){alert("先にURLを保存してください");return;} const ok=await cloudPull(); refreshSyncUI(); render(); alert(ok?"最新の状態に同期しました。":"同期に失敗しました。URLと公開設定をご確認ください。"); };
+
+/* ===== バックアップ（全データ書き出し／復元） ===== */
+const bkov=document.getElementById("backupOverlay");
+document.getElementById("hdr-backup").onclick=()=>{ document.getElementById("bk-msg").textContent=""; bkov.classList.add("show"); };
+document.getElementById("bkClose").onclick=()=>bkov.classList.remove("show");
+bkov.addEventListener("click",e=>{ if(e.target===bkov) bkov.classList.remove("show"); });
+function allKrKeys(){ return Object.keys(localStorage).filter(k=>k.indexOf("kr_")===0); }
+document.getElementById("bk-export").onclick=()=>{
+  const out={ _app:"韓国輸出管理表", _ver:1, _exportedAt:new Date().toISOString(), data:{} };
+  allKrKeys().forEach(k=>out.data[k]=localStorage.getItem(k));
+  const pad=n=>String(n).padStart(2,"0"), now=new Date();
+  const fn=`韓国輸出_バックアップ_${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())}_${pad(now.getHours())}${pad(now.getMinutes())}.json`;
+  const blob=new Blob([JSON.stringify(out)],{type:"application/json;charset=utf-8"});
+  const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download=fn; a.click();
+  document.getElementById("bk-msg").textContent="書き出しました： "+fn;
+};
+document.getElementById("bk-import-btn").onclick=()=>document.getElementById("bk-file").click();
+document.getElementById("bk-file").addEventListener("change",e=>{
+  const f=e.target.files[0]; if(!f) return; const rd=new FileReader();
+  rd.onload=ev=>{ try{
+    const obj=JSON.parse(ev.target.result);
+    const d=(obj&&obj.data&&typeof obj.data==="object")?obj.data:obj;   // 新旧どちらの形式も許容
+    const keys=(d&&typeof d==="object")?Object.keys(d).filter(k=>k.indexOf("kr_")===0):[];
+    if(!keys.length){ alert("このファイルには復元できるデータが見つかりませんでした。\n（このツールで書き出したバックアップファイルを選んでください）"); e.target.value=""; return; }
+    if(!confirm(`このパソコンの現在のデータを、バックアップの内容（${keys.length}項目）で置き換えます。\nよろしいですか？`)){ e.target.value=""; return; }
+    keys.forEach(k=>localStorage.setItem(k, d[k]));
+    migrateResearch(); render(); refreshSyncUI();
+    document.getElementById("bk-msg").textContent="復元しました（"+keys.length+"項目）";
+    alert("復元が完了しました。");
+  }catch(err){ alert("読み込みエラー："+err.message); } e.target.value=""; };
+  rd.readAsText(f);
+});
+
+/* ===== 顧客管理ツールバー：リアルタイム為替・ウォン換算・韓→日翻訳 ===== */
+const LIVE_RATE_KEY="kr_live_rate";
+function liveRate(){ try{ const d=JSON.parse(localStorage.getItem(LIVE_RATE_KEY)); if(d&&d.rate>0) return d; }catch(e){} return null; }
+function curConvRate(){ const d=liveRate(); return (d&&d.rate>0)?d.rate:getRate(); }
+function updateCvt(){ const el=document.getElementById("cvt-yen"); if(!el) return;
+  const won=num(document.getElementById("cvt-won").value); el.textContent="¥"+Math.round(won*curConvRate()).toLocaleString("ja-JP"); }
+function setLiveRateUI(r,at){ const el=document.getElementById("lv-rate"), t=document.getElementById("lv-time");
+  if(el&&r>0) el.textContent="₩1 = ¥"+r.toFixed(4);
+  if(t) t.textContent = at?("("+new Date(at).toLocaleString("ja-JP",{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'})+" 更新)"):"";
+  updateCvt(); }
+async function fetchLiveRate(){ const t=document.getElementById("lv-time"); if(t) t.textContent="取得中…";
+  const tryF=async(u,pick)=>{ const r=await fetch(u); const j=await r.json(); const v=pick(j); if(v>0) return v; throw 0; };
+  let rate=0;
+  try{ rate=await tryF("https://open.er-api.com/v6/latest/KRW", j=>j&&j.rates&&j.rates.JPY); }
+  catch(e){ try{ rate=await tryF("https://api.frankfurter.app/latest?from=KRW&to=JPY", j=>j&&j.rates&&j.rates.JPY); }catch(e2){} }
+  if(rate>0){ const at=new Date().toISOString(); localStorage.setItem(LIVE_RATE_KEY, JSON.stringify({rate,at})); setLiveRateUI(rate,at); }
+  else { const d=liveRate(); if(d){ setLiveRateUI(d.rate,d.at); const t2=document.getElementById("lv-time"); if(t2) t2.textContent+="（更新失敗）"; }
+         else { const t2=document.getElementById("lv-time"); if(t2) t2.textContent="取得できません（手動レートで換算）"; setLiveRateUI(getRate(),null); } } }
+/* 韓国語→英語（Google gtx →失敗時 MyMemory） */
+async function translateKoEn(text){ text=String(text||"").trim(); if(!text) return "";
+  try{ const r=await fetch("https://translate.googleapis.com/translate_a/single?client=gtx&sl=ko&tl=en&dt=t&q="+encodeURIComponent(text));
+    const j=await r.json(); if(Array.isArray(j)&&Array.isArray(j[0])) return j[0].map(x=>x&&x[0]?x[0]:"").join(""); }catch(e){}
+  try{ const r=await fetch("https://api.mymemory.translated.net/get?langpair=ko|en&q="+encodeURIComponent(text));
+    const j=await r.json(); if(j&&j.responseData&&j.responseData.translatedText) return j.responseData.translatedText; }catch(e){}
+  return ""; }
+async function doTranslate(){ const src=document.getElementById("tr-src").value, out=document.getElementById("tr-out");
+  if(!src.trim()){ out.textContent=""; return; } out.textContent="翻訳中…";
+  const res=await translateKoEn(src); out.textContent=res||"翻訳できませんでした → Papago↗"; out.title=res||""; }
+(function initCustTools(){
+  const cvt=document.getElementById("cvt-won"); if(cvt) cvt.addEventListener("input",updateCvt);
+  const rf=document.getElementById("lv-refresh"); if(rf) rf.onclick=fetchLiveRate;
+  const go=document.getElementById("tr-go"); if(go) go.onclick=doTranslate;
+  const src=document.getElementById("tr-src");
+  if(src){ src.addEventListener("keydown",e=>{ if(e.key==="Enter") doTranslate(); });
+    src.addEventListener("input",()=>{ document.getElementById("tr-papago").href="https://papago.naver.com/?sk=ko&tk=en&st="+encodeURIComponent(src.value); }); }
+  const d=liveRate(); setLiveRateUI(d?d.rate:getRate(), d?d.at:null); fetchLiveRate();
+})();
+
+/* （公開用: 初期データは削除。データは復元/同期から） */
+
+
+/* 初期表示 → その後クラウドから取得して再描画 */
+render();
+refreshSyncUI();
+if(cloudURL()) cloudPull().then(()=>{ refreshSyncUI(); render(); });
+</script>
+</body>
+</html>
