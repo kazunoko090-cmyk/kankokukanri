@@ -938,7 +938,9 @@ async function cloudPull(){ const u=cloudURL(); if(!u) return false;
     else if(data&&typeof data==="object"){
       if(Array.isArray(data.orders)) mergeServer(data.orders);
       if(Array.isArray(data.research)) mergeServerResearch(data.research);
+      if(data.kv&&typeof data.kv==="object"){ const wasReady=kvReady; applyServerKV(data.kv); if(!wasReady) pushLocalKvMissing(data.kv); }
     } else return false;
+    kvReady=true;
     localStorage.setItem(CLOUD_SYNC_KEY,new Date().toISOString()); return true;
   }catch(e){ console.warn("cloudPull",e); } return false; }
 /* リサーチ：サーバー内容をローカルへ反映（idで統合、ローカルのみの行はサーバーへ送る） */
@@ -968,6 +970,22 @@ async function cloudPushRows(rows){ const u=cloudURL(); if(!u||!rows||!rows.leng
   try{ await fetch(u,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify({action:"save",rows})}); localStorage.setItem(CLOUD_SYNC_KEY,new Date().toISOString()); }catch(e){ console.warn("cloudPush",e); } }
 async function cloudDelete(order){ const u=cloudURL(); if(!u) return;
   try{ await fetch(u,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify({action:"delete",order:String(order)})}); }catch(e){ console.warn("cloudDelete",e); } }
+/* ===== その他データの同期（マニュアル・顧客・出品・ブログ等）：key-value方式 ===== */
+const KV_SYNC_PREFIXES=["kr_manual_v2","kr_manual_urls","kr_tblman_","kr_cust_","kr_list_attr_","kr_list_cat_","kr_attr_cat_","kr_blog_","kr_hi_"];
+function isKvSyncKey(k){ return KV_SYNC_PREFIXES.some(p=> k===p || k.indexOf(p)===0 ); }
+let kvReady=false;                 // 初回プル完了まで送信しない（初期シードの誤送信防止）
+const _kvSetItem=localStorage.setItem.bind(localStorage);
+const _kvTimers={};
+async function cloudPushKV(key,value){ const u=cloudURL(); if(!u) return;
+  try{ await fetch(u,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify({action:"saveKV",key:String(key),value:String(value==null?"":value)})}); localStorage.setItem(CLOUD_SYNC_KEY,new Date().toISOString()); }catch(e){ console.warn("cloudPushKV",e); } }
+function scheduleKvPush(key){ if(_kvTimers[key]) clearTimeout(_kvTimers[key]);
+  _kvTimers[key]=setTimeout(()=>{ delete _kvTimers[key]; const v=localStorage.getItem(key); if(v!=null) cloudPushKV(key,v); },800); }
+/* サーバーの値をローカルへ反映（送信は発生させない） */
+function applyServerKV(kv){ Object.keys(kv||{}).forEach(k=>{ if(!isKvSyncKey(k)) return; const v=kv[k]; if(v==null) return; if(localStorage.getItem(k)!==v) _kvSetItem(k,v); }); }
+/* 初回接続時：サーバーに無いローカルデータを一度だけアップロード */
+function pushLocalKvMissing(serverKV){ try{ for(let i=0;i<localStorage.length;i++){ const k=localStorage.key(i); if(!k||!isKvSyncKey(k)) continue; if(Object.prototype.hasOwnProperty.call(serverKV,k)) continue; const v=localStorage.getItem(k); if(v!=null) cloudPushKV(k,v); } }catch(e){ console.warn("pushLocalKvMissing",e); } }
+/* localStorage.setItem をラップして、対象キーの変更を自動でクラウドへ送る */
+localStorage.setItem=function(k,v){ _kvSetItem(k,v); try{ if(kvReady && cloudURL() && isKvSyncKey(k)) scheduleKvPush(k); }catch(e){} };
 /* 1注文の損益計算（キャンセルは売上0・仕入れ額は残す＝赤字判定） */
 function calcSale(s,rate){ const cancel=s.status==="キャンセル"; const qty=num(s.qty)||1;
   const r=(s.rate>0)?s.rate:rate;  /* 取込時に記録したレートを優先（過去分はその時のレートで固定） */
