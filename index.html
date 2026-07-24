@@ -493,7 +493,9 @@ window.CAT_ATTR_JA={"색상": "色", "수량": "数量", "패션의류/잡화 �
         <input type="number" id="sv-rate" step="0.0001" class="cellinput" style="width:96px;height:36px" title="次に取り込む注文に適用されるレート。既存の注文は取込時のレートで固定されます。">
         <div class="grow"></div>
         <button class="btn-ghost" id="btn-sexport">CSV出力</button>
+        <button class="btn-ghost" id="btn-import-ship" title="送り状番号(H列)で追跡番号を照合し、料金(S列)×100を発送料金へ自動入力します">📥 配送料金を取込</button>
         <button class="btn-primary" id="btn-import-sales">📥 Excelを取り込む</button>
+        <input type="file" id="ship-file" accept=".xlsx,.xls,.csv" hidden>
       </div>
       <div id="sv-detail">
         <div class="chips" id="sales-chips" style="padding:14px 18px 0"></div>
@@ -1348,22 +1350,14 @@ window.attrAdd=()=>{ const l=loadAttr(); const nid=uid(); l.push({id:nid,kr:"",j
   const el=document.querySelector(`#attrtbl tr[data-id="${nid}"] input.attr-in`); if(el) el.focus(); };
 function renderAttr(body){
   const rows=loadAttr();
-  const head=`<div class="toolbar"><span class="lst-hint">出品時の参考表です。記入欄は <b>📋</b> でコピー、内容は <b>✎</b> で編集できます。「Excel/CSV取込」で記入欄を一括更新できます（列：ハングル/日本語/記入欄）。</span><div class="grow"></div><button class="btn-ghost btn-sm" onclick="attrImport()">📥 Excel/CSV取込</button><button class="btn-ghost btn-sm" onclick="attrAdd()">＋ 項目を追加</button></div>`;
+  const head=`<div class="toolbar"><span class="lst-hint">各欄はそのまま直接編集できます（<b>📋</b> でコピー）。「Excel/CSV取込」で記入欄を一括更新できます（列：ハングル/日本語/記入欄）。</span><div class="grow"></div><button class="btn-ghost btn-sm" onclick="attrImport()">📥 Excel/CSV取込</button><button class="btn-ghost btn-sm" onclick="attrAdd()">＋ 項目を追加</button></div>`;
   const th=`<thead><tr><th>韓国語</th><th>日本語</th><th>記入欄</th><th>操作</th></tr></thead>`;
-  const tb=rows.map(r=>{ const id=esc(r.id); const editing=editingAttr.has(r.id);
-    if(editing){
-      return `<tr data-id="${id}">`+
-        `<td><input class="attr-in" value="${esc(r.kr)}" placeholder="韓国語" onchange="attrSet('${id}','kr',this.value)"></td>`+
-        `<td><input class="attr-in" value="${esc(r.jp)}" placeholder="日本語" onchange="attrSet('${id}','jp',this.value)"></td>`+
-        `<td><input class="attr-in" value="${esc(r.val)}" placeholder="記入欄" onchange="attrSet('${id}','val',this.value)"></td>`+
-        `<td class="rvop"><button class="mini add" onclick="attrEditDone('${id}')" title="完了">完了</button><button class="rowbtn del btn-sm" onclick="attrDel('${id}')" title="削除">削除</button></td>`+
-      `</tr>`;
-    }
+  const tb=rows.map(r=>{ const id=esc(r.id);
     return `<tr data-id="${id}">`+
-      `<td class="attr-kr">${esc(r.kr)}<button class="cbtn" onclick="attrCopy('${id}','kr',this)" title="韓国語をコピー">📋</button></td>`+
-      `<td class="attr-jp"><b>${esc(r.jp)}</b></td>`+
-      `<td><span class="attr-v">${esc(r.val)}</span><button class="cbtn" onclick="attrCopy('${id}','val',this)" title="記入欄をコピー">📋</button></td>`+
-      `<td class="rvop"><button class="mini" onclick="attrEdit('${id}')" title="編集">✎</button><button class="rowbtn del btn-sm" onclick="attrDel('${id}')" title="削除">削除</button></td>`+
+      `<td><input class="attr-in" value="${esc(r.kr)}" placeholder="韓国語" onchange="attrSet('${id}','kr',this.value)"><button class="cbtn" onclick="attrCopy('${id}','kr',this)" title="韓国語をコピー">📋</button></td>`+
+      `<td><input class="attr-in" value="${esc(r.jp)}" placeholder="日本語" onchange="attrSet('${id}','jp',this.value)"></td>`+
+      `<td><input class="attr-in" value="${esc(r.val)}" placeholder="記入欄（未設定）" onchange="attrSet('${id}','val',this.value)"><button class="cbtn" onclick="attrCopy('${id}','val',this)" title="記入欄をコピー">📋</button></td>`+
+      `<td class="rvop"><button class="rowbtn del btn-sm" onclick="attrDel('${id}')" title="この項目を削除">削除</button></td>`+
     `</tr>`;
   }).join("");
   const boxTitle=(attrStore===ATTR_KEY)?"Attributes":"カテゴリー";
@@ -1710,6 +1704,21 @@ document.getElementById("search").addEventListener("input",render);
 /* import */
 document.getElementById("btn-import").onclick=()=>{ if(!platforms[current].ready){alert("このプラットフォームは準備中です");return;} document.getElementById("file").click(); };
 document.getElementById("btn-import-sales").onclick=()=>{ document.getElementById("file").click(); };
+/* 配送料金の取込：送り状番号(H列=8列目)で追跡番号を照合し、料金(S列=19列目)×100を発送料金へ */
+document.getElementById("btn-import-ship").onclick=()=>{ document.getElementById("ship-file").click(); };
+document.getElementById("ship-file").addEventListener("change",e=>{ const f=e.target.files[0]; if(!f) return; const rd=new FileReader();
+  rd.onload=ev=>{ try{
+    const wb=XLSX.read(ev.target.result,{type:"array"}); const arr=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{header:1,raw:true,defval:""});
+    const l=loadSales(); const byTrack={}; l.forEach(s=>{ const t=String(s.track||"").trim(); if(t) byTrack[t]=s; });
+    let up=0,nomatch=0; const changed=[];
+    arr.forEach(line=>{ const track=String(line[7]==null?"":line[7]).trim(); if(!track) return;
+      const cleaned=String(line[18]==null?"":line[18]).replace(/[^0-9.\-]/g,""); if(cleaned==="") return;
+      const feeNum=Number(cleaned); if(!isFinite(feeNum)) return;
+      const s=byTrack[track]; if(s){ s.ship=Math.round(feeNum*100); changed.push(s); up++; } else nomatch++; });
+    if(up){ saveSales(l); pushLedger(changed); render(); }
+    alert(`配送料金の取込完了：${up}件の発送料金を更新しました。`+(nomatch?`\n送り状番号が売上台帳の追跡番号と一致せず未反映：${nomatch}件`:""));
+  }catch(err){ alert("取込エラー："+err.message+"\n（送り状のExcelを選んでください）"); } e.target.value=""; };
+  rd.readAsArrayBuffer(f); });
 document.getElementById("file").addEventListener("change",e=>{
   const f=e.target.files[0]; if(!f) return; const rd=new FileReader();
   rd.onload=ev=>{ try{
