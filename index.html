@@ -4,6 +4,9 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>韓国輸出管理表</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2096%2096%22%3E%3Crect%20width%3D%2296%22%20height%3D%2296%22%20rx%3D%2220%22%20fill%3D%22%23185FA5%22/%3E%3Crect%20x%3D%2230%22%20y%3D%2234%22%20width%3D%2216%22%20height%3D%2216%22%20rx%3D%222%22%20fill%3D%22%23ffffff%22/%3E%3Crect%20x%3D%2248%22%20y%3D%2234%22%20width%3D%2216%22%20height%3D%2216%22%20rx%3D%222%22%20fill%3D%22%2385B7EB%22/%3E%3Cpath%20d%3D%22M24%2054h48l-8%2016H32z%22%20fill%3D%22%23ffffff%22/%3E%3Cpath%20d%3D%22M22%2074q26%2010%2052%200%22%20fill%3D%22none%22%20stroke%3D%22%23ffffff%22%20stroke-width%3D%224%22%20stroke-linecap%3D%22round%22/%3E%3C/svg%3E">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="theme-color" content="#185FA5">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script>
 window.CAT_SEG_JA={"패션의류잡화": "ファッション衣類/雑貨", "스포츠/레져": "スポーツ/レジャー", "가전/디지털": "家電/デジタル", "완구/취미": "玩具/趣味", "생활용품": "生活用品", "주방용품": "キッチン用品", "반려/애완용품": "ペット用品", "문구/오피스": "文具/オフィス", "가구/홈데코": "家具/ホームデコ", "자동차용품": "自動車用品", "음반/DVD": "音楽/DVD", "여성패션": "レディースファッション", "남성패션": "メンズファッション", "유니섹스/남녀공용 패션": "ユニセックス/男女兼用", "문구/학용품": "文具/学用品", "악기/음향기기": "楽器/音響機器", "주니어 의류(9~17세)": "ジュニア服(9〜17歳)", "컴퓨터/게임/SW": "コンピュータ/ゲーム/SW", "가구": "家具", "키즈 의류(3~8세)": "キッズ服(3〜8歳)", "강아지/고양이 겸용": "犬/猫兼用", "냉장고/밥솥/주방가전": "冷蔵庫/炊飯器/キッチン家電", "자전거": "自転車", "캠핑": "キャンプ", "사무용품": "事務用品", "RC완구/부품": "RC玩具/部品", "구기스포츠": "球技スポーツ", "카메라/캠코더": "カメラ/カムコーダー", "수영/수상스포츠": "水泳/水上スポーツ", "계절환경가전": "季節・環境家電", "생활잡화": "生活雑貨", "라켓스포츠": "ラケットスポーツ", "CD/LP": "CD/LP", "공구": "工具", "등산": "登山", "수저/컵/식기": "カトラリー/コップ/食器", "헬스/요가": "フィットネス/ヨガ", "인테리어용품": "インテリア用品", "생활가전": "生活家電", "낚시": "釣り", "골프": "ゴルフ", "욕실용품": "バス用品", "휴대폰/태블릿PC/액세서리": "携帯電話/タブレットPC/アクセサリー", "주방잡화": "キッチン雑貨", "이미용건강가전": "美容・健康家電", "안전용품": "安全用品", "실내용품": "室内用品", "취사도구": "炊事道具", "오토바이용품": "バイク用品", "수납/정리": "収納/整理", "강아지용품": "犬用品", "베이킹&포장용품": "ベイキング/包装用品", "칼/가위/도마": "包丁/はさみ/まな板", "조명/전기용품": "照明/電気用品", "DIY": "DIY", "보관/밀폐용기": "保存/密閉容器", "베이비 의류/신발/잡화(~24개월)": "ベビー服/靴/雑貨(〜24ヶ月)", "커튼/침장": "カーテン/寝装", "차량용디지털기기": "車載デジタル機器", "침구": "寝具", "세차/관리용품": "洗車/メンテナンス用品", "차량용튜닝용품": "車用チューニング用品", "신생아/영아완구": "新生児/乳児玩具", "DVD/블루레이": "DVD/ブルーレイ", "강아지 사료/간식/영양제": "犬 フード/おやつ/サプリ", "스포츠/야외완구": "スポーツ/屋外玩具", "고양이 사료/간식/영양제": "猫 フード/おやつ/サプリ", "피규어/다이캐스트": "フィギュア/ダイキャスト", "스키/겨울스포츠": "スキー/ウィンタースポーツ", "실외용품": "屋外用品", "햄스터/토끼/기니피그용품": "ハムスター/ウサギ/モルモット用品", "구강/면도": "オーラルケア/シェービング", "기타스포츠": "その他スポーツ", "스포츠 잡화": "スポーツ雑貨", "퍼즐/큐브/피젯토이": "パズル/キューブ/フィジェット", "청소용품": "掃除用品", "주방수납/정리": "キッチン収納/整理", "쿠션/방석": "クッション/座布団", "킥보드/스케이트": "キックボード/スケート", "TV/영상가전": "TV/映像家電", "사무기기": "事務機器", "접착용품": "接着用品", "인형": "人形/ぬいぐるみ", "오일/정비/소모품": "オイル/整備/消耗品", "타이어/휠/체인": "タイヤ/ホイール/チェーン", "패브릭소품/커버": "ファブリック小物/カバー", "로봇/작동완구": "ロボット/作動玩具", "STEAM/학습완구": "STEAM/学習玩具", "조류용품": "鳥用品", "역할놀이": "ごっこ遊び", "세탁용품": "洗濯用品", "블록놀이": "ブロック遊び", "화장지/물티슈": "ティッシュ/ウェット", "심판용품": "審判用品", "실내대형완구": "室内大型玩具", "매트/시트/쿠션": "マット/シート/クッション", "DIY/공구용품": "DIY/工具用品", "비상/안전/차량가전": "非常/安全/車載家電", "카페트/매트": "カーペット/マット", "보온/보냉용품": "保温/保冷用品", "생활소품": "生活小物", "물놀이/계절완구": "水遊び/季節玩具", "수집품": "コレクション品", "교자상/밥상/상커버": "座卓/お膳/膳カバー", "스포츠 신발": "スポーツシューズ", "측정용품": "測定用品", "굿즈/스타샵": "グッズ/スターショップ", "발레/댄스/에어로빅": "バレエ/ダンス/エアロビ", "철인3종경기": "トライアスロン", "프라모델": "プラモデル", "음향기기/이어폰/스피커": "音響機器/イヤホン/スピーカー", "조리용품": "調理用品", "주방일회용품": "キッチン使い捨て用品", "관상어용품": "観賞魚用品", "건강용품": "健康用品", "보드게임": "ボードゲーム", "고양이용품": "猫用品", "승용완구": "乗用玩具"};
@@ -1452,7 +1455,7 @@ function renderSalesRank(){
   document.getElementById("sv-month").innerHTML=months.length?months.map(m=>`<option ${m===svMonth?"selected":""}>${m}</option>`).join(""):`<option>${svMonth}</option>`;
   const src=l.filter(s=>monthKey(s.date)===svMonth && s.status!=="キャンセル" && s.status!=="返品");
   const g={};
-  src.forEach(s=>{ const key=(s.asin||"").trim()||"__none__"; if(!g[key]) g[key]={asin:(s.asin||"").trim(),title:s.title||"",qty:0,orders:0,rev:0};
+  src.forEach(s=>{ const key=(s.asin||"").trim(); if(!key) return; /* ASINが無い注文は月間ランキングから除外 */ if(!g[key]) g[key]={asin:key,title:s.title||"",qty:0,orders:0,rev:0};
     g[key].qty+=num(s.qty)||1; g[key].orders++; g[key].rev+=calcSale(s,rate).saleTotal; if(!g[key].title&&s.title) g[key].title=s.title; });
   const arr=Object.values(g).filter(x=>x.qty>=2).sort((a,b)=> b.qty-a.qty || b.rev-a.rev);
   document.getElementById("rkhead").innerHTML="<tr><th class='right'>順位</th><th>ASIN</th><th>商品名</th><th class='right'>販売個数</th><th class='right'>注文件数</th><th class='right'>売上高</th></tr>";
@@ -1933,13 +1936,20 @@ function urlCellFor(r,field,ph){ const id=String(r.id), key=id+":"+field, val=r[
     return `<td><a class="srclink" href="${esc(us[0])}" target="_blank" title="${esc(us.join('\n'))}">${esc(label)}</a><button class="mini add" onclick="rvOpenUrl('${id}','${field}')" title="このURLを開く">↗</button><span class="edit-mark" onclick="rvUrlEdit('${id}','${field}')" title="URLを編集">✎</span></td>`; }
   return `<td><textarea class="rvurl" data-uk="${key}" placeholder="${ph}" onchange="rvUrlDone('${id}','${field}',this.value)">${esc(val)}</textarea></td>`; }
 
-/* ランキング：売上台帳から、商品タイトルのブランド名ごとに販売個数を集計 */
+/* タイトルが空の注文（一括取込分など）は、AmazonのURLスラッグから商品名を推定してブランド判定に使う */
+function brandTitleOf(s){ const t=String(s.title||"").trim(); if(t) return t;
+  const u=String(s.url||"").split(/\s+/)[0];
+  const m=u.match(/amazon\.co[^/]*\/([^/]+)\/(?:dp|gp|product)/i);
+  if(m){ try{ const seg=decodeURIComponent(m[1]).replace(/[-_+]+/g," ").trim();
+    if(seg && !/^(dp|gp|sp|s|b|hz|ref|product|exec)$/i.test(seg)) return seg; }catch(e){} }
+  return ""; }
+/* ランキング：売上台帳から、商品タイトル（無ければURL由来の商品名）のブランド名ごとに販売個数を集計 */
 function renderBrandRank(cat){
   const l=loadSales("kr_sales_coupang_v3");
   const q=(document.getElementById("rv-search").value||"").trim().toLowerCase();
   const KB=knownBrands();
   const g={};
-  l.forEach(s=>{ if(s.status==="キャンセル"||s.status==="返品") return; const b=brandOf(s.title,KB); if(!b) return;
+  l.forEach(s=>{ if(s.status==="キャンセル"||s.status==="返品") return; const b=brandOf(brandTitleOf(s),KB); if(!b) return;
     if(!g[b]) g[b]={brand:b, qty:0, lastT:0, last:""};
     g[b].qty += num(s.qty)||1;
     const p=parseDate(s.date), t=p?p.getTime():0; if(t>g[b].lastT){ g[b].lastT=t; g[b].last=s.date; } });
