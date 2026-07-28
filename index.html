@@ -936,7 +936,7 @@ function brandOf(title, kb){ const t=String(title||"").trim(); if(!t) return "";
   for(const b of list){ if(low.includes(b.toLowerCase())) return b; }
   return t.split(/[\s　]+/)[0]; }
 window.toggleClip=(el)=>{ if(el) el.classList.toggle("open"); };
-function getRate(){ const r=parseFloat(localStorage.getItem(RATE_KEY)); return r>0?r:0.1087; }
+function getRate(){ const r=parseFloat(localStorage.getItem(RATE_KEY)); return r>0?r:0.111; }   /* 既定の取込レート（未設定時）＝0.111 */
 function setRate(v){ localStorage.setItem(RATE_KEY,String(v)); }
 
 function loadSales(key){ key=key||curSalesKey(); try{ const d=JSON.parse(localStorage.getItem(key)); if(Array.isArray(d)) return d; }catch(e){} return []; }
@@ -961,7 +961,7 @@ function syncLedger(rows){ const spec=platforms[current], m=spec.map; const l=lo
       s={ order:id, dorder:(spec.displayOrder?String(r[spec.displayOrder]||""):""),
           date:r[m.date]||"", deadline:r[m.deadline]||"", asin:r[m.asin]||"", title,
           won, qty:num(r[m.qty])||1, status:r._status||DEFAULT_STATUS, msg:autoMsg(won),
-          rate:curConvRate(), track:"", cost:0, fee:feeAuto, ship:0, expense:0,   /* 取込時のリアルタイムレートを固定記録 */
+          rate:curConvRate(), track:"", cost:0, fee:feeAuto, ship:0, expense:0,   /* 取込時点のライブレートを各注文に固定記録（以後は変更しない） */
           discount:(m.discount?num(r[m.discount]):0), plat:current, url:"", note:"", hist:[] };  /* 取込時のレートを固定記録 */
       l.push(s); map[id]=s; added.push(s);
     } else if(!s.title && title){ s.title=title; added.push(s); } });
@@ -1501,7 +1501,7 @@ function renderSales(){
   document.getElementById("tab-detail").classList.toggle("active",t==="detail");
   document.getElementById("tab-rank").classList.toggle("active",t==="rank");
   document.getElementById("tab-year").classList.toggle("active",t==="year");
-  document.getElementById("sv-rate").value=curConvRate();   /* 取込レートはリアルタイム（ライブレート）を表示。取込時に各注文へ固定記録 */
+  document.getElementById("sv-rate").value=curConvRate();   /* 取込レート＝ライブ（次の取込に適用）。取込時に各注文へ固定記録。レート未保存の既存注文は既定0.111で円換算 */
   const _yr=(t==="year");   /* 年間サマリーでは取込ボタン・取込レートを隠す */
   document.getElementById("btn-import-ship").style.display=_yr?"none":"";
   document.getElementById("btn-import-sales").style.display=_yr?"none":"";
@@ -1511,7 +1511,7 @@ function renderSales(){
 
 /* ===== 売上管理：月間売上ランキング（ASIN別・2個以上） ===== */
 function renderSalesRank(){
-  const rate=getRate(), l=loadSales(); const yen=n=>"¥"+Math.round(n).toLocaleString("ja-JP");
+  const rate=curConvRate(), l=loadSales(); const yen=n=>"¥"+Math.round(n).toLocaleString("ja-JP");   /* レート未保存の注文は「現在レート（ライブ）」で円換算。取込時レートを持つ注文はそれを優先 */
   const months=[...new Set(l.map(s=>monthKey(s.date)))].sort((a,b)=>b.localeCompare(a));
   if(!svMonth||!months.includes(svMonth)) svMonth=months[0]||monthKey(todayStr());
   document.getElementById("sv-month").innerHTML=months.length?months.map(m=>`<option ${m===svMonth?"selected":""}>${m}</option>`).join(""):`<option>${svMonth}</option>`;
@@ -1549,7 +1549,7 @@ function ycSvg(vals, opt){
 }
 /* ===== 売上管理：年間サマリー（数字＋グラフ） ===== */
 function renderSalesYear(){
-  const rate=getRate(), l=loadSales(); const yen=n=>"¥"+Math.round(n).toLocaleString("ja-JP");
+  const rate=curConvRate(), l=loadSales(); const yen=n=>"¥"+Math.round(n).toLocaleString("ja-JP");   /* レート未保存の注文は「現在レート（ライブ）」で円換算。取込時レートを持つ注文はそれを優先 */
   const years=[...new Set(l.map(s=>{const p=parseDate(s.date);return p?String(p.getFullYear()):null;}).filter(Boolean))].sort((a,b)=>b.localeCompare(a));
   if(!years.length) years.push(String(new Date().getFullYear()));
   if(!svYear||!years.includes(svYear)) svYear=years[0];
@@ -1607,7 +1607,7 @@ function renderSalesYear(){
 
 /* ===== 売上管理：月別明細（注文ごと） ===== */
 function renderSalesDetail(){
-  const rate=getRate(), l=loadSales(); const yen=n=>"¥"+Math.round(n).toLocaleString("ja-JP");
+  const rate=curConvRate(), l=loadSales(); const yen=n=>"¥"+Math.round(n).toLocaleString("ja-JP");   /* レート未保存の注文は「現在レート（ライブ）」で円換算。取込時レートを持つ注文はそれを優先 */
   const months=[...new Set(l.map(s=>monthKey(s.date)))].sort((a,b)=>b.localeCompare(a));
   if(!svMonth||!months.includes(svMonth)) svMonth=months[0]||monthKey(todayStr());
   document.getElementById("sv-month").innerHTML=months.length?months.map(m=>`<option ${m===svMonth?"selected":""}>${m}</option>`).join(""):`<option>${svMonth}</option>`;
@@ -2258,7 +2258,7 @@ async function fetchLiveRate(){ const t=document.getElementById("lv-time"); if(t
   try{ rate=await tryF("https://open.er-api.com/v6/latest/KRW", j=>j&&j.rates&&j.rates.JPY); }
   catch(e){ try{ rate=await tryF("https://api.frankfurter.app/latest?from=KRW&to=JPY", j=>j&&j.rates&&j.rates.JPY); }catch(e2){} }
   if(rate>0){ const at=new Date().toISOString(); localStorage.setItem(LIVE_RATE_KEY, JSON.stringify({rate,at})); setLiveRateUI(rate,at);
-    const sr=document.getElementById("sv-rate"); if(sr && document.activeElement!==sr) sr.value=rate; }   /* 取込レートもリアルタイム更新（編集中は上書きしない） */
+    const sr=document.getElementById("sv-rate"); if(sr && document.activeElement!==sr) sr.value=rate; }   /* 取込レート表示もライブに追従（編集中は上書きしない）。取込時にその値を各注文へ固定 */
   else { const d=liveRate(); if(d){ setLiveRateUI(d.rate,d.at); const t2=document.getElementById("lv-time"); if(t2) t2.textContent+="（更新失敗）"; }
          else { const t2=document.getElementById("lv-time"); if(t2) t2.textContent="取得できません（手動レートで換算）"; setLiveRateUI(getRate(),null); } } }
 /* 韓国語→英語（Google gtx →失敗時 MyMemory） */
