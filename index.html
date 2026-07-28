@@ -337,7 +337,7 @@ window.CAT_ATTR_JA={"색상": "色", "수량": "数量", "패션의류/잡화 �
     <div class="navgroup open" data-g="cust">
       <div class="navhead">顧客管理 <span class="arw">▶</span></div>
       <div class="navsub">
-        <a data-sec="cust" data-p="coupang" class="active"><span class="dot"></span>クーパン</a>
+        <a data-sec="cust" data-p="coupang"><span class="dot"></span>クーパン</a>
         <a data-sec="cust" data-p="smart"><span class="dot"></span>スマートストア</a>
         <a data-sec="cust" data-p="st11"><span class="dot"></span>11番街 <span class="soon">準備中</span></a>
       </div>
@@ -412,6 +412,29 @@ window.CAT_ATTR_JA={"색상": "色", "수량": "数量", "패션의류/잡화 �
 
   <main class="main">
   <div class="crumb" id="crumb">HOME / <b>顧客管理</b> / クーパン</div>
+
+  <!-- ===== パスワードロック（対象画面のみ・端末ごとに約6か月間は再入力不要） ===== -->
+  <div id="view-lock" style="display:none">
+    <div style="max-width:340px;margin:8vh auto 0;background:#fff;border:1px solid #dde2ee;border-radius:16px;box-shadow:0 12px 40px rgba(30,41,89,.12);padding:28px 26px;text-align:center">
+      <div style="font-size:34px">🔒</div>
+      <div style="font-weight:800;font-size:17px;margin:8px 0 2px;color:#1e2a4a">パスワード</div>
+      <div id="lockMsg" style="color:#8a93a6;font-size:12px;margin-bottom:14px">この画面を開くには暗証番号が必要です</div>
+      <input id="lockInput" type="password" inputmode="numeric" autocomplete="off" maxlength="12"
+        style="width:100%;height:44px;border:1px solid #cdd6ff;border-radius:10px;text-align:center;font-size:20px;letter-spacing:4px;box-sizing:border-box;outline:none">
+      <div id="lockErr" style="color:#e5453c;font-size:12px;height:16px;margin:8px 0 0"></div>
+      <button id="lockBtn" style="margin-top:10px;width:100%;height:44px;border:0;border-radius:10px;background:linear-gradient(135deg,#4f6bef,#6a4fef);color:#fff;font-weight:800;font-size:15px;cursor:pointer">ロック解除</button>
+      <div style="color:#aab2c5;font-size:11px;margin-top:12px">一度入力すると、この端末では約6か月間は再入力不要です</div>
+    </div>
+  </div>
+
+  <!-- ===== ホーム（起動時に表示・パスワード不要） ===== -->
+  <div id="view-home" style="display:none">
+    <div style="max-width:560px;margin:7vh auto 0;text-align:center">
+      <div style="font-size:42px">🚢</div>
+      <div style="font-weight:800;font-size:21px;color:#1e2a4a;margin:10px 0 8px">韓国輸出管理表</div>
+      <div style="color:#8a93a6;font-size:13px;line-height:1.95">左のメニューから項目を選んでください。<br>顧客管理・売上管理・リサーチ・出品・管理表マニュアルは、<br>各モール（クーパン／スマートストア／11番街）ごとにパスワードが必要です。</div>
+    </div>
+  </div>
 
   <div id="view-cust">
   <div class="ctools">
@@ -492,12 +515,14 @@ window.CAT_ATTR_JA={"색상": "色", "수량": "数量", "패션의류/잡화 �
           <label style="font-weight:700;font-size:13px">対象年</label>
           <select id="sv-year" class="msel"></select>
         </span>
-        <label style="font-weight:700;font-size:13px;margin-left:6px" title="このレートは取り込んだ時点で各注文に記録され、以後は変わりません（過去分は取込時のレートで計算）">取込レート ₩→¥</label>
-        <input type="number" id="sv-rate" step="0.0001" class="cellinput" style="width:96px;height:36px" title="次に取り込む注文に適用されるレート。既存の注文は取込時のレートで固定されます。">
+        <span id="ctl-rate" style="display:flex;gap:6px;align-items:center;margin-left:6px">
+          <label style="font-weight:700;font-size:13px" title="リアルタイムの為替レートを自動表示します。取り込んだ時点で各注文に記録され、以後は変わりません（過去分は取込時のレートで計算）">取込レート ₩→¥</label>
+          <input type="number" id="sv-rate" step="0.0001" class="cellinput" style="width:96px;height:36px" title="リアルタイムの為替レートを自動表示。取り込むとその時点のレートが各注文に固定記録されます（既存の注文は変わりません）。">
+        </span>
         <div class="grow"></div>
         <button class="btn-ghost" id="btn-sexport">CSV出力</button>
-        <button class="btn-ghost" id="btn-import-ship" title="送り状番号(H列)で追跡番号を照合し、料金(S列)×100を発送料金へ自動入力します">📥 配送料金を取込</button>
-        <button class="btn-primary" id="btn-import-sales">📥 Excelを取り込む</button>
+        <button class="btn-ghost" id="btn-import-ship" title="HANIROの送り状Excelを取り込み、送り状番号(H列)で追跡番号を照合し、料金(S列)×100を発送料金へ自動入力します">📥 HANIRO取込</button>
+        <button class="btn-primary" id="btn-import-sales" title="精算明細Excelを取り込み、手数料などを自動入力します">📥 売上取込</button>
         <input type="file" id="ship-file" accept=".xlsx,.xls,.csv" hidden>
       </div>
       <div id="sv-detail">
@@ -509,8 +534,9 @@ window.CAT_ATTR_JA={"색상": "色", "수량": "数量", "패션의류/잡화 �
         <div class="tablewrap"><table><thead id="rkhead"></thead><tbody id="rkbody"></tbody></table></div>
         <div class="count" id="rkcount"></div>
       </div>
-      <div id="sv-year" style="display:none">
+      <div id="sv-year-view" style="display:none">
         <div class="tablewrap"><table><thead id="ythead"></thead><tbody id="ytbody"></tbody></table></div>
+        <div id="year-charts" style="padding:4px 2px 2px"></div>
         <div class="count" id="ycount"></div>
       </div>
     </div>
@@ -884,7 +910,7 @@ const platforms = {
   st11:{ name:"11番街", key:"kr_cust_11st_v4", salesKey:"kr_sales_11st_v3", ready:false, cloud:false }
 };
 let current="coupang";
-let section="cust";                       // cust | sales
+let section="home";                       // home（起動時・パスワード不要） | cust | sales …
 const SALES_KEY="kr_sales_coupang_v3";    // クーパン売上台帳（クラウド同期対象）
 function curSalesKey(){ return (platforms[current]&&platforms[current].salesKey)||SALES_KEY; }
 function orderDateField(){ return (platforms[current].map&&platforms[current].map.date)||ORDER_DATE; }
@@ -935,7 +961,7 @@ function syncLedger(rows){ const spec=platforms[current], m=spec.map; const l=lo
       s={ order:id, dorder:(spec.displayOrder?String(r[spec.displayOrder]||""):""),
           date:r[m.date]||"", deadline:r[m.deadline]||"", asin:r[m.asin]||"", title,
           won, qty:num(r[m.qty])||1, status:r._status||DEFAULT_STATUS, msg:autoMsg(won),
-          rate:getRate(), track:"", cost:0, fee:feeAuto, ship:0, expense:0,
+          rate:curConvRate(), track:"", cost:0, fee:feeAuto, ship:0, expense:0,   /* 取込時のリアルタイムレートを固定記録 */
           discount:(m.discount?num(r[m.discount]):0), plat:current, url:"", note:"", hist:[] };  /* 取込時のレートを固定記録 */
       l.push(s); map[id]=s; added.push(s);
     } else if(!s.title && title){ s.title=title; added.push(s); } });
@@ -1036,7 +1062,14 @@ function save(rows){ localStorage.setItem(platforms[current].key, JSON.stringify
 const HI_KEY="kr_hi_coupang";
 function hiSet(){ try{ return new Set(JSON.parse(localStorage.getItem(HI_KEY))||[]); }catch(e){ return new Set(); } }
 function saveHi(s){ localStorage.setItem(HI_KEY, JSON.stringify([...s])); }
-window.setHi=(cb,id)=>{ const set=hiSet(); if(cb.checked) set.add(String(id)); else set.delete(String(id)); saveHi(set);
+window.setHi=(cb,id)=>{
+  if(cb.checked){
+    /* 黄色チェックは常に1つだけ：他の行のチェックと色を全て外す（顧客管理・売上管理共通） */
+    document.querySelectorAll("input.rowchk:checked").forEach(o=>{ if(o!==cb){ o.checked=false; const r=o.closest("tr"); if(r) r.classList.remove("hi"); } });
+    saveHi(new Set([String(id)]));
+  } else {
+    const set=hiSet(); set.delete(String(id)); saveHi(set);
+  }
   const tr=cb.closest("tr"); if(tr) tr.classList.toggle("hi", cb.checked); };
 function purge(rows){ return rows.filter(r=>{ const dl=daysLeft(r); return dl===null||dl>0; }); }
 /* 発送期日が近い順（上から）。ただし発送済みは最下部。期日なしは日付ありの後。 */
@@ -1050,9 +1083,34 @@ function seed(){ return []; }  /* サンプルなし：最初は空の状態か�
 function todayStr(){ const d=new Date(); return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"); }
 
 /* ===== router ===== */
+/* ===== パスワードロック（モール別・対象5画面のみ／端末ごとに約6か月間は再入力不要・クラウド非同期） ===== */
+const PW_MS=183*24*60*60*1000;                                   /* 約6か月 */
+const PW_PROTECTED=new Set(["cust","sales","research","list","tblman"]);
+const PW_PINS={coupang:"9980", smart:"3810", st11:"1183"};       /* モールごとの暗証番号 */
+const PW_NAMES={cust:"顧客管理",sales:"売上管理",research:"リサーチ",list:"出品",tblman:"管理表マニュアル"};
+const PW_PLATNAMES={coupang:"クーパン",smart:"スマートストア",st11:"11番街"};
+function pwOK(plat){ const t=parseInt(localStorage.getItem("kr_pw_until_"+plat)||"0",10); return !!t && Date.now()<t; }
+function pwNeed(){ return PW_PROTECTED.has(section) && !!PW_PINS[current] && !pwOK(current); }   /* 対象画面×該当モールで未解除なら要求 */
+function pwUnlock(){ try{ localStorage.setItem("kr_pw_until_"+current, String(Date.now()+PW_MS)); }catch(e){} render(); }
+(function(){ const b=document.getElementById("lockBtn"), i=document.getElementById("lockInput"), er=document.getElementById("lockErr");
+  function go(){ if(i.value===(PW_PINS[current]||" ")){ if(er) er.textContent=""; i.value=""; pwUnlock(); } else { if(er) er.textContent="暗証番号が違います"; i.value=""; i.focus(); } }
+  if(b) b.addEventListener("click",go);
+  if(i) i.addEventListener("keydown",ev=>{ if(ev.key==="Enter") go(); });
+})();
 function render(){
+  const _locked = pwNeed();   /* 対象画面のみロック（ナビは操作可能・モール別の暗証番号） */
+  document.getElementById("view-lock").style.display=_locked?"":"none";
+  if(_locked){
+    ["view-home","view-cust","view-sales","view-research","view-list","view-banned","view-banlist","view-shortcut","view-blog","view-manual","view-tblman"].forEach(id=>{ const el=document.getElementById(id); if(el) el.style.display="none"; });
+    const lm=document.getElementById("lockMsg"); if(lm) lm.textContent="「"+(PW_PLATNAMES[current]||"")+" "+(PW_NAMES[section]||"")+"」を開くには暗証番号を入力してください";
+    const li=document.getElementById("lockInput"); if(li) setTimeout(()=>{ try{ li.focus(); }catch(e){} },40);
+    return;
+  }
+  const home=section==="home";
+  document.getElementById("view-home").style.display=home?"":"none";
+  if(home){ const c=document.getElementById("crumb"); if(c) c.innerHTML="ホーム"; }
   const sales=section==="sales", research=section==="research", list=section==="list", banned=section==="banned", banlist=section==="banlist", shortcut=section==="shortcut", blog=section==="blog", manual=section==="manual", tblman=section==="tblman";
-  document.getElementById("view-cust").style.display=(sales||research||list||banned||banlist||shortcut||blog||manual||tblman)?"none":"";
+  document.getElementById("view-cust").style.display=(home||sales||research||list||banned||banlist||shortcut||blog||manual||tblman)?"none":"";
   document.getElementById("view-sales").style.display=sales?"":"none";
   document.getElementById("view-research").style.display=research?"":"none";
   document.getElementById("view-list").style.display=list?"":"none";
@@ -1062,7 +1120,7 @@ function render(){
   document.getElementById("view-blog").style.display=blog?"":"none";
   document.getElementById("view-manual").style.display=manual?"":"none";
   document.getElementById("view-tblman").style.display=tblman?"":"none";
-  if(tblman) renderTblMan(); else if(manual) renderManual(); else if(blog) renderBlog(); else if(shortcut) renderShortcut(); else if(banlist) renderBanlist(); else if(banned) renderBanned(); else if(list) renderList(); else if(research) renderResearch(); else if(sales) renderSales(); else renderCust();
+  if(home){ /* ホームは何も描画しない */ } else if(tblman) renderTblMan(); else if(manual) renderManual(); else if(blog) renderBlog(); else if(shortcut) renderShortcut(); else if(banlist) renderBanlist(); else if(banned) renderBanned(); else if(list) renderList(); else if(research) renderResearch(); else if(sales) renderSales(); else renderCust();
 }
 /* ===== 管理表マニュアル（ブログマニュアルと同じフォーマット・モール別） ===== */
 const TBLMAN_SEED=[{title:"",url:""},{title:"",url:""},{title:"",url:""},{title:"",url:""}];
@@ -1439,11 +1497,15 @@ function renderSales(){
   document.getElementById("sv-stats").style.display= t==="detail"?"grid":"none";
   document.getElementById("sv-detail").style.display= t==="detail"?"":"none";
   document.getElementById("sv-rank").style.display= t==="rank"?"":"none";
-  document.getElementById("sv-year").style.display= t==="year"?"":"none";
+  document.getElementById("sv-year-view").style.display= t==="year"?"":"none";
   document.getElementById("tab-detail").classList.toggle("active",t==="detail");
   document.getElementById("tab-rank").classList.toggle("active",t==="rank");
   document.getElementById("tab-year").classList.toggle("active",t==="year");
-  document.getElementById("sv-rate").value=getRate();
+  document.getElementById("sv-rate").value=curConvRate();   /* 取込レートはリアルタイム（ライブレート）を表示。取込時に各注文へ固定記録 */
+  const _yr=(t==="year");   /* 年間サマリーでは取込ボタン・取込レートを隠す */
+  document.getElementById("btn-import-ship").style.display=_yr?"none":"";
+  document.getElementById("btn-import-sales").style.display=_yr?"none":"";
+  document.getElementById("ctl-rate").style.display=_yr?"none":"flex";
   if(t==="detail") renderSalesDetail(); else if(t==="rank") renderSalesRank(); else renderSalesYear();
 }
 
@@ -1469,7 +1531,23 @@ function renderSalesRank(){
   document.getElementById("rkcount").textContent=`${arr.length}商品`;
 }
 
-/* ===== 売上管理：年間サマリー（数字のみ） ===== */
+/* 年間サマリー用：12か月の棒グラフSVGを生成（負の値は下向き・赤） */
+function ycSvg(vals, opt){
+  opt=opt||{}; const W=340,H=150,padL=6,padR=6,padT=20,padB=18;
+  const n=vals.length, iw=(W-padL-padR)/n, bw=iw*0.6, gap=(iw-bw)/2;
+  const col=opt.color||"#4f6bef", negCol=opt.negColor||"#e5453c";
+  const hasNeg=vals.some(v=>v<0), maxV=Math.max(1e-9,...vals.map(v=>Math.abs(v)));
+  const plotH=H-padT-padB, zeroY=hasNeg?(padT+plotH/2):(H-padB), scale=(hasNeg?plotH/2:plotH)/maxV;
+  const fmt=opt.fmt||(v=>String(Math.round(v)));
+  let s=`<svg viewBox="0 0 ${W} ${H}" width="100%" preserveAspectRatio="xMidYMid meet" style="display:block;overflow:visible">`;
+  s+=`<line x1="${padL}" y1="${zeroY.toFixed(1)}" x2="${W-padR}" y2="${zeroY.toFixed(1)}" stroke="#e6e9f2"/>`;
+  for(let i=0;i<n;i++){ const v=vals[i], x=padL+i*iw+gap, h=Math.abs(v)*scale, y=v>=0?zeroY-h:zeroY, c=v<0?negCol:col;
+    if(Math.abs(v)>1e-9){ s+=`<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${bw.toFixed(1)}" height="${Math.max(0.8,h).toFixed(1)}" rx="2" fill="${c}"><title>${i+1}月：${fmt(v)}</title></rect>`;
+      const ly=v>=0?(y-2):(y+h+7); s+=`<text x="${(x+bw/2).toFixed(1)}" y="${ly.toFixed(1)}" font-size="7" text-anchor="middle" fill="#6b7488">${fmt(v)}</text>`; }
+    s+=`<text x="${(x+bw/2).toFixed(1)}" y="${(H-5)}" font-size="7.5" text-anchor="middle" fill="#9aa2b1">${i+1}</text>`; }
+  return s+`</svg>`;
+}
+/* ===== 売上管理：年間サマリー（数字＋グラフ） ===== */
 function renderSalesYear(){
   const rate=getRate(), l=loadSales(); const yen=n=>"¥"+Math.round(n).toLocaleString("ja-JP");
   const years=[...new Set(l.map(s=>{const p=parseDate(s.date);return p?String(p.getFullYear()):null;}).filter(Boolean))].sort((a,b)=>b.localeCompare(a));
@@ -1480,10 +1558,10 @@ function renderSalesYear(){
   document.getElementById("ythead").innerHTML="<tr>"+H.map((h,i)=>`<th${i===0?"":' class="right"'}>${h}</th>`).join("")+"</tr>";
   const T={rev:0,cost:0,prof:0,ref:0,ship:0,can:0,ret:0,cnt:0}; const rowsD=[];
   for(let m=1;m<=12;m++){ const mkk=svYear+"-"+String(m).padStart(2,"0"); const g=l.filter(s=>monthKey(s.date)===mkk);
-    let rev=0,cost=0,prof=0; g.forEach(s=>{const c=calcSale(s,rate);rev+=c.saleTotal;cost+=c.costTotal;prof+=c.profit;});
+    let rev=0,cost=0,prof=0,units=0; g.forEach(s=>{const c=calcSale(s,rate);rev+=c.saleTotal;cost+=c.costTotal;prof+=c.profit; if(s.status!=="キャンセル"&&s.status!=="返品") units+=num(s.qty)||1;});
     const ref=prof+cost*REFUND_RATE, ship=g.filter(s=>s.status==="発送済み").length, can=g.filter(s=>s.status==="キャンセル").length, ret=g.filter(s=>s.status==="返品").length, cnt=g.length;
     T.rev+=rev;T.cost+=cost;T.prof+=prof;T.ref+=ref;T.ship+=ship;T.can+=can;T.ret+=ret;T.cnt+=cnt;
-    rowsD.push({m,rev,cost,prof,ref,ship,can,ret,cnt}); }
+    rowsD.push({m,rev,cost,prof,ref,ship,can,ret,cnt,units}); }
   const maxRev=Math.max(1,...rowsD.map(r=>r.rev)), maxProf=Math.max(1,...rowsD.map(r=>Math.abs(r.prof)));
   let bestM=0,bestV=0; rowsD.forEach(r=>{ if(r.rev>bestV){ bestV=r.rev; bestM=r.m; } });
   const body=rowsD.map(r=>{
@@ -1498,9 +1576,33 @@ function renderSalesYear(){
   });
   body.push(`<tr class="total-row"><td>合計</td><td class="right mono">${yen(T.rev)}</td><td class="right mono">${yen(T.cost)}</td><td class="right mono ${T.prof<0?'neg':''}">${yen(T.prof)}</td><td class="right mono">${yen(T.ref)}</td><td class="right mono">${T.ship}</td><td class="right mono">${T.can}</td><td class="right mono">${T.ret}</td><td class="right mono">${T.cnt}</td></tr>`);
   document.getElementById("ytbody").innerHTML=body.join("");
+  /* ===== グラフ（月別・一目でわかる棒グラフ） ===== */
+  const yc=document.getElementById("year-charts");
+  if(yc){
+    const units=rowsD.map(r=>r.units);
+    const pmR=rowsD.map(r=>r.rev>0?r.prof/r.rev*100:0);   /* 利益率 */
+    const pmA=rowsD.map(r=>r.prof);                        /* 利益額 */
+    const rmR=rowsD.map(r=>r.rev>0?r.ref/r.rev*100:0);     /* 還付金込み利益率 */
+    const rmA=rowsD.map(r=>r.ref);                         /* 還付金込み利益額 */
+    const canN=rowsD.map(r=>r.can);                        /* キャンセル件数 */
+    const retN=rowsD.map(r=>r.ret);                        /* 返品件数 */
+    const pct=v=>(Math.round(v*10)/10)+"%";
+    const yenF=v=>{const a=Math.abs(v); return a>=10000?("¥"+(v/10000).toFixed(1)+"万"):("¥"+Math.round(v).toLocaleString("ja-JP"));};
+    const cntF=v=>Math.round(v)+"件";
+    const card=(title,sub,svg)=>`<div style="background:#fff;border:1px solid #e6e9f2;border-radius:12px;padding:12px 14px 6px"><div style="font-weight:800;font-size:13px;color:#1e2a4a">${title}</div><div style="font-size:11px;color:#9aa2b1;margin:1px 0 6px">${sub}</div>${svg}</div>`;
+    yc.innerHTML=`<div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin-top:14px">`+
+      card("月別 利益率","利益額 ÷ 売上高",ycSvg(pmR,{color:"#12a866",negColor:"#e5453c",fmt:pct}))+
+      card("月別 利益額","各月の利益額（円）",ycSvg(pmA,{color:"#12a866",negColor:"#e5453c",fmt:yenF}))+
+      card("月別 還付金込み利益率","還付金込み利益 ÷ 売上高",ycSvg(rmR,{color:"#0e7ec9",negColor:"#e5453c",fmt:pct}))+
+      card("月別 還付金込み利益額","各月の還付金込み利益（円）",ycSvg(rmA,{color:"#0e7ec9",negColor:"#e5453c",fmt:yenF}))+
+      card("月別 売上数","販売個数（キャンセル・返品を除く）",ycSvg(units,{color:"#4f6bef",fmt:v=>Math.round(v)}))+
+      card("月別 キャンセル件数","各月のキャンセル件数",ycSvg(canN,{color:"#e29a1f",fmt:cntF}))+
+      card("月別 返品件数","各月の返品件数",ycSvg(retN,{color:"#9b51e0",fmt:cntF}))+
+      `</div>`;
+  }
   const avgP=Math.round(T.prof/12);
   document.getElementById("sv-head").innerHTML=`${svYear}年 <small>年間サマリー ・ 売上 ${yen(T.rev)} ／ 利益 ${yen(T.prof)}（月平均 ${yen(avgP)}）</small>`;
-  document.getElementById("ycount").textContent=`${svYear}年 ・ 1〜12月 ・ 棒は月別の相対値（売上=青／利益=緑/赤）`;
+  document.getElementById("ycount").textContent=`${svYear}年 ・ 1〜12月 ・ 表の下に月別グラフ（利益率・利益額／還付金込み利益率・利益額／売上数／キャンセル件数／返品件数）`;
 }
 
 /* ===== 売上管理：月別明細（注文ごと） ===== */
@@ -1516,7 +1618,7 @@ function renderSalesDetail(){
   if(q){ rows=l.filter(s=>[s.order,s.dorder,s.title,s.track,s.asin,s.url,s.status].some(v=>String(v||"").toLowerCase().includes(q))); scope="検索「"+q+"」"; }
   else { rows=l.filter(s=>monthKey(s.date)===svMonth); scope=svMonth; }
   rows=rows.sort((a,b)=>{const x=parseDate(a.date),y=parseDate(b.date);return (y?y.getTime():0)-(x?x.getTime():0);});  /* 新しい順（上から） */
-  const H=["ステータス","✓","ASIN","注文番号","商品タイトル","販売日","発送期日","追跡番号","仕入れ値","仕入れ数量","仕入れ額","売値(ウォン)","売値(円)","売上数","売値合計","発送料金","経費","手数料","発送料+手数料","純利益","備考","操作"];
+  const H=["ステータス","✓","ASIN","注文番号","商品タイトル","販売日","発送期日","追跡番号","仕入れ値","仕入れ数量","仕入れ額","売値(ウォン)","売上数","売値合計","発送料金","経費","手数料","発送料+手数料","純利益","備考","操作"];
   if(hasDisc){ H.splice(H.indexOf("売値合計")+1,0,"割引(₩)"); }
   const COL=H.length;
   document.getElementById("sthead").innerHTML="<tr>"+H.map((h,i)=>`<th${i===0?' class="s1"':(i===1?' class="s2c"':'')}>${h}</th>`).join("")+"</tr>";
@@ -1555,7 +1657,6 @@ function renderSalesDetail(){
       `<td class="mono">${c.qty}</td>`+
       `<td class="money mono">${yen(c.costTotal)}</td>`+
       `<td class="money mono">${"₩"+c.won.toLocaleString("ja-JP")}</td>`+
-      `<td class="money mono">${yen(c.yen)}</td>`+
       `<td class="mono">${c.cancel?0:c.qty}</td>`+
       `<td class="money mono">${yen(c.saleTotal)}</td>`+
       discCell+
@@ -1845,7 +1946,7 @@ document.getElementById("btn-sexport").onclick=()=>{
   }
   if(salesTab==="rank"){
     const src=l.filter(s=>monthKey(s.date)===svMonth && s.status!=="キャンセル" && s.status!=="返品"); const g={};
-    src.forEach(s=>{ const key=(s.asin||"").trim()||"__none__"; if(!g[key]) g[key]={asin:(s.asin||"").trim(),title:s.title||"",qty:0,orders:0,rev:0};
+    src.forEach(s=>{ const key=(s.asin||"").trim(); if(!key) return; /* ASINが無い注文はランキングから除外 */ if(!g[key]) g[key]={asin:key,title:s.title||"",qty:0,orders:0,rev:0};
       g[key].qty+=num(s.qty)||1; g[key].orders++; g[key].rev+=calcSale(s,rate).saleTotal; if(!g[key].title&&s.title) g[key].title=s.title; });
     const arr=Object.values(g).filter(x=>x.qty>=2).sort((a,b)=>b.qty-a.qty||b.rev-a.rev);
     const H=["順位","ASIN","商品名","販売個数","注文件数","売上高"];
@@ -1853,8 +1954,8 @@ document.getElementById("btn-sexport").onclick=()=>{
     dl("売上ランキング_クーパン_"+svMonth+".csv", H.join(",")+"\n"+lines.join("\n")); return;
   }
   const rows=l.filter(s=>monthKey(s.date)===svMonth).sort((a,b)=>{const x=parseDate(a.date),y=parseDate(b.date);return (y?y.getTime():0)-(x?x.getTime():0);});
-  const H=["ステータス","ASIN","注文番号","商品タイトル","販売日","発送期日","追跡番号","仕入れ値","仕入れ数量","仕入れ額","売値(ウォン)","売値(円)","売上数","売値合計","発送料金","経費","手数料","発送料+手数料","純利益","備考"];
-  const body=rows.map(s=>{const c=calcSale(s,rate);return [s.status,s.asin,(s.dorder||s.order),s.title,s.date,s.deadline,s.track,c.cost,c.qty,c.costTotal,c.won,c.yen,c.cancel?0:c.qty,c.saleTotal,c.ship,c.exp,c.fee,c.shipFee,c.profit,s.note||""].map(v=>{const t=String(v??"");return /[",\n]/.test(t)?'"'+t.replace(/"/g,'""')+'"':t;}).join(",");}).join("\n");
+  const H=["ステータス","ASIN","注文番号","商品タイトル","販売日","発送期日","追跡番号","仕入れ値","仕入れ数量","仕入れ額","売値(ウォン)","売上数","売値合計","発送料金","経費","手数料","発送料+手数料","純利益","備考"];
+  const body=rows.map(s=>{const c=calcSale(s,rate);return [s.status,s.asin,(s.dorder||s.order),s.title,s.date,s.deadline,s.track,c.cost,c.qty,c.costTotal,c.won,c.cancel?0:c.qty,c.saleTotal,c.ship,c.exp,c.fee,c.shipFee,c.profit,s.note||""].map(v=>{const t=String(v??"");return /[",\n]/.test(t)?'"'+t.replace(/"/g,'""')+'"':t;}).join(",");}).join("\n");
   dl("売上管理_クーパン_"+svMonth+".csv", H.join(",")+"\n"+body);
 };
 
@@ -2156,7 +2257,8 @@ async function fetchLiveRate(){ const t=document.getElementById("lv-time"); if(t
   let rate=0;
   try{ rate=await tryF("https://open.er-api.com/v6/latest/KRW", j=>j&&j.rates&&j.rates.JPY); }
   catch(e){ try{ rate=await tryF("https://api.frankfurter.app/latest?from=KRW&to=JPY", j=>j&&j.rates&&j.rates.JPY); }catch(e2){} }
-  if(rate>0){ const at=new Date().toISOString(); localStorage.setItem(LIVE_RATE_KEY, JSON.stringify({rate,at})); setLiveRateUI(rate,at); }
+  if(rate>0){ const at=new Date().toISOString(); localStorage.setItem(LIVE_RATE_KEY, JSON.stringify({rate,at})); setLiveRateUI(rate,at);
+    const sr=document.getElementById("sv-rate"); if(sr && document.activeElement!==sr) sr.value=rate; }   /* 取込レートもリアルタイム更新（編集中は上書きしない） */
   else { const d=liveRate(); if(d){ setLiveRateUI(d.rate,d.at); const t2=document.getElementById("lv-time"); if(t2) t2.textContent+="（更新失敗）"; }
          else { const t2=document.getElementById("lv-time"); if(t2) t2.textContent="取得できません（手動レートで換算）"; setLiveRateUI(getRate(),null); } } }
 /* 韓国語→英語（Google gtx →失敗時 MyMemory） */
