@@ -523,7 +523,9 @@ window.CAT_ATTR_JA={"색상": "色", "수량": "数量", "패션의류/잡화 �
         <button class="btn-ghost" id="btn-sexport">CSV出力</button>
         <button class="btn-ghost" id="btn-import-ship" title="HANIROの送り状Excelを取り込み、送り状番号(H列)で追跡番号を照合し、料金(S列)×100を発送料金へ自動入力します">📥 HANIRO取込</button>
         <button class="btn-primary" id="btn-import-sales" title="精算明細Excelを取り込み、手数料などを自動入力します">📥 売上取込</button>
+        <button class="btn-ghost" id="btn-import-fee" title="精算明細（MSF_PAYMENT_REVENUE_DETAIL等）を取り込み、Order ID(A列)で注文番号を照合し、Sales commission(N列/ウォン)を各注文のレートで円換算して手数料へ入力します">📥 手数料取込</button>
         <input type="file" id="ship-file" accept=".xlsx,.xls,.csv" hidden>
+        <input type="file" id="fee-file" accept=".xlsx,.xls,.csv" hidden>
       </div>
       <div id="sv-detail">
         <div class="chips" id="sales-chips" style="padding:14px 18px 0"></div>
@@ -1505,6 +1507,7 @@ function renderSales(){
   const _yr=(t==="year");   /* 年間サマリーでは取込ボタン・取込レートを隠す */
   document.getElementById("btn-import-ship").style.display=_yr?"none":"";
   document.getElementById("btn-import-sales").style.display=_yr?"none":"";
+  document.getElementById("btn-import-fee").style.display=_yr?"none":"";
   document.getElementById("ctl-rate").style.display=_yr?"none":"flex";
   if(t==="detail") renderSalesDetail(); else if(t==="rank") renderSalesRank(); else renderSalesYear();
 }
@@ -1822,6 +1825,29 @@ document.getElementById("ship-file").addEventListener("change",e=>{ const f=e.ta
     if(up){ saveSales(l); pushLedger(changed); render(); }
     alert(`配送料金の取込完了：${up}件の発送料金を更新しました。`+(nomatch?`\n送り状番号が売上台帳の追跡番号と一致せず未反映：${nomatch}件`:""));
   }catch(err){ alert("取込エラー："+err.message+"\n（送り状のExcelを選んでください）"); } e.target.value=""; };
+  rd.readAsArrayBuffer(f); });
+/* 手数料の取込：Order ID(A列)で注文番号を照合し、Sales commission(N列/ウォン)を各注文のレートで円換算して手数料へ */
+document.getElementById("btn-import-fee").onclick=()=>{ document.getElementById("fee-file").click(); };
+document.getElementById("fee-file").addEventListener("change",e=>{ const f=e.target.files[0]; if(!f) return; const rd=new FileReader();
+  rd.onload=ev=>{ try{
+    const wb=XLSX.read(ev.target.result,{type:"array"}); const arr=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{header:1,raw:false,defval:""});
+    if(!arr.length){ alert("空のファイルです"); return; }
+    const head=arr[0].map(h=>String(h||"").trim().toLowerCase());
+    let ci=head.indexOf("order id"); if(ci<0) ci=0;                 /* Order ID列（無ければA列） */
+    let ni=head.indexOf("sales commission"); if(ni<0) ni=13;        /* Sales commission列（無ければN列=14列目） */
+    const feeWon={};                                                /* Order IDごとに手数料(ウォン)を合算 */
+    for(let i=1;i<arr.length;i++){ const row=arr[i]; if(!row) continue;
+      const oid=String(row[ci]==null?"":row[ci]).trim(); if(!oid) continue;
+      const v=Number(String(row[ni]==null?"":row[ni]).replace(/[^0-9.\-]/g,"")); if(!isFinite(v)) continue;
+      feeWon[oid]=(feeWon[oid]||0)+v; }
+    const l=loadSales(); const byOrder={}; l.forEach(s=>byOrder[String(s.order)]=s);
+    let up=0,nomatch=0; const changed=[];
+    Object.keys(feeWon).forEach(oid=>{ const s=byOrder[oid]; if(!s){ nomatch++; return; }
+      const r=(s.rate>0)?s.rate:curConvRate();                      /* 売上取込と同じ＝各注文のレートで円換算 */
+      s.fee=Math.round(feeWon[oid]*r); changed.push(s); up++; });
+    if(up){ saveSales(l); pushLedger(changed); render(); }
+    alert(`手数料の取込完了：${up}件の手数料を更新しました（Sales commissionのウォンを各注文のレートで円換算）。`+(nomatch?`\nOrder IDが売上台帳の注文番号と一致せず未反映：${nomatch}件`:""));
+  }catch(err){ alert("取込エラー："+err.message+"\n（精算明細のExcelを選んでください）"); } e.target.value=""; };
   rd.readAsArrayBuffer(f); });
 document.getElementById("file").addEventListener("change",e=>{
   const f=e.target.files[0]; if(!f) return; const rd=new FileReader();
