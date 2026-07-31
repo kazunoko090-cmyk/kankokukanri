@@ -904,7 +904,7 @@ const platforms = {
             orderKey:"Order number", view:VIEW,
             map:{ order:"Order number", date:"Order date", deadline:"Expected shipment date upon order",
                   asin:"Vendor product code", title:"Registered product name", won:"paid amount", qty:"Purchased qty" } },
-  smart:{ name:"スマートストア", key:"kr_cust_smart_v4", salesKey:"kr_sales_smart_v3", ready:true, cloud:false,
+  smart:{ name:"スマートストア", key:"kr_cust_smart_v4", salesKey:"kr_sales_smart_v3", ready:true, cloud:true,
           orderKey:"상품주문번호", displayOrder:"주문번호", feeInline:true, view:SMART_VIEW,
           map:{ order:"상품주문번호", date:"주문일시", deadline:"발송기한", asin:"판매자 상품코드",
                 title:"상품명", won:"최종 상품별 총 주문금액", qty:"수량", discount:"최종 상품별 할인액",
@@ -958,15 +958,25 @@ function histTip(s){ if(!s||!s.hist||!s.hist.length) return ""; return "ステ�
 function syncLedger(rows){ const spec=platforms[current], m=spec.map; const l=loadSales(); const map={}; l.forEach(x=>map[String(x.order)]=x); const added=[];
   rows.forEach(r=>{ const id=String(r[spec.orderKey]||""); if(!id) return;
     const title=r[m.title]||""; let s=map[id];
-    if(!s){ const won=num(r[m.won]);
-      const feeAuto=spec.feeInline?(Math.abs(num(r[m.feeA]))+Math.abs(num(r[m.feeB]))):0;
+    if(!s){ const won=num(r[m.won]); const cr=curConvRate();   /* 取込時のライブレート */
+      const feeWon=spec.feeInline?(Math.abs(num(r[m.feeA]))+Math.abs(num(r[m.feeB]))):0;
+      const feeAuto=spec.feeInline?Math.round(feeWon*cr):0;    /* スマート等：手数料はウォン→円に自動換算（取込時レート） */
       s={ order:id, dorder:(spec.displayOrder?String(r[spec.displayOrder]||""):""),
           date:r[m.date]||"", deadline:r[m.deadline]||"", asin:r[m.asin]||"", title,
           won, qty:num(r[m.qty])||1, status:r._status||DEFAULT_STATUS, msg:autoMsg(won),
-          rate:curConvRate(), track:"", cost:0, fee:feeAuto, ship:0, expense:0,   /* 取込時点のライブレートを各注文に固定記録（以後は変更しない） */
-          discount:(m.discount?num(r[m.discount]):0), plat:current, url:"", note:"", hist:[] };  /* 取込時のレートを固定記録 */
+          rate:cr, track:"", cost:0, fee:feeAuto, ship:0, expense:0,   /* 取込時点のライブレートを固定記録（以後は変更しない） */
+          discount:(m.discount?num(r[m.discount]):0), plat:current, url:"", note:"", hist:[] };
       l.push(s); map[id]=s; added.push(s);
-    } else if(!s.title && title){ s.title=title; added.push(s); } });
+    } else {
+      let ch=false;
+      if(!s.title && title){ s.title=title; ch=true; }
+      if(spec.feeInline){   /* スマート等：既存注文の手数料もウォン→円へ再計算（過去に未換算で入った分も自動で直る） */
+        const feeWon=Math.abs(num(r[m.feeA]))+Math.abs(num(r[m.feeB]));
+        const fy=Math.round(feeWon*((s.rate>0)?s.rate:curConvRate()));
+        if(num(s.fee)!==fy){ s.fee=fy; ch=true; }
+      }
+      if(ch) added.push(s);
+    } });
   if(added.length){ saveSales(l); pushLedger(added); } }
 
 /* ===== クラウド同期（Googleスプレッドシート / Apps Script Web App） ===== */
@@ -1009,11 +1019,19 @@ async function cloudPushResearch(rows){ const u=cloudURL(); if(!u||!rows||!rows.
   try{ await fetch(u,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify({action:"saveResearch",rows})}); localStorage.setItem(CLOUD_SYNC_KEY,new Date().toISOString()); }catch(e){ console.warn("cloudPushResearch",e); } }
 async function cloudDeleteResearch(id){ const u=cloudURL(); if(!u) return;
   try{ await fetch(u,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify({action:"deleteResearch",id:String(id)})}); }catch(e){ console.warn("cloudDeleteResearch",e); } }
-/* 同期対象はクーパン台帳のみ（SALES_KEYを明示） */
-function mergeServer(server){ const l=loadSales(SALES_KEY); const map={}; l.forEach(x=>map[String(x.order)]=x);
-  const seen={}; server.forEach(x=>{ if(!x||!x.order) return; map[String(x.order)]=x; seen[String(x.order)]=1; });
-  saveSales(Object.values(map),SALES_KEY);
-  const localOnly=l.filter(x=>!seen[String(x.order)]); if(localOnly.length) cloudPushRows(localOnly); }
+/* サーバーの注文を plat（モール）ごとに各台帳へ振り分けて統合。plat未設定は従来どおりクーパン扱い */
+function mergeServer(server){
+  const groups={};
+  server.forEach(x=>{ if(!x||!x.order) return; const p=(x.plat||"coupang"); (groups[p]=groups[p]||[]).push(x); });
+  const pushBack=[];
+  Object.keys(platforms).forEach(pk=>{ const sk=platforms[pk]&&platforms[pk].salesKey; if(!sk) return;
+    const l=loadSales(sk); const map={}; l.forEach(x=>map[String(x.order)]=x);
+    const seen={}; (groups[pk]||[]).forEach(x=>{ map[String(x.order)]=x; seen[String(x.order)]=1; });
+    saveSales(Object.values(map), sk);
+    l.forEach(x=>{ if(!seen[String(x.order)]){ if(!x.plat) x.plat=pk; pushBack.push(x); } });   /* ローカルにしか無い注文はサーバーへ */
+  });
+  if(pushBack.length) cloudPushRows(pushBack);
+}
 async function cloudPushRows(rows){ const u=cloudURL(); if(!u||!rows||!rows.length) return;
   try{ await fetch(u,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify({action:"save",rows})}); localStorage.setItem(CLOUD_SYNC_KEY,new Date().toISOString()); }catch(e){ console.warn("cloudPush",e); } }
 async function cloudDelete(order){ const u=cloudURL(); if(!u) return;
@@ -1694,7 +1712,7 @@ function renderCust(){
     ["s-due","s-paid","s-stock","s-arr","s-sent"].forEach(id=>document.getElementById(id).innerHTML='0<small> 件</small>'); return;
   }
   const spec=pf, okey=spec.orderKey, view=spec.view;
-  let rows=purge(load());
+  let rows=load();                                 /* 全件を保持（表示のたびにpurgeで消さない＝サーバー・ローカルとも蓄積） */
   rows.forEach(r=>{ if(!r._status||r._status==="未発送") r._status=DEFAULT_STATUS; });
   save(rows);
   syncLedger(rows);
@@ -1702,6 +1720,7 @@ function renderCust(){
   const hi=hiSet();
   rows.forEach(r=>{ const led=lmap[String(r[okey])]; if(led&&led.status) r._status=led.status; }); // ステータスは台帳(=クラウド)を正とする
   rows=sortRows(rows);
+  rows=rows.filter(r=>{ const dl=daysLeft(r); return dl===null||dl>0; });   /* 表示だけ60日で絞る（データは削除しない） */
 
   const q=document.getElementById("search").value.trim().toLowerCase();
   let view2=q?rows.filter(r=>Object.entries(r).some(([k,v])=>k[0]!=="_"&&String(v).toLowerCase().includes(q))):rows;
@@ -1868,8 +1887,8 @@ document.getElementById("file").addEventListener("change",e=>{
         const on=String(rec["Order number"]||"");
         if(on && existing.has(on)){ dup++; continue; }   // 同じ注文番号は取り込まない（重複スキップ）
         rows.push(rec); if(on) existing.add(on); added++; }
-      rows=purge(rows); save(rows); syncLedger(rows); render();
-      alert(`取込完了（配送リスト）：${added}件を追加しました。\n重複（同じ注文番号）スキップ：${dup}件\n※購入日の新しい順に自動整列・60日超過分は自動削除`);
+      save(rows); syncLedger(rows); render();   /* 取込は全件保存（purgeで消さない・表示だけ後で60日に絞る） */
+      alert(`取込完了（配送リスト）：${added}件を追加しました。\n重複（同じ注文番号）スキップ：${dup}件\n※購入日の新しい順に自動整列。データは全件保存（サーバーにも蓄積）し、画面表示のみ60日以内に絞ります`);
     } else {
       importPlatform(arr, platforms[current]); e.target.value=""; return;
     }
@@ -1892,7 +1911,7 @@ function importPlatform(arr, spec){
     const on=String(rec[spec.orderKey]||""); if(!on) continue;
     if(existing.has(on)){ dup++; continue; }   // 商品注文番号ごとに重複スキップ（明細は落とさない）
     rows.push(rec); existing.add(on); added++; }
-  rows=purge(rows); save(rows); syncLedger(rows); render();
+  save(rows); syncLedger(rows); render();   /* 取込は全件保存（purgeで消さない・表示だけ後で60日に絞る） */
   alert(`取込完了（${spec.name}）：${added}件を追加しました。\n重複スキップ：${dup}件\n※手数料・割引は自動で反映されます（1行目の説明行は自動でスキップ）`);
 }
 
