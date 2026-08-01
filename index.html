@@ -408,6 +408,12 @@ window.CAT_ATTR_JA={"색상": "色", "수량": "数量", "패션의류/잡화 �
         <a id="nav-shortcut"><span class="dot"></span>ショートカット50 一覧</a>
       </div>
     </div>
+    <div class="navgroup" data-g="shipfee">
+      <div class="navhead">配送料金 <span class="arw">▶</span></div>
+      <div class="navsub">
+        <a id="nav-shipfee"><span class="dot"></span>HANIROLINE 料金表</a>
+      </div>
+    </div>
   </aside>
 
   <main class="main">
@@ -586,6 +592,11 @@ window.CAT_ATTR_JA={"색상": "色", "수량": "数量", "패션의류/잡화 �
   <div id="view-banlist" style="display:none">
     <div class="page-head">出品禁止 <small>出品NGカテゴリー一覧</small></div>
     <div class="panel"><div id="banlist-body"></div></div>
+  </div>
+
+  <div id="view-shipfee" style="display:none">
+    <div class="page-head">配送料金 <small>HANIROLINE 重量別料金表</small></div>
+    <div id="shipfee-body"></div>
   </div>
 
   <div id="view-shortcut" style="display:none">
@@ -1037,7 +1048,7 @@ async function cloudPushRows(rows){ const u=cloudURL(); if(!u||!rows||!rows.leng
 async function cloudDelete(order){ const u=cloudURL(); if(!u) return;
   try{ await fetch(u,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify({action:"delete",order:String(order)})}); }catch(e){ console.warn("cloudDelete",e); } }
 /* ===== その他データの同期（マニュアル・顧客・出品・ブログ等）：key-value方式 ===== */
-const KV_SYNC_PREFIXES=["kr_manual_v2","kr_manual_urls","kr_tblman_","kr_cust_","kr_list_attr_","kr_list_cat_","kr_attr_cat_","kr_blog_","kr_hi_","kr_catseg_ja"];
+const KV_SYNC_PREFIXES=["kr_teb_","kr_bru_","kr_manual_v2","kr_manual_urls","kr_tblman_","kr_cust_","kr_list_attr_","kr_list_cat_","kr_attr_cat_","kr_blog_","kr_hi_","kr_catseg_ja"];
 function isKvSyncKey(k){ return KV_SYNC_PREFIXES.some(p=> k===p || k.indexOf(p)===0 ); }
 let kvReady=false;                 // 初回プル完了まで送信しない（初期シードの誤送信防止）
 const _kvSetItem=localStorage.setItem.bind(localStorage);
@@ -1129,8 +1140,8 @@ function render(){
   const home=section==="home";
   document.getElementById("view-home").style.display=home?"":"none";
   if(home){ const c=document.getElementById("crumb"); if(c) c.innerHTML="ホーム"; }
-  const sales=section==="sales", research=section==="research", list=section==="list", banned=section==="banned", banlist=section==="banlist", shortcut=section==="shortcut", blog=section==="blog", manual=section==="manual", tblman=section==="tblman";
-  document.getElementById("view-cust").style.display=(home||sales||research||list||banned||banlist||shortcut||blog||manual||tblman)?"none":"";
+  const sales=section==="sales", research=section==="research", list=section==="list", banned=section==="banned", banlist=section==="banlist", shortcut=section==="shortcut", blog=section==="blog", manual=section==="manual", tblman=section==="tblman", shipfee=section==="shipfee";
+  document.getElementById("view-cust").style.display=(home||sales||research||list||banned||banlist||shortcut||blog||manual||tblman||shipfee)?"none":"";
   document.getElementById("view-sales").style.display=sales?"":"none";
   document.getElementById("view-research").style.display=research?"":"none";
   document.getElementById("view-list").style.display=list?"":"none";
@@ -1140,7 +1151,8 @@ function render(){
   document.getElementById("view-blog").style.display=blog?"":"none";
   document.getElementById("view-manual").style.display=manual?"":"none";
   document.getElementById("view-tblman").style.display=tblman?"":"none";
-  if(home){ /* ホームは何も描画しない */ } else if(tblman) renderTblMan(); else if(manual) renderManual(); else if(blog) renderBlog(); else if(shortcut) renderShortcut(); else if(banlist) renderBanlist(); else if(banned) renderBanned(); else if(list) renderList(); else if(research) renderResearch(); else if(sales) renderSales(); else renderCust();
+  document.getElementById("view-shipfee").style.display=shipfee?"":"none";
+  if(home){ /* ホームは何も描画しない */ } else if(shipfee) renderShipfee(); else if(tblman) renderTblMan(); else if(manual) renderManual(); else if(blog) renderBlog(); else if(shortcut) renderShortcut(); else if(banlist) renderBanlist(); else if(banned) renderBanned(); else if(list) renderList(); else if(research) renderResearch(); else if(sales) renderSales(); else renderCust();
 }
 /* ===== 管理表マニュアル（ブログマニュアルと同じフォーマット・モール別） ===== */
 const TBLMAN_SEED=[{title:"",url:""},{title:"",url:""},{title:"",url:""},{title:"",url:""}];
@@ -1149,6 +1161,12 @@ function renderTblMan(){
   document.getElementById("tblman-head").innerHTML=`管理表マニュアル：${PNAME[p]||p} <small>管理表マニュアルを準備します</small>`;
   document.getElementById("tblman-body").innerHTML=`<div class="man-note">タイトルを入れ、動画URL（Loom等）を貼るとその場で再生できます。「＋ 項目を追加」で箱を増やせます。</div><div id="tblman-list"></div>`;
   renderManInto("tblman-list","kr_tblman_"+p, TBLMAN_SEED);
+}
+/* ===== 配送料金（HANIROLINE 重量別料金表） ===== */
+function renderShipfee(){
+  const rows=[]; for(let i=0;i<24;i++){ const w=((i+1)*0.5).toFixed(2); const pr=950+i*100; rows.push([w+" KG","¥"+pr.toLocaleString("ja-JP")]); }
+  const body=rows.map(r=>`<tr><td class="mono">${r[0]}</td><td class="right mono">${r[1]}</td></tr>`).join("");
+  document.getElementById("shipfee-body").innerHTML=`<div class="retnote" style="background:#fafbff;color:var(--muted)">HANIROLINE の重量別配送料金です（0.5kg刻み・12.0kgまで）。</div><div class="tablewrap" style="max-width:420px"><table><thead><tr><th>重量</th><th class="right">料金</th></tr></thead><tbody>${body}</tbody></table></div>`;
 }
 /* ===== ショートカット50 一覧 ===== */
 const SHORTCUTS=[
@@ -1319,7 +1337,10 @@ function renderBanlist(){
 }
 /* ===== 出品 ===== */
 let coupangListTab="attr", bruTab="sold";
+let smartListTab="brushup";   /* スマート出品タブ: brushup（ブラッシュアップ） | cat（カテゴリー） | tebiki（手出品） */
+let bruMode="brushup";        /* ブラッシュアップと手出品でデータを分ける（同じ形式・別データ） */
 window.setCoupangListTab=(t)=>{ coupangListTab=t; renderList(); };
+window.setSmartListTab=(t)=>{ smartListTab=t; renderList(); };
 window.setBruTab=(t)=>{ bruTab=t; renderList(); };
 function renderList(){
   const head=document.getElementById("list-head"), body=document.getElementById("list-body");
@@ -1330,18 +1351,27 @@ function renderList(){
     if(coupangListTab==="cat"){ renderCatDB(document.getElementById("attr-host")); }
     else { attrStore=ATTR_KEY; renderAttr(document.getElementById("attr-host")); }
   } else if(current==="smart"){
-    head.innerHTML=`出品：スマートストア <small>ブラッシュアップ（販売済み商品を投稿）</small>`;
-    renderBrushup(body);
+    const lbl=smartListTab==="cat"?"カテゴリー":(smartListTab==="tebiki"?"手出品（販売済み＋任意商品を投稿）":"ブラッシュアップ（販売済み商品を投稿）");
+    head.innerHTML=`出品：スマートストア <small>${lbl}</small>`;
+    const toggle=`<div class="seg" style="margin-bottom:14px"><button class="segbtn ${smartListTab==="brushup"?"active":""}" onclick="setSmartListTab('brushup')">ブラッシュアップ</button><button class="segbtn ${smartListTab==="cat"?"active":""}" onclick="setSmartListTab('cat')">カテゴリー</button><button class="segbtn ${smartListTab==="tebiki"?"active":""}" onclick="setSmartListTab('tebiki')">手出品</button></div>`;
+    body.innerHTML=toggle+`<div id="smart-list-host"></div>`;
+    const host=document.getElementById("smart-list-host");
+    if(smartListTab==="cat"){ renderSmartCat(host); }
+    else if(smartListTab==="tebiki"){ renderTebiki(host); } else { bruMode="brushup"; renderBrushup(host); }
   } else {
     head.innerHTML=`出品：${PNAME[current]||current} <small>準備中</small>`;
     body.innerHTML=`<div class="empty"><b>出品（${PNAME[current]||current}）はこれから作ります</b>必要な項目を教えてください。</div>`;
   }
 }
 /* ===== ブラッシュアップ（出品/スマートストア：販売済み＋任意商品を投稿管理） ===== */
-function bruSold(){ try{ return JSON.parse(localStorage.getItem("kr_bru_smart_sold"))||{}; }catch(e){ return {}; } }
-function bruSoldSave(o){ localStorage.setItem("kr_bru_smart_sold",JSON.stringify(o)); }
-function bruCustom(){ try{ const d=JSON.parse(localStorage.getItem("kr_bru_smart_custom")); return Array.isArray(d)?d:[]; }catch(e){ return []; } }
-function bruCustomSave(l){ localStorage.setItem("kr_bru_smart_custom",JSON.stringify(l)); }
+const BRU_DONE_SEED=[{asin:"B0GF2XRKNN",url:"https://smartstore.naver.com/tokyomart7585/products/13385714237"},{asin:"B0D59WRLY6",url:"https://smartstore.naver.com/tokyomart7585/products/13345303767"},{asin:"B0FHZZ42RN",url:"https://smartstore.naver.com/tokyomart7585/products/13434002894"},{asin:"B0FBG5ZMFV",url:"https://smartstore.naver.com/tokyomart7585/products/13364149771"},{asin:"B0CSZ48232",url:"https://smartstore.naver.com/tokyomart7585/products/13364686698"},{asin:"B0DKS7H2QR",url:"https://smartstore.naver.com/tokyomart7585/products/13419288734"},{asin:"B0C5X3RY3G",url:"https://smartstore.naver.com/tokyomart7585/products/13345303765"},{asin:"B0GLP4366B",url:"https://www.amazon.co.jp/dp/B0GLP4366B"},{asin:"B08ZHR9SSM",url:"https://www.amazon.co.jp/dp/B08ZHR9SSM"},{asin:"B076Q49HNZ",url:"https://www.amazon.co.jp/dp/B076Q49HNZ"}];   /* ブラッシュアップ済み（投稿済み）ASIN+URLの初期埋め込み */
+function bruKey(base){ return "kr_bru_smart_"+base+(bruMode==="tebiki"?"_te":""); }   /* 手出品は別データ（_te） */
+function bruSold(){ try{ return JSON.parse(localStorage.getItem(bruKey("sold")))||{}; }catch(e){ return {}; } }
+function bruSoldSave(o){ localStorage.setItem(bruKey("sold"),JSON.stringify(o)); }
+function bruCustom(){ const raw=localStorage.getItem(bruKey("custom")); if(raw){ try{ const d=JSON.parse(raw); if(Array.isArray(d)) return d; }catch(e){} }
+  if(bruMode==="brushup"){ const s=BRU_DONE_SEED.map(x=>({id:"bd"+Math.random().toString(36).slice(2,9),title:x.asin,url:x.url,asin:x.asin,posted:true,date:""})); localStorage.setItem(bruKey("custom"),JSON.stringify(s)); return s; }
+  return []; }
+function bruCustomSave(l){ localStorage.setItem(bruKey("custom"),JSON.stringify(l)); }
 window.bruDateSold=(a,v)=>{ const o=bruSold(); if(!o[a])o[a]={posted:false,date:""}; o[a].date=v; bruSoldSave(o); };
 window.bruPostSold=(a)=>{ const o=bruSold(); if(!o[a])o[a]={date:""}; if(!o[a].date)o[a].date=todayStr(); o[a].posted=true; bruSoldSave(o); renderList(); };
 window.bruUnpostSold=(a)=>{ const o=bruSold(); if(o[a])o[a].posted=false; bruSoldSave(o); renderList(); };
@@ -1359,7 +1389,8 @@ function renderBrushup(body){
   const tabs=`<div class="seg"><button class="segbtn ${bruTab==="sold"?"active":""}" onclick="setBruTab('sold')">販売済み</button><button class="segbtn ${bruTab==="custom"?"active":""}" onclick="setBruTab('custom')">任意商品</button><button class="segbtn ${bruTab==="done"?"active":""}" onclick="setBruTab('done')">投稿済み</button></div>`;
   let inner="";
   if(bruTab==="sold"){
-    const list=soldAll.filter(x=>!soldDone(x.asin)).sort((a,b)=>b.lastT-a.lastT);
+    const postedAsins=new Set(custom.filter(x=>x.posted&&x.asin).map(x=>String(x.asin)));
+    const list=soldAll.filter(x=>!soldDone(x.asin) && !postedAsins.has(String(x.asin))).sort((a,b)=>b.lastT-a.lastT);
     const rows=list.length?list.map(x=>{ const a=esc(x.asin), d=(soldMap[x.asin]||{}).date||"";
       return `<tr><td>${amz(x.asin)}</td><td>${clip(x.title)}</td><td><input class="rvdate" type="date" value="${esc(d)}" onchange="bruDateSold('${a}',this.value)"></td><td><button class="btn-primary btn-sm" onclick="bruPostSold('${a}')">投稿する</button></td></tr>`;
     }).join(""):`<tr><td class="empty" colspan="4"><b>未投稿の販売済み商品がありません</b>スマートストアの売上データが入ると、ここへASINが並びます。</td></tr>`;
@@ -1385,6 +1416,99 @@ function renderBrushup(body){
     inner=`<table><thead><tr><th>区分</th><th>内容</th><th>投稿日</th><th>操作</th></tr></thead><tbody>${rows}</tbody></table>`;
   }
   body.innerHTML=`<div class="toolbar" style="border:0;padding-bottom:6px">${tabs}</div><div class="retnote" style="background:#fafbff;color:var(--muted)">スマートストアの販売済み商品（ASIN）と、手入力の任意商品を投稿管理します。投稿日を選んで「投稿する」で「投稿済み」に移動（投稿済みASINは再取込しません）。</div><div class="tablewrap">${inner}</div>`;
+}
+
+/* ===== スマート出品：手出品（出品管理表・1ページ／未投稿を上・古い順／販売価格は仕入れ値×1.1＋送料1100を現在レートでウォン換算） ===== */
+const TEBIKI_KEY="kr_teb_smart_v2";
+let tebQuery="";
+const TEBIKI_SEED=[{id:"tb1",date:"1/22",pnum:"13041887698",item:"405422912614",title:"Yu-Gi-Oh Millennium Ring COMPLETE EDITION Ryo Bakura Figure with Sound Effects | eBay",cond:"新品",cat:"①",qty:2,cost:17500,memo:"",posted:true},{id:"tb2",date:"2/3",pnum:"13058480576",item:"405289089340",title:"YuGiOh OCG Duel Monsters Complete File Story of White Binder Only KONAMI New | eBay",cond:"中古",cat:"①",qty:10,cost:2800,memo:"未使用、バインダーのみ",posted:true},{id:"tb3",date:"4/12",pnum:"13389582996",item:"405631757186",title:"Yu-Gi-Oh! 25th Anniversary Blue-Eyes White Dragon Ukiyoe Edition Stamp Set | eBay",cond:"新品",cat:"①",qty:5,cost:33000,memo:"",posted:true},{id:"tb4",date:"4/18",pnum:"13416651005",item:"404903102283",title:"YuGiOh Duel Monsters Millennium Rod COMPLETE EDITION LTD Bandai Used JP | eBay",cond:"中古",cat:"①",qty:2,cost:31000,memo:"開封済み、美品",posted:true},{id:"tb5",date:"4/18",pnum:"13416733514",item:"405402775267",title:"Yu-Gi-Oh Millennium Puzzle Complete Edition figure Anime 2023 Rare BANDAI | eBay",cond:"中古",cat:"①",qty:2,cost:15000,memo:"開封済み、美品",posted:true},{id:"tb6",date:"4/18",pnum:"13416853590",item:"406475786989",title:"Yu-Gi-Oh THE DARK SIDE OF DIMENSIONS Movie With Card Limited Edition 2017 | eBay",cond:"中古",cat:"①",qty:2,cost:8000,memo:"開封済み、コンプリート",posted:true},{id:"tb7",date:"4/18",pnum:"13417197956",item:"405649560940",title:"Yu-Gi-Oh Wake Up Your Memories Kuji vol.3 SLIFER THE SKY DRAGON Figure 2024 | eBay",cond:"新品",cat:"①",qty:2,cost:17000,memo:"",posted:true},{id:"tb8",date:"4/19",pnum:"13422101315",item:"406343404027",title:"Yugioh Junk Warrior Official Duel set Playmat Sleeve Set YCSJ NAGOYA 2025 JP | eBay",cond:"新品",cat:"②",qty:4,cost:4000,memo:"",posted:true},{id:"tb9",date:"4/23",pnum:"13440942508",item:"406343389549",title:"Yugioh Story of White Official Duel set Playmat Sleeve Set YCSJ NAGOYA 2025 JP | eBay",cond:"新品",cat:"②",qty:5,cost:12000,memo:"",posted:true},{id:"tb10",date:"4/23",pnum:"13441045307",item:"406155112878",title:"YuGiOh ExoSister Deluxe Duel Set 100 Sleeve Card Bag Case Daice 9 Set 2025 | eBay",cond:"新品",cat:"②",qty:5,cost:21000,memo:"",posted:true},{id:"tb11",date:"4/23",pnum:"13441118213",item:"405757689807",title:"Yugioh Dragon Ruler Official Duel Set Playmat Sleeve Card YCSJ Tokyo 2025 | eBay",cond:"新品",cat:"②",qty:5,cost:4000,memo:"",posted:true},{id:"tb12",date:"4/24",pnum:"13446659691",item:"405757403858",title:"Yugioh Maliss Official Duel Set Playmat Sleeve Card YCSJ Tokyo 2025 M∀lice JP | eBay",cond:"新品",cat:"②",qty:5,cost:12000,memo:"",posted:true},{id:"tb13",date:"4/24",pnum:"13446735338",item:"405590275545",title:"Yugioh Black Luster Soldier Envoy of the Beginning Duel Set 25th ANNIVERSARY | eBay",cond:"新品",cat:"②",qty:5,cost:5500,memo:"",posted:true},{id:"tb14",date:"4/25",pnum:"13450488476",item:"405331025120",title:"Yugioh Centur-Ion Official Duel Set Playmat Sleeve Card YCSJ 2024 Osaka New | eBay",cond:"新品",cat:"②",qty:5,cost:10000,memo:"",posted:true},{id:"tb15",date:"4/26",pnum:"13454382415",item:"405330279979",title:"Yugioh Fiendsmith Official Duel set Playmat Sleeve Set YCSJ OSAKA 2024 JP | eBay",cond:"新品",cat:"②",qty:5,cost:4500,memo:"",posted:true},{id:"tb16",date:"4/26",pnum:"13454522405",item:"404866213661",title:"Yugioh Tearlaments Rulkallos Official Duel Set Playmat YCSJ OSAKA 2022 Limited | eBay",cond:"新品",cat:"②",qty:5,cost:11000,memo:"",posted:true},{id:"tb17",date:"4/27",pnum:"13459365165",item:"404774326162",title:"YuGiOh ExoSister Duel Set Playmat Sleeve Card YCSJ YOKOHAMA 2022 New Japan | eBay",cond:"新品",cat:"②",qty:5,cost:14000,memo:"",posted:true},{id:"tb18",date:"5/24",pnum:"13570070344",item:"405015599479",title:"Yugioh Dark Burning Magic Official Duelset Playmat Sleeve Set YCSJ 2018 New JP | eBay",cond:"新品",cat:"②",qty:5,cost:4500,memo:"",posted:true},{id:"tb19",date:"5/27",pnum:"13582967738",item:"405387555337",title:"Yugioh Armirail Duelset Official Playmat Card & Sleeve YCSJ OSAKA 2019 JP New | eBay",cond:"新品",cat:"②",qty:5,cost:4000,memo:"",posted:true},{id:"tb20",date:"5/28",pnum:"13587646436",item:"405028050088",title:"Yugioh QUARTER CENTURY DuelSet The Winged Dragon of Ra Playmat Medal Card JP | eBay",cond:"新品",cat:"②",qty:5,cost:3000,memo:"",posted:true},{id:"tb21",date:"5/29",pnum:"13593673814",item:"405119701397",title:"Yugioh @ Ignister Duelset Playmat Card & Sleeve YCSJ TOKYO 2019 New | eBay",cond:"新品",cat:"②",qty:5,cost:11000,memo:"",posted:true},{id:"tb22",date:"5/30",pnum:"13596333978",item:"404801535652",title:"Yugioh Snake-Eye Duelset Playmat Card & Sleeve KONAMI Official YCSJ Nagoya 2023 | eBay",cond:"新品",cat:"②",qty:5,cost:5000,memo:"",posted:true},{id:"tb23",date:"5/31",pnum:"13604601200",item:"404950189379",title:"Yugioh Diabellstar Official Duelset Playmat Card & Sleeve YCSJ TOKYO 2024 NEW JP | eBay",cond:"新品",cat:"②",qty:5,cost:5000,memo:"",posted:true},{id:"tb24",date:"",pnum:"",item:"404825823241",title:"Yugioh 20th ANNIVERSARY DuelSet Slifer the Sky Dragon Playmat Medal Card New | eBay",cond:"新品",cat:"②",qty:5,cost:16000,memo:"",posted:true},{id:"tb25",date:"",pnum:"",item:"404924498673",title:"YuGiOh Charmer Possessed Awakening Official Duelset Playmat Sleeve 100 2019 | eBay",cond:"新品",cat:"②",qty:5,cost:8500,memo:"",posted:true},{id:"tb26",date:"",pnum:"",item:"404825879174",title:"Yugioh 20th ANNIVERSARY DuelSet Obelisk the Tormentor Playmat Medal Card JP | eBay",cond:"新品",cat:"②",qty:5,cost:5000,memo:"",posted:true},{id:"tb27",date:"",pnum:"",item:"405015620530",title:"Yugioh Death Police Official Duelset Playmat Sleeve Set YCSJ OSAKA 2018 New JP | eBay",cond:"新品",cat:"②",qty:5,cost:3500,memo:"",posted:true},{id:"tb28",date:"",pnum:"",item:"404801635892",title:"Yugioh Labrynth Official Duelset Playmat Card & 100Sleeves YCSJ Nagoya 2023 JP | eBay",cond:"新品",cat:"②",qty:5,cost:12000,memo:"",posted:true},{id:"tb29",date:"",pnum:"",item:"404996982274",title:"Yugioh Sky Striker Ace Official DuelSet 2 YCSJ NAGOYA 2020 Playmat Sleeve Card | eBay",cond:"新品",cat:"②",qty:5,cost:42000,memo:"",posted:true},{id:"tb30",date:"",pnum:"",item:"404930345170",title:"Yugioh Rush Duel Blue-Eyes Official DuelSet Jump Festa 2024 Playmat Sleeve Card | eBay",cond:"新品",cat:"②",qty:5,cost:7000,memo:"",posted:true},{id:"tb31",date:"",pnum:"",item:"405301149214",title:"Yugioh Rush Duel Official DuelSet Excutie Lumiere Jump Festa 2023 Playmat | eBay",cond:"新品",cat:"②",qty:5,cost:4500,memo:"",posted:true},{id:"tb32",date:"",pnum:"",item:"405877975307",title:"Yugioh Rush Duel Elemental Hero Official DuelSet Jump Festa 2025 Playmat E・HERO | eBay",cond:"新品",cat:"②",qty:5,cost:5500,memo:"",posted:true},{id:"tb33",date:"",pnum:"",item:"404819310200",title:"YuGiOh Legendary Magician of Dark Legendary Dragon of White Duelset WCS2023 JP | eBay",cond:"新品",cat:"②",qty:5,cost:6500,memo:"",posted:true},{id:"tb34",date:"",pnum:"",item:"404819323386",title:"YuGiOh 25th Magicians of Bonds and Unity Duel Set Tokyo Dome 2024 Limited JP New | eBay",cond:"新品",cat:"②",qty:5,cost:3000,memo:"",posted:true},{id:"tb35",date:"",pnum:"",item:"404944010143",title:"YuGiOH OCG Duel Monsters 20th ANNIVERSARY DUELIST BOX New JP | eBay",cond:"新品",cat:"②",qty:5,cost:15000,memo:"",posted:true}];
+function loadTebiki(){ const raw=localStorage.getItem(TEBIKI_KEY); if(raw){ try{ const d=JSON.parse(raw); if(Array.isArray(d)){ let ch=false; d.forEach(x=>{ if(!String(x.date||"").trim() && x.posted){ x.posted=false; ch=true; } }); if(ch) localStorage.setItem(TEBIKI_KEY,JSON.stringify(d)); return d; } }catch(e){} } const s=TEBIKI_SEED.map(x=>({...x})); localStorage.setItem(TEBIKI_KEY,JSON.stringify(s)); return s; }
+function saveTebiki(l){ localStorage.setItem(TEBIKI_KEY,JSON.stringify(l)); }
+function tebDateKey(d){ const m=String(d||"").match(/(\d{1,2})\D+(\d{1,2})/); return m?(+m[1])*100+(+m[2]):9999; }
+window.tebEdit=(id,f,v)=>{ const l=loadTebiki(); const it=l.find(x=>x.id===id); if(it){ it[f]=(f==="cost"||f==="qty")?num(v):String(v); if(f==="date" && !String(v).trim()) it.posted=false; saveTebiki(l); if(f==="cost"||f==="date") renderList(); } };
+window.tebToggle=(id)=>{ const l=loadTebiki(); const it=l.find(x=>x.id===id); if(it){ it.posted=!it.posted; saveTebiki(l); } renderList(); };
+window.tebDel=(id)=>{ if(!confirm("この出品を削除しますか？")) return; saveTebiki(loadTebiki().filter(x=>x.id!==id)); renderList(); };
+window.tebAdd=()=>{ const l=loadTebiki(); l.push({id:"tb"+Date.now().toString(36),date:"",pnum:"",item:"",title:"",cond:"",cat:"",qty:1,cost:0,memo:"",posted:false}); saveTebiki(l); renderList(); };
+window.tebSearch=()=>{ const inp=document.getElementById("teb-search"); tebQuery=(inp?inp.value:"").trim(); renderList(); };
+function renderTebiki(host){
+  const all=loadTebiki(), rate=curConvRate();
+  const yen=n=>"¥"+Math.round(n).toLocaleString("ja-JP");
+  const q=tebQuery.toLowerCase();
+  let l=q? all.filter(x=>[x.item,x.pnum,x.title].some(v=>String(v||"").toLowerCase().includes(q))) : all.slice();
+  l.sort((a,b)=> ((a.posted?1:0)-(b.posted?1:0)) || (tebDateKey(a.date)-tebDateKey(b.date)) );  /* 未投稿を上・古い順 */
+  const done=all.filter(x=>x.posted).length;
+  const rows=l.length? l.map(x=>{ const id=esc(x.id);
+    const bg=x.posted?"background:#eafaf0":"background:#fff8e1";
+    const stBtn=`<button class="btn-ghost btn-sm" style="min-width:64px;${x.posted?'color:#12a866;border-color:#bfe8d0':'color:#e29a1f;border-color:#f2dca6'}" onclick="tebToggle('${id}')">${x.posted?"投稿済み":"未投稿"}</button>`;
+    return `<tr style="${bg}">`+
+      `<td>${stBtn}</td>`+
+      `<td><input class="attr-in" style="width:52px" value="${esc(x.date)}" onchange="tebEdit('${id}','date',this.value)"></td>`+
+      `<td><input class="attr-in" style="width:96px" value="${esc(x.pnum)}" onchange="tebEdit('${id}','pnum',this.value)"></td>`+
+      `<td><input class="attr-in" style="width:104px" value="${esc(x.item||"")}" placeholder="アイテムNo" onchange="tebEdit('${id}','item',this.value)"></td>`+
+      `<td><input class="attr-in" style="width:200px" value="${esc(x.title)}" onchange="tebEdit('${id}','title',this.value)"></td>`+
+      `<td><input class="attr-in" style="width:44px" value="${esc(x.cond)}" onchange="tebEdit('${id}','cond',this.value)"></td>`+
+      `<td><input class="attr-in" style="width:34px" value="${esc(x.cat)}" onchange="tebEdit('${id}','cat',this.value)"></td>`+
+      `<td><input class="attr-in" style="width:38px;text-align:right" value="${x.qty}" onchange="tebEdit('${id}','qty',this.value)"></td>`+
+      `<td><input class="attr-in" style="width:72px;text-align:right" value="${x.cost}" onchange="tebEdit('${id}','cost',this.value)"> ¥</td>`+
+      `<td class="right mono">${"₩"+Math.round((x.cost*1.1+1100)/rate).toLocaleString("ja-JP")}</td>`+
+      `<td class="right mono">${yen(x.cost*1.1+1100)}</td>`+
+      `<td><input class="attr-in" style="width:110px" value="${esc(x.memo)}" onchange="tebEdit('${id}','memo',this.value)"></td>`+
+      `<td><button class="rowbtn del btn-sm" onclick="tebDel('${id}')">削除</button></td></tr>`;
+  }).join(""):`<tr><td class="empty" colspan="13">${q?"該当する出品がありません":"出品がありません"}</td></tr>`;
+  host.innerHTML=`<div class="toolbar" style="border:0;padding:0 0 8px;gap:8px;align-items:center">`+
+    `<input id="teb-search" value="${esc(tebQuery)}" placeholder="🔍 アイテムナンバー・製品番号・商品名で検索" style="height:36px;border:1px solid var(--line);border-radius:8px;padding:0 10px;font-size:13px;min-width:300px" onkeydown="if(event.key==='Enter')tebSearch()">`+
+    `<button class="btn-primary btn-sm" onclick="tebSearch()">検索</button>`+(tebQuery?`<button class="btn-ghost btn-sm" onclick="document.getElementById('teb-search').value='';tebSearch()">クリア</button>`:"")+
+    `<small style="color:var(--muted)">全${all.length}件（投稿済み ${done}／未投稿 ${all.length-done}）・販売価格＝(仕入れ値×1.1＋送料1,100円)を現在レート(₩1=¥${rate.toFixed(4)})でウォン換算</small>`+
+    `<div class="grow"></div><button class="btn-ghost btn-sm" onclick="tebAdd()">＋ 出品を追加</button></div>`+
+    `<div class="tablewrap"><table><thead><tr><th>投稿</th><th>更新日</th><th>製品番号</th><th>アイテムNo</th><th>商品名</th><th>状態</th><th>区分</th><th class="right">数</th><th>仕入れ値(¥)</th><th class="right">販売価格(₩)<small style="color:#9aa2b1">自動</small></th><th class="right">販売価格(¥)</th><th>備考</th><th>操作</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+}
+
+/* ===== スマート出品：カテゴリー（NG/OK/未・コード検索・移動・追加/編集/削除） ===== */
+const SMARTCAT_KEY="kr_list_cat_smart_v1";
+const SMARTCAT_SEED=[{id:"sc1",code:"5000•••",name:"サッカー",memo:"",group:"ng"},{id:"sc2",code:"50006732",name:"その他衣類",memo:"ファッション",group:"ok"},{id:"sc3",code:"50003314",name:"その他家電",memo:"",group:"mi"},{id:"sc4",code:"50005248",name:"野球服",memo:"",group:"ng"},{id:"sc5",code:"50001069",name:"装飾人形",memo:"おもちゃ全般",group:"ok"},{id:"sc6",code:"50001304",name:"その他キャンプ用品",memo:"",group:"mi"},{id:"sc7",code:"50000787",name:"メンズ靴",memo:"",group:"ng"},{id:"sc8",code:"50000788",name:"靴",memo:"靴全般",group:"ok"},{id:"sc9",code:"50004484",name:"ギター楽器",memo:"",group:"mi"},{id:"sc10",code:"50006188",name:"バンド時計",memo:"",group:"ng"},{id:"sc11",code:"50001364",name:"その他テニス用品",memo:"",group:"ok"},{id:"sc12",code:"50002927",name:"ワイヤレスマウス",memo:"",group:"mi"},{id:"sc13",code:"50005901",name:"アニメ系",memo:"アニメ系",group:"ng"},{id:"sc14",code:"50004002",name:"足首ソックス",memo:"メンズ靴下全般",group:"ok"},{id:"sc15",code:"50009961",name:"健康運動その他",memo:"",group:"ng"},{id:"sc16",code:"50000830",name:"メンズTシャツ",memo:"メンズTシャツ全般",group:"ok"},{id:"sc17",code:"50000651",name:"メンズバッグ",memo:"メンズバッグ全般",group:"ok"},{id:"sc18",code:"50000426",name:"時計",memo:"腕時計全般",group:"ok"},{id:"sc19",code:"50004795",name:"コーヒー",memo:"コーヒーポッド",group:"ok"},{id:"sc20",code:"50003120",name:"ケーブル",memo:"USBケーブル",group:"ok"},{id:"sc21",code:"50003413",name:"電動系",memo:"電動ドリル",group:"ok"},{id:"sc22",code:"50006829",name:"プラモデル",memo:"プラモデル",group:"ok"},{id:"sc23",code:"50003402",name:"ピンセット",memo:"",group:"mi"},{id:"sc24",code:"50002775",name:"ゲーム機器",memo:"その他ゲーム機器",group:"ok"},{id:"sc25",code:"50016060",name:"ヘアアイロン",memo:"",group:"mi"},{id:"sc26",code:"50000022",name:"スポーツ",memo:"スポーツ用品",group:"ok"},{id:"sc27",code:"50002044",name:"ランドリー雑貨",memo:"",group:"mi"},{id:"sc28",code:"50015560",name:"釣り用品",memo:"釣り用具",group:"ok"},{id:"sc29",code:"50003992",name:"キャップ",memo:"帽子",group:"ok"},{id:"sc30",code:"50000554",name:"サングラス",memo:"サングラス",group:"ok"},{id:"sc31",code:"50000651",name:"",memo:"バックパック　メンズ",group:"ok"},{id:"sc32",code:"50004764",name:"",memo:"ナイフセット・刃物",group:"ok"},{id:"sc33",code:"50000656",name:"",memo:"スーツケース",group:"ok"},{id:"sc34",code:"50003985",name:"",memo:"財布",group:"ok"},{id:"sc35",code:"50000265",name:"",memo:"一眼レフカメラ関連",group:"ok"},{id:"sc36",code:"50001304",name:"キャンプ用品",memo:"",group:"ok"},{id:"sc37",code:"50001733",name:"家庭用ゲーム機",memo:"",group:"ok"},{id:"sc38",code:"50001579",name:"PCアクセサリ",memo:"",group:"ok"}];
+let scHighlight="", scNotFound="", scQuery="";
+function loadSmartCat(){ const raw=localStorage.getItem(SMARTCAT_KEY); if(raw){ try{ const d=JSON.parse(raw); if(Array.isArray(d)) return d; }catch(e){} } const s=SMARTCAT_SEED.map(x=>({...x})); localStorage.setItem(SMARTCAT_KEY,JSON.stringify(s)); return s; }
+function saveSmartCat(l){ localStorage.setItem(SMARTCAT_KEY,JSON.stringify(l)); }
+function scScrollTo(id){ const el=document.getElementById("scrow-"+id); if(el) el.scrollIntoView({behavior:"smooth",block:"center"}); }
+window.scEdit=(id,f,v)=>{ const l=loadSmartCat(); const it=l.find(x=>x.id===id); if(it){ it[f]=String(v); saveSmartCat(l); } };
+window.scMove=(id,g)=>{ const l=loadSmartCat(); const it=l.find(x=>x.id===id); if(it){ it.group=g; saveSmartCat(l); } scHighlight=id; renderList(); setTimeout(()=>scScrollTo(id),60); };
+window.scDel=(id)=>{ if(!confirm("この項目を削除しますか？")) return; saveSmartCat(loadSmartCat().filter(x=>x.id!==id)); renderList(); };
+window.scAdd=(g)=>{ const l=loadSmartCat(); const it={id:"sc"+Date.now().toString(36)+Math.floor(Math.random()*1000),code:"",name:"",memo:"",group:g}; l.push(it); saveSmartCat(l); scHighlight=it.id; renderList(); setTimeout(()=>scScrollTo(it.id),60); };
+window.scSearch=()=>{ const inp=document.getElementById("sc-search"); const q=(inp?inp.value:"").trim(); scQuery=q;
+  if(!q){ scHighlight=""; scNotFound=""; renderList(); return; }
+  const norm=s=>String(s||"").replace(/[^0-9]/g,""); const l=loadSmartCat();
+  const ql=q.toLowerCase(); const hit=l.find(x=>String(x.code).trim()===q || (norm(x.code)&&norm(x.code)===norm(q)) || (x.name&&String(x.name).toLowerCase().includes(ql)) || (x.memo&&String(x.memo).toLowerCase().includes(ql)));
+  if(hit){ scHighlight=hit.id; scNotFound=""; renderList(); setTimeout(()=>scScrollTo(hit.id),80); }
+  else { scHighlight=""; scNotFound=q; renderList(); } };
+window.scAddSearched=()=>{ const q=(scNotFound||scQuery||"").trim(); if(!q) return; const l=loadSmartCat();
+  const gs=document.getElementById("sc-addgroup"); const g=(gs&&gs.value)?gs.value:"mi"; const it={id:"sc"+Date.now().toString(36),code:q,name:"",memo:"",group:g}; l.push(it); saveSmartCat(l);
+  scHighlight=it.id; scNotFound=""; renderList(); setTimeout(()=>scScrollTo(it.id),80); };
+function renderSmartCat(host){
+  const l=loadSmartCat();
+  const groups=[{k:"ok",label:"OKカテゴリー",ac:"#12a866",bg:"#eafaf0",bd:"#bfe8d0"},{k:"mi",label:"未カテゴリー",ac:"#e29a1f",bg:"#fff8e1",bd:"#f2dca6"},{k:"ng",label:"NGカテゴリー",ac:"#e5453c",bg:"#fdeeee",bd:"#f3c6c6"}];
+  const shortG={ok:"OK",mi:"未",ng:"NG"};
+  const search=`<div class="toolbar" style="border:0;gap:8px;align-items:center;padding:0 0 12px">`+
+    `<input id="sc-search" value="${esc(scQuery)}" placeholder="🔍 カテゴリー名 または コードで検索（例：靴 / 50006732）" style="height:38px;border:1px solid var(--line);border-radius:9px;padding:0 12px;font-size:14px;min-width:300px" onkeydown="if(event.key==='Enter')scSearch()">`+
+    `<button class="btn-primary btn-sm" onclick="scSearch()">検索</button>`+
+    (scQuery?`<button class="btn-ghost btn-sm" onclick="document.getElementById('sc-search').value='';scSearch()">クリア</button>`:"")+`<div class="grow"></div><button class="btn-primary btn-sm" onclick="scAdd('mi')">＋ カテゴリーを追加</button></div>`;
+  const notFound = scNotFound ? `<div class="retnote" style="background:#fff4f4;color:#c0392b;border:1px solid #f3c6c6;display:flex;align-items:center;gap:8px;flex-wrap:wrap"><b>「${esc(scNotFound)}」は未登録です。</b><select id="sc-addgroup" class="attr-in" style="width:130px"><option value="mi">未カテゴリー</option><option value="ok">OKカテゴリー</option><option value="ng">NGカテゴリー</option></select><button class="btn-primary btn-sm" onclick="scAddSearched()">＋ 追加</button></div>` : "";
+  const cards=groups.map(g=>{
+    const items=l.filter(x=>x.group===g.k);
+    const others=groups.filter(o=>o.k!==g.k);
+    const rows=items.length?items.map(x=>{ const id=esc(x.id); const hl=scHighlight===x.id?"box-shadow:inset 0 0 0 2px #ffd54a;background:#fffdf2;":"";
+      const copy=x.code?`<button class="cbtn" data-copy="${esc(x.code)}" onclick="copyBtn(this)" title="コードをコピー">📋</button>`:"";
+      const moves=others.map(o=>`<button class="btn-ghost" style="padding:1px 6px;font-size:10px" onclick="scMove('${id}','${o.k}')">→${shortG[o.k]}</button>`).join("");
+      return `<div id="scrow-${id}" style="border-top:1px solid #eef1f7;padding:7px 9px;${hl}">`+
+        `<div style="display:flex;gap:4px;align-items:center;margin-bottom:3px"><input class="attr-in" style="width:86px" value="${esc(x.code)}" placeholder="コード" onchange="scEdit('${id}','code',this.value)">${copy}<span style="flex:1"></span>${moves}<button class="rowbtn del" style="padding:1px 6px;font-size:10px" onclick="scDel('${id}')">削除</button></div>`+
+        `<input class="attr-in" style="width:100%;box-sizing:border-box;margin-bottom:2px" value="${esc(x.name)}" placeholder="カテゴリー名" onchange="scEdit('${id}','name',this.value)">`+
+        `<input class="attr-in" style="width:100%;box-sizing:border-box;font-size:11px" value="${esc(x.memo)}" placeholder="備考" onchange="scEdit('${id}','memo',this.value)"></div>`;
+    }).join(""):`<div style="padding:14px;color:#9aa2b1;font-size:12px">項目がありません</div>`;
+    return `<div style="border:1px solid ${g.bd};border-radius:14px;overflow:hidden;background:#fff;box-shadow:0 2px 10px rgba(30,41,89,.05)">`+
+      `<div style="background:${g.bg};color:${g.ac};font-weight:800;padding:11px 14px;font-size:14px;display:flex;justify-content:space-between;align-items:center"><span>${g.label}</span><small style="font-weight:700">${items.length}件</small></div>`+
+      `<div>${rows}</div>`+
+      `<div style="padding:8px 10px;border-top:1px solid #eef1f7"><button class="btn-ghost btn-sm" style="width:100%" onclick="scAdd('${g.k}')">＋ 追加</button></div></div>`;
+  }).join("");
+  host.innerHTML=search+notFound+`<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px;align-items:start">${cards}</div>`;
 }
 
 /* ---- Attributes（クーパン出品の参考表） ---- */
@@ -1797,6 +1921,13 @@ document.getElementById("nav-banlist").addEventListener("click",()=>{
   document.getElementById("nav-banlist").classList.add("active");
   document.getElementById("crumb").innerHTML=`HOME / <b>出品禁止</b>`;
   document.getElementById("search").value=""; render();
+});
+document.getElementById("nav-shipfee").addEventListener("click",()=>{
+  section="shipfee";
+  document.querySelectorAll(".navsub a").forEach(x=>x.classList.remove("active"));
+  document.getElementById("nav-shipfee").classList.add("active");
+  document.getElementById("crumb").innerHTML=`HOME / <b>配送料金</b>`;
+  render();
 });
 document.getElementById("nav-shortcut").addEventListener("click",()=>{
   section="shortcut";
