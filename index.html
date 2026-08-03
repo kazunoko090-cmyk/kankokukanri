@@ -354,7 +354,7 @@ window.CAT_ATTR_JA={"색상": "色", "수량": "数量", "패션의류/잡화 �
       <div class="navhead">リサーチ <span class="arw">▶</span></div>
       <div class="navsub">
         <a data-sec="research" data-p="coupang"><span class="dot"></span>クーパン</a>
-        <a class="soon-item"><span class="dot"></span>スマートストア <span class="soon">準備中</span></a>
+        <a data-sec="research" data-p="smart"><span class="dot"></span>スマートストア</a>
         <a class="soon-item"><span class="dot"></span>11番街 <span class="soon">準備中</span></a>
       </div>
     </div>
@@ -632,43 +632,52 @@ window.CAT_ATTR_JA={"색상": "色", "수량": "数量", "패션의류/잡화 �
     <div class="panel" style="padding:18px">
       <div id="manual-videos"></div>
       <div class="man-prompt">
-        <div class="man-ph">ジェミニプロンプト（NAVERブログ記事用） <button class="mini" onclick="copyPrompt(this)" title="全文コピー">📋 コピー</button></div>
-        <pre id="gemini-prompt" class="man-pre">あなたはNAVERブログに韓国語で商品紹介記事を書く専門ライターです。
-以下の構成ルールと定型文を必ず守って記事を作成してください。
+        <div class="man-ph">クロードプロンプト（NAVERブログ記事用） <button class="mini" onclick="copyPrompt(this)" title="全文コピー">📋 コピー</button></div>
+        <pre id="claude-prompt" class="man-pre">■ URLについて（投稿者が直接入力）
+・定型文のURL欄は「URL」という文字だけを置く。実際のリンクは投稿者が後で差し込む。AIは勝手にURLを作らない。
 ═══════════════════════════════
-【記事構成ルール】
+あなたはNAVERブログに韓国語で商品紹介記事を書く専門ライターです。
+以下の【絶対ルール】【入力】【出力フォーマット】【本文構成】【文体】をすべて守ってください。
 ═══════════════════════════════
+【絶対ルール（最優先・例外なし）】
+① 事実厳守：スペック・特徴・対応機種などは、渡された「Amazonタイトル」「商品画像」「箇条書き情報」だけを根拠にする。不明な項目は推測せず「확인 필요」と書くか質問する。実物と違う情報は絶対に書かない。
+② 定型文①②③は一字一句そのまま出力（URL欄は「URL」の文字のまま）。
+③ 画像は差し込み位置のマーカーだけ置き、渡された画像に写っている内容だけを説明する。画像が無い位置に推奨・提案の注記は書かない。
+④ 本文はすべて韓国語（ブランド名・型番などの固有名詞を除く）。
+═══════════════════════════════
+【毎回わたす入力】
+・Amazon商品タイトル（コピペ）
+・商品画像（複数枚を添付／任意）
+・分かっている仕様（色・対応機種・付属品・状態など／任意）
+・クロスプロモ用カテゴリ（任意）
+※タイトルは丸写しせず、ブランド・型番・要点を抽出して韓国語SEO向けに再構成する。
+═══════════════════════════════
+【出力フォーマット（毎回この順・この形）】
+(1) 一番上に「타이틀 案」を出す（본명1つ＋예비2つ／主要キーワードを前方に）。コードブロックの外に書く。
+(2) その下に「본문」を1つのコードブロック（코드 펜스で囲む）にまとめて出力し、ワンクリックでコピーできるようにする。コードブロックの中には説明・注釈・チェックリストを入れない。本文だけを入れる。
+    本文の中身の順番：定型文① → パート1 → パート2 → パート3 → パート4 → 定型文② → 定型文③ → ハッシュタグ。
+═══════════════════════════════
+【本文構成】
 ■ 記事冒頭（定型文①）
-━━━━━━━━━━━━━━━━━━━━
 ◇──────────────────────◇
 안녕하세요!
 일본 직구 전문 **Tokyo Mart**입니다 🇯🇵
-▶ 스마트스토어：（ストアURL）
-▶ 네이버 톡톡：（ネイバートクトクURL）
+▶ 스마트스토어：URL
+▶ 네이버 톡톡：URL
 ▶ 카카오톡 ID：japansellartokyo
 📦 발송 안내
-주문 확인 후 **7일 이내 일본에서 발송**해 드립니다.
+주문 확인 후 **5일 이내 일본에서 발송**해 드립니다.
 도착까지 약 **5~7일** 정도 소요됩니다.
 ◇──────────────────────◇
-━━━━━━━━━━━━━━━━━━━━
 ■ パート1：商品導入
-━━━━━━━━━━━━━━━━━━━━
-・挨拶 + 今日紹介する商品の簡単な導入文
-・読者の興味を引くフレーズで始める
-━━━━━━━━━━━━━━━━━━━━
-■ パート2：商品詳細（メインコンテンツ）
-━━━━━━━━━━━━━━━━━━━━
-## [ブランド名] 商品タイトル（韓国語SEO最適化）
+・挨拶＋今日紹介する商品の簡単な導入（2〜3文、短く）
+■ パート2：商品詳細（メイン）
+## [브랜드] 상품 타이틀（韓国語SEO最適化：主要キーワードを先頭に）
 【📷 商品画像①挿入】
-・商品の第一印象、デザイン、特徴を説明
 【📷 商品画像②挿入】
-・使用シーン、活用方法を説明
 【📷 商品画像③挿入】
-・携帯性、追加機能、便利なポイントを説明
-※ 画像の枚数は商品に応じて増減OK
-━━━━━━━━━━━━━━━━━━━━
+※画像は渡された枚数に合わせる。写っている内容だけ説明。無い位置に推奨注記は書かない。
 ■ パート3：商品スペック表
-━━━━━━━━━━━━━━━━━━━━
 ### 📋 상품 상세 스펙 (Product Spec)
 | 항목 | 상세 정보 |
 | --- | --- |
@@ -678,25 +687,19 @@ window.CAT_ATTR_JA={"색상": "色", "수량": "数量", "패션의류/잡화 �
 | **색상** | （カラー） |
 | **호환성** | （対応機種など） |
 | **상태** | 미개봉 새상품 |
-※ 項目は商品に応じて調整OK
-━━━━━━━━━━━━━━━━━━━━
-■ パート4：ブランドクロスプロモション
-━━━━━━━━━━━━━━━━━━━━
+※不明な項目は「확인 필요」（推測で埋めない）。
+■ パート4：ブランドクロスプロモーション
 ### 💡 브랜드 크로스 프로모션
 ・同ブランドの他商品も扱っていることをアピール
-・関連商品カテゴリを具体的に記載
-━━━━━━━━━━━━━━━━━━━━
+・関連カテゴリ（入力があれば反映）
 ■ 記事末尾（定型文②）
-━━━━━━━━━━━━━━━━━━━━
 ◇──────────────────────◇
 💬 문의는 언제든 편하게 연락주세요!
-▶ 네이버 톡톡：（ネイバートクトクURL）
+▶ 네이버 톡톡：URL
 ▶ 카카오톡 ID：japansellartokyo
-▶ 스마트스토어：（ストアURL）
+▶ 스마트스토어：URL
 ◇──────────────────────◇
-━━━━━━━━━━━━━━━━━━━━
 ■ 記事末尾（定型文③：購買代行案内）
-━━━━━━━━━━━━━━━━━━━━
 ◇──────────────────────◇
 ### 🛒 구매대행 서비스 안내
 일본에서만 판매되는 상품, 찾기 어려운 상품도
@@ -706,26 +709,22 @@ window.CAT_ATTR_JA={"색상": "色", "수량": "数量", "패션의류/잡화 �
 2️⃣ 견적을 확인 후 안내해 드립니다
 3️⃣ 결제 완료 후 일본에서 바로 발송!
 다른 색상과 사이즈를 원하시면 편하게 문의하세요.
+**대량 주문도 가능합니다.**
 이 상품 외에 필요한 상품이 있다면,
 찾아보겠으니, 언제라도 연락을 주세요.
 가격 협의도 가능합니다.▼▼
 여기서 소개한 제품외에도 다양한 제품이 준비되어있습니다.
 ◇──────────────────────◇
-━━━━━━━━━━━━━━━━━━━━
-■ ハッシュタグ
-━━━━━━━━━━━━━━━━━━━━
-・韓国語ハッシュタグ 25~30個
-・含む要素：ブランド名、商品カテゴリ、
-  関連キーワード、#일본직구 #구매대행
-  #도쿄마트 #TokyoMart #일본구매대행
+■ ハッシュタグ（本文コードブロックの末尾に入れる）
+・韓国語 25〜30個、重複なし。ブランド系／カテゴリ系／ロングテール系／固定タグ。
+・固定タグ：#일본직구 #구매대행 #도쿄마트 #TokyoMart #일본구매대행
 ═══════════════════════════════
-【文体・トーンルール】
+【文体・トーン】
+・해요체、親しみやすく丁寧。絵文字は適度に。短い段落。SEOを意識した見出し。
 ═══════════════════════════════
-・丁寧かつ親しみやすい韓国語（해요체）
-・絵文字は適度に使用（過度にならない程度）
-・中央揃えを意識した構成
-・SEOを意識したタイトルと見出し
-・読みやすい短い段落で区切る
+【運用のコツ】
+・記事1本ごとに新しいチャットを開く。
+・投稿前にURL2種とスペック表の「확인 필요」を人が最終確認。
 ═══════════════════════════════</pre>
       </div>
     </div>
@@ -1294,7 +1293,7 @@ function renderBlog(){
   }
   document.getElementById("blogcount").textContent=`${PNAME[p]} ・ 未投稿 ${todoCount}件 ／ 投稿済み ${doneCount}件`;
 }
-/* ===== ブログ マニュアル（動画リスト＋ジェミニプロンプト） ===== */
+/* ===== ブログ マニュアル（動画リスト＋クロードプロンプト） ===== */
 const MANUAL_SEED=[
  {title:"はじめに", url:"https://www.loom.com/share/c190c96636fa4d8ba508b18a9f7f370d"},
  {title:"準備", url:"https://www.loom.com/share/1203cd3fe915448b938e82279cfa117f"},
@@ -1310,7 +1309,7 @@ const MANUAL_SEED=[
  {title:"カテゴリー選定", url:""}
 ];
 function loomEmbed(u){ u=String(u||"").trim(); const m=u.match(/loom\.com\/(?:share|embed)\/([a-z0-9]+)/i); return m?("https://www.loom.com/embed/"+m[1]):""; }
-window.copyPrompt=(btn)=>{ const el=document.getElementById("gemini-prompt"); copyText(el?el.textContent:""); flashBtn(btn); };
+window.copyPrompt=(btn)=>{ const el=document.getElementById("claude-prompt"); copyText(el?el.textContent:""); flashBtn(btn); };
 /* ===== マニュアル 汎用（タイトル＋動画カード・追加/削除/編集） ===== */
 function loadMan(key, seed){ try{ const d=JSON.parse(localStorage.getItem(key)); if(Array.isArray(d)) return d; }catch(e){}
   const s=(seed||[]).map(x=>({id:uid(),title:x.title||"",url:x.url||""})); localStorage.setItem(key,JSON.stringify(s)); return s; }
@@ -2197,10 +2196,18 @@ const RCATS=[
   {id:"rival",  label:"ライバルセラー",       short:"ライバルセラー", type:"seller"},
   {id:"ngexp",  label:"輸出不可ブランド",     short:"輸出不可",    type:"brand"},
   {id:"wake",   label:"訳ありブランド",       short:"訳あり",      type:"brand"},
-  {id:"brandrank", label:"ランキング（ブランド販売数）", short:"ランキング", type:"rank"}
+  {id:"brandrank", label:"ランキング（ブランド販売数）", short:"ランキング", type:"rank"},
+  {id:"srankA", label:"ランクA（ブランド）", short:"ランクA", type:"brand", plat:"smart"},
+  {id:"srankB", label:"ランクB（ブランド）", short:"ランクB", type:"brand", plat:"smart"},
+  {id:"sbrand", label:"ブランド", short:"ブランド", type:"brand", plat:"smart"},
+  {id:"srival", label:"ライバルセラー", short:"ライバルセラー", type:"seller", plat:"smart"},
+  {id:"sngexp", label:"輸出不可（クーパン/11番街/スマートストア）", short:"輸出不可", type:"ngmulti", plat:"smart"},
+  {id:"sbrandrank", label:"ランキング（ブランド販売数）", short:"ランキング", type:"rank", plat:"smart"}
 ];
 let researchTab="soldA";
 function rcat(id){ return RCATS.find(c=>c.id===id)||RCATS[0]; }
+function researchCats(){ return RCATS.filter(c=>(c.plat||"coupang")===current); }
+window.rvTabClick=(id)=>{ researchTab=id; const s=document.getElementById("rv-search"); if(s) s.value=""; renderResearch(); };
 function loadResearch(){ try{ const d=JSON.parse(localStorage.getItem(RESEARCH_KEY)); if(d&&typeof d==="object"&&!Array.isArray(d)) return d; }catch(e){} return {}; }
 function saveResearch(d){ localStorage.setItem(RESEARCH_KEY, JSON.stringify(d)); }
 function catRows(cat){ const d=loadResearch(); return Array.isArray(d[cat])?d[cat]:[]; }
@@ -2223,7 +2230,7 @@ function sortResearch(rows){ const BIG=8.64e15; return rows.slice().sort((a,b)=>
   return (da?da.getTime():BIG)-(db?db.getTime():BIG); }); }
 function filteredResearchRows(){ let rows=catRows(researchTab);
   const q=(document.getElementById("rv-search").value||"").trim().toLowerCase();
-  if(q) rows=rows.filter(r=>[r.name,r.memo,r.brands,r.count,r.amazon,r.rakuten].some(v=>String(v||"").toLowerCase().includes(q)));
+  if(q) rows=rows.filter(r=>[r.name,r.memo,r.brands,r.count,r.amazon,r.rakuten,r.coupang].some(v=>String(v||"").toLowerCase().includes(q)));
   return sortResearch(rows); }
 let rvLastAdded=null, rvFocusUrl=null;
 const editingUrl=new Set();  /* URL編集モード中のキー（id:field） */
@@ -2242,12 +2249,14 @@ window.rvMove=(id,target)=>{ if(!target) return; const from=researchTab; if(targ
   const r=rows[idx]; rows.splice(idx,1); setCatRows(from,rows);
   const seller=rcat(target).type==="seller"; const trows=catRows(target);
   const common={id:r.id,name:r.name||"",memo:r.memo||"",date:r.date||todayStr()};
-  const moved = seller ? {...common, coupang:r.coupang||r.amazon||""} : {...common, amazon:r.amazon||"", rakuten:r.rakuten||""};
+  const moved = seller ? {...common, coupang:r.coupang||r.amazon||""} : {...common, amazon:r.amazon||"", rakuten:r.rakuten||"", coupang:r.coupang||""};
   trows.push(moved); setCatRows(target,trows); cloudPushResearch([{cat:target, ...moved}]); renderResearch(); };
-function rvAdd(){ const cat=researchTab; const rows=catRows(cat); const seller=rcat(cat).type==="seller";
+function rvAdd(){ const cat=researchTab; const rows=catRows(cat); const ty=rcat(cat).type;
   const nid=uid();
-  rows.push(seller?{id:nid,name:"",coupang:"",memo:"",date:todayStr()}:{id:nid,name:"",amazon:"",rakuten:"",memo:"",date:todayStr()});
-  setCatRows(cat,rows); rvLastAdded=nid; renderResearch(); }
+  const row = ty==="seller" ? {id:nid,name:"",coupang:"",memo:"",date:todayStr()}
+            : ty==="ngmulti" ? {id:nid,name:"",coupang:"",rakuten:"",amazon:"",memo:"",date:todayStr()}
+            : {id:nid,name:"",amazon:"",rakuten:"",memo:"",date:todayStr()};
+  rows.push(row); setCatRows(cat,rows); rvLastAdded=nid; renderResearch(); }
 function rvBulkOpen(){ const rows=filteredResearchRows();
   const checked=[...document.querySelectorAll("#rvbody .rvchk:checked")].map(c=>c.dataset.id);
   if(!checked.length){ alert("開きたい行の左の ✓ にチェックを入れてから「選択を一括で開く」を押してください。"); return; }
@@ -2273,13 +2282,17 @@ function brandTitleOf(s){ const t=String(s.title||"").trim(); if(t) return t;
   if(m){ try{ const seg=decodeURIComponent(m[1]).replace(/[-_+]+/g," ").trim();
     if(seg && !/^(dp|gp|sp|s|b|hz|ref|product|exec)$/i.test(seg)) return seg; }catch(e){} }
   return ""; }
+/* スマート用：先頭の[ブランド]表記を優先、無ければ先頭語 */
+function smartBrand(title){ const t=String(title||"").trim(); if(!t) return "";
+  const m=t.match(/^\s*[\[［]([^\]］]+)[\]］]/); if(m) return m[1].trim();
+  return t.split(/[\s　]+/)[0]; }
 /* ランキング：売上台帳から、商品タイトル（無ければURL由来の商品名）のブランド名ごとに販売個数を集計 */
 function renderBrandRank(cat){
-  const l=loadSales("kr_sales_coupang_v3");
+  const l=loadSales(platforms[current].salesKey);
   const q=(document.getElementById("rv-search").value||"").trim().toLowerCase();
   const KB=knownBrands();
   const g={};
-  l.forEach(s=>{ if(s.status==="キャンセル"||s.status==="返品") return; const b=brandOf(brandTitleOf(s),KB); if(!b) return;
+  l.forEach(s=>{ if(s.status==="キャンセル"||s.status==="返品") return; const b=(current==="smart"?smartBrand(brandTitleOf(s)):brandOf(brandTitleOf(s),KB)); if(!b) return;
     if(!g[b]) g[b]={brand:b, qty:0, lastT:0, last:""};
     g[b].qty += num(s.qty)||1;
     const p=parseDate(s.date), t=p?p.getTime():0; if(t>g[b].lastT){ g[b].lastT=t; g[b].last=s.date; } });
@@ -2298,7 +2311,10 @@ function renderBrandRank(cat){
 }
 function renderResearch(){
   if(window.rvComposing){ window.rvRenderPending=true; return; }   /* 変換中は再描画しない（文字化け防止） */
-  const cat=rcat(researchTab), seller=cat.type==="seller", rank=cat.type==="rank";
+  const cats=researchCats();
+  if(!cats.some(c=>c.id===researchTab)) researchTab=cats[0].id;   /* 現在のモールに合うタブへ切替 */
+  document.getElementById("rv-tabs").innerHTML=cats.map(c=>`<button class="segbtn${c.id===researchTab?' active':''}" data-cat="${c.id}" onclick="rvTabClick('${c.id}')">${esc(c.short)}</button>`).join("");
+  const cat=rcat(researchTab), seller=cat.type==="seller", rank=cat.type==="rank", ngmulti=cat.type==="ngmulti";
   document.querySelectorAll("#rv-tabs .segbtn").forEach(b=>b.classList.toggle("active",b.dataset.cat===researchTab));
   ["rv-add","rv-open","rv-import-btn","rv-export"].forEach(id=>{ const el=document.getElementById(id); if(el) el.style.display= rank?"none":""; });
   const hint=document.getElementById("rv-hint"); if(hint) hint.style.display= rank?"none":"";
@@ -2306,13 +2322,15 @@ function renderResearch(){
   const rows=filteredResearchRows();
   const H = seller
     ? ["✓","セラー名","クーパンURL","メモ","最終確認日","操作"]
+    : ngmulti
+    ? ["✓","ブランド名","クーパン","11番街","スマートストア","メモ","最終確認日","操作"]
     : ["✓","ブランド名","Amazon URL","楽天 URL","メモ","最終確認日","操作"];
   document.getElementById("rvhead").innerHTML="<tr>"+H.map((h,i)=>`<th${i===0?' class="rvc"':''}>${esc(h)}</th>`).join("")+"</tr>";
-  const moveSel=id=>{ const opts=RCATS.filter(c=>c.id!==researchTab).map(c=>`<option value="${c.id}">${esc(c.short)}へ移動</option>`).join("");
+  const moveSel=id=>{ const opts=researchCats().filter(c=>c.id!==researchTab).map(c=>`<option value="${c.id}">${esc(c.short)}へ移動</option>`).join("");
     return `<select class="rvmove" title="別カテゴリへ移動" onchange="rvMove('${id}',this.value)"><option value="">移動…</option>${opts}</select>`; };
   const delBtn=id=>`<button class="rowbtn del btn-sm" onclick="rvDel('${id}')" title="この行を削除">削除</button>`;
   const opCell=id=>`<td class="rvop">${moveSel(id)}${delBtn(id)}</td>`;
-  const colspan=seller?6:7;
+  const colspan=seller?6:(ngmulti?8:7);
   document.getElementById("rvbody").innerHTML = rows.length ? rows.map(r=>{
     const id=esc(r.id);
     const chk=`<td class="rvc"><input type="checkbox" class="rvchk" data-id="${id}" title="一括で開く対象に選択"></td>`;
@@ -2322,6 +2340,12 @@ function renderResearch(){
     if(seller){
       const cpCell=urlCellFor(r,'coupang','クーパンURL');
       return `<tr data-id="${id}">${chk}${nameCell}${cpCell}${memoCell}${dateCell}${opCell(id)}</tr>`;
+    }
+    if(ngmulti){
+      const cpCell=urlCellFor(r,'coupang','クーパンURL');
+      const stCell=urlCellFor(r,'rakuten','11番街URL');
+      const smCell=urlCellFor(r,'amazon','スマートストアURL');
+      return `<tr data-id="${id}">${chk}${nameCell}${cpCell}${stCell}${smCell}${memoCell}${dateCell}${opCell(id)}</tr>`;
     }
     const amzCell=urlCellFor(r,'amazon','Amazon URL');
     const rakCell=urlCellFor(r,'rakuten','楽天 URL');
@@ -2348,11 +2372,12 @@ document.getElementById("rv-open").onclick=rvBulkOpen;
 
 /* リサーチ：CSV出力（表示中のカテゴリ） */
 document.getElementById("rv-export").onclick=()=>{
-  const cat=rcat(researchTab), seller=cat.type==="seller", rows=catRows(cat.id);
+  const cat=rcat(researchTab), seller=cat.type==="seller", ngmulti=cat.type==="ngmulti", rows=catRows(cat.id);
   const H = seller?["セラー名","クーパンURL","メモ","最終確認日"]
-                  :["ブランド名","Amazon URL","楽天URL","メモ","最終確認日"];
+          : ngmulti?["ブランド名","クーパンURL","11番街URL","スマートストアURL","メモ","最終確認日"]
+          : ["ブランド名","Amazon URL","楽天URL","メモ","最終確認日"];
   const esccsv=v=>{ const s=String(v??""); return /[",\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s; };
-  const body=rows.map(r=>(seller?[r.name,r.coupang,r.memo,r.date]:[r.name,r.amazon,r.rakuten,r.memo,r.date]).map(esccsv).join(",")).join("\n");
+  const body=rows.map(r=>(seller?[r.name,r.coupang,r.memo,r.date]:ngmulti?[r.name,r.coupang,r.rakuten,r.amazon,r.memo,r.date]:[r.name,r.amazon,r.rakuten,r.memo,r.date]).map(esccsv).join(",")).join("\n");
   const blob=new Blob(["﻿"+H.join(",")+"\n"+body],{type:"text/csv;charset=utf-8"});
   const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download="リサーチ_"+cat.label+".csv"; a.click();
 };
