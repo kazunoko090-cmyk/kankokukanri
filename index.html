@@ -1845,7 +1845,7 @@ function renderSalesDetail(){
       `<td class="s1">${sel}</td>`+
       `<td class="s2c"><input type="checkbox" class="rowchk" ${checked} onclick="setHi(this,'${id}')" title="チェックで色付け"></td>`+
       `<td ondblclick="editAsin('${id}')">${asinCell}</td>`+
-      `<td>${esc(s.dorder||s.order)}</td>`+
+      `<td>${esc(s.order)}</td>`+
       `<td><span class="clip" title="${esc(s.title||"")}" onclick="toggleClip(this)">${esc(s.title||"")}</span></td>`+
       `<td>${esc(md(s.date))}</td>`+
       `<td class="${dcls}">${esc(md(s.deadline))}</td>`+
@@ -1958,6 +1958,7 @@ document.querySelectorAll(".navhead").forEach(h=>h.addEventListener("click",()=>
 /* サイドバー：プラットフォーム選択（顧客管理グループのみ稼働） */
 document.querySelectorAll(".navsub a[data-p]").forEach(a=>a.addEventListener("click",()=>{
   section=a.dataset.sec||"cust"; current=a.dataset.p;
+  svMonth=null;   /* プラットフォームを開いたら売上は最新月から表示 */
   document.querySelectorAll(".navsub a").forEach(x=>x.classList.remove("active"));
   a.classList.add("active");
   const secName=section==="sales"?"売上管理":(section==="research"?"リサーチ":(section==="list"?"出品":(section==="banned"?"禁止ブランド":(section==="blog"?"ブログ":(section==="tblman"?"管理表マニュアル":"顧客管理")))));
@@ -2183,7 +2184,7 @@ document.getElementById("btn-sexport").onclick=()=>{
   }
   const rows=l.filter(s=>monthKey(s.date)===svMonth).sort((a,b)=>{const x=parseDate(a.date),y=parseDate(b.date);return (y?y.getTime():0)-(x?x.getTime():0);});
   const H=["ステータス","ASIN","注文番号","商品タイトル","販売日","発送期日","追跡番号","仕入れ値","仕入れ数量","仕入れ額","売値(ウォン)","売上数","売値合計","発送料金","経費","手数料","発送料+手数料","純利益","備考"];
-  const body=rows.map(s=>{const c=calcSale(s,rate);return [s.status,s.asin,(s.dorder||s.order),s.title,s.date,s.deadline,s.track,c.cost,c.qty,c.costTotal,c.won,c.cancel?0:c.qty,c.saleTotal,c.ship,c.exp,c.fee,c.shipFee,c.profit,s.note||""].map(v=>{const t=String(v??"");return /[",\n]/.test(t)?'"'+t.replace(/"/g,'""')+'"':t;}).join(",");}).join("\n");
+  const body=rows.map(s=>{const c=calcSale(s,rate);return [s.status,s.asin,s.order,s.title,s.date,s.deadline,s.track,c.cost,c.qty,c.costTotal,c.won,c.cancel?0:c.qty,c.saleTotal,c.ship,c.exp,c.fee,c.shipFee,c.profit,s.note||""].map(v=>{const t=String(v??"");return /[",\n]/.test(t)?'"'+t.replace(/"/g,'""')+'"':t;}).join(",");}).join("\n");
   dl("売上管理_クーパン_"+svMonth+".csv", H.join(",")+"\n"+body);
 };
 
