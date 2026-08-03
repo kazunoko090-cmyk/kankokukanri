@@ -2247,9 +2247,11 @@ window.rvDel=(id)=>{ if(!confirm("この行を削除しますか？")) return; s
 window.rvMove=(id,target)=>{ if(!target) return; const from=researchTab; if(target===from) return;
   const rows=catRows(from); const idx=rows.findIndex(x=>x.id===id); if(idx<0) return;
   const r=rows[idx]; rows.splice(idx,1); setCatRows(from,rows);
-  const seller=rcat(target).type==="seller"; const trows=catRows(target);
+  const ttype=rcat(target).type; const trows=catRows(target);
   const common={id:r.id,name:r.name||"",memo:r.memo||"",date:r.date||todayStr()};
-  const moved = seller ? {...common, coupang:r.coupang||r.amazon||""} : {...common, amazon:r.amazon||"", rakuten:r.rakuten||"", coupang:r.coupang||""};
+  const moved = ttype==="seller" ? {...common, coupang:r.coupang||r.amazon||""}
+    : ttype==="ngmulti" ? {...common, coupang:"", rakuten:"", amazon:""}   /* 輸出不可：3モールのリンク枠は空で開始（楽天/AmazonのURLは持ち込まない） */
+    : {...common, amazon:r.amazon||"", rakuten:r.rakuten||"", coupang:r.coupang||""};
   trows.push(moved); setCatRows(target,trows); cloudPushResearch([{cat:target, ...moved}]); renderResearch(); };
 function rvAdd(){ const cat=researchTab; const rows=catRows(cat); const ty=rcat(cat).type;
   const nid=uid();
@@ -2320,17 +2322,21 @@ function renderResearch(){
   const hint=document.getElementById("rv-hint"); if(hint) hint.style.display= rank?"none":"";
   if(rank){ renderBrandRank(cat); return; }
   const rows=filteredResearchRows();
+  const selUrlLbl = current==="smart" ? "スマートストアURL" : "クーパンURL";
+  const smBrand = (!seller && !ngmulti && !rank && current==="smart");   /* スマートのブランド系：楽天列なし */
   const H = seller
-    ? ["✓","セラー名","クーパンURL","メモ","最終確認日","操作"]
+    ? ["✓","セラー名",selUrlLbl,"メモ","最終確認日","操作"]
     : ngmulti
     ? ["✓","ブランド名","クーパン","11番街","スマートストア","メモ","最終確認日","操作"]
+    : smBrand
+    ? ["✓","ブランド名","Amazon URL","メモ","最終確認日","操作"]
     : ["✓","ブランド名","Amazon URL","楽天 URL","メモ","最終確認日","操作"];
   document.getElementById("rvhead").innerHTML="<tr>"+H.map((h,i)=>`<th${i===0?' class="rvc"':''}>${esc(h)}</th>`).join("")+"</tr>";
   const moveSel=id=>{ const opts=researchCats().filter(c=>c.id!==researchTab).map(c=>`<option value="${c.id}">${esc(c.short)}へ移動</option>`).join("");
     return `<select class="rvmove" title="別カテゴリへ移動" onchange="rvMove('${id}',this.value)"><option value="">移動…</option>${opts}</select>`; };
   const delBtn=id=>`<button class="rowbtn del btn-sm" onclick="rvDel('${id}')" title="この行を削除">削除</button>`;
   const opCell=id=>`<td class="rvop">${moveSel(id)}${delBtn(id)}</td>`;
-  const colspan=seller?6:(ngmulti?8:7);
+  const colspan=seller?6:(ngmulti?8:(smBrand?6:7));
   document.getElementById("rvbody").innerHTML = rows.length ? rows.map(r=>{
     const id=esc(r.id);
     const chk=`<td class="rvc"><input type="checkbox" class="rvchk" data-id="${id}" title="一括で開く対象に選択"></td>`;
@@ -2338,7 +2344,7 @@ function renderResearch(){
     const memoCell=`<td><input class="rvmemo" value="${esc(r.memo)}" placeholder="メモ" onchange="rvSet('${id}','memo',this.value)"></td>`;
     const dateCell=`<td><input class="rvdate" type="date" value="${esc(r.date)}" onchange="rvSet('${id}','date',this.value)"></td>`;
     if(seller){
-      const cpCell=urlCellFor(r,'coupang','クーパンURL');
+      const cpCell=urlCellFor(r,'coupang',selUrlLbl);
       return `<tr data-id="${id}">${chk}${nameCell}${cpCell}${memoCell}${dateCell}${opCell(id)}</tr>`;
     }
     if(ngmulti){
@@ -2348,6 +2354,9 @@ function renderResearch(){
       return `<tr data-id="${id}">${chk}${nameCell}${cpCell}${stCell}${smCell}${memoCell}${dateCell}${opCell(id)}</tr>`;
     }
     const amzCell=urlCellFor(r,'amazon','Amazon URL');
+    if(smBrand){
+      return `<tr data-id="${id}">${chk}${nameCell}${amzCell}${memoCell}${dateCell}${opCell(id)}</tr>`;
+    }
     const rakCell=urlCellFor(r,'rakuten','楽天 URL');
     return `<tr data-id="${id}">${chk}${nameCell}${amzCell}${rakCell}${memoCell}${dateCell}${opCell(id)}</tr>`;
   }).join("") : `<tr><td class="empty" colspan="${colspan}"><b>まだ登録がありません</b>右上の「＋ 行を追加」または「CSV取込」で${seller?'セラー':'ブランド'}を登録してください。</td></tr>`;
@@ -2373,11 +2382,13 @@ document.getElementById("rv-open").onclick=rvBulkOpen;
 /* リサーチ：CSV出力（表示中のカテゴリ） */
 document.getElementById("rv-export").onclick=()=>{
   const cat=rcat(researchTab), seller=cat.type==="seller", ngmulti=cat.type==="ngmulti", rows=catRows(cat.id);
-  const H = seller?["セラー名","クーパンURL","メモ","最終確認日"]
+  const smB = (!seller && !ngmulti && current==="smart");
+  const H = seller?["セラー名",(current==="smart"?"スマートストアURL":"クーパンURL"),"メモ","最終確認日"]
           : ngmulti?["ブランド名","クーパンURL","11番街URL","スマートストアURL","メモ","最終確認日"]
+          : smB?["ブランド名","Amazon URL","メモ","最終確認日"]
           : ["ブランド名","Amazon URL","楽天URL","メモ","最終確認日"];
   const esccsv=v=>{ const s=String(v??""); return /[",\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s; };
-  const body=rows.map(r=>(seller?[r.name,r.coupang,r.memo,r.date]:ngmulti?[r.name,r.coupang,r.rakuten,r.amazon,r.memo,r.date]:[r.name,r.amazon,r.rakuten,r.memo,r.date]).map(esccsv).join(",")).join("\n");
+  const body=rows.map(r=>(seller?[r.name,r.coupang,r.memo,r.date]:ngmulti?[r.name,r.coupang,r.rakuten,r.amazon,r.memo,r.date]:smB?[r.name,r.amazon,r.memo,r.date]:[r.name,r.amazon,r.rakuten,r.memo,r.date]).map(esccsv).join(",")).join("\n");
   const blob=new Blob(["﻿"+H.join(",")+"\n"+body],{type:"text/csv;charset=utf-8"});
   const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download="リサーチ_"+cat.label+".csv"; a.click();
 };
