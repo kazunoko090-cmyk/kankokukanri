@@ -862,7 +862,7 @@ const VIEW = [
   {en:"Expected shipment date upon order", head:"출고예정일", jp:"発送期日", deadline:true},
   {en:"Registered product name", head:"상품명", jp:"商品タイトル", clip:true},
   {en:"Vendor product code", head:"ASIN", jp:"ASIN", asin:true},
-  {en:"paid amount", head:"결제액", jp:"販売価格", money:true, copy:true},
+  {en:"paid amount", head:"결제액", jp:"販売価格(1個)", money:true, copy:true, unit:true},
   {en:"Purchased qty", head:"구매수", jp:"購入数", qty:true},
   {en:"Recipient name", head:"수취인 이름", jp:"名前", copy:true},
   {en:"Zipcode", head:"우편번호", jp:"郵便番号", copy:true},
@@ -880,7 +880,7 @@ const SMART_VIEW = [
   {key:"발송기한", jp:"発送期日", deadline:true},
   {key:"상품명", jp:"商品タイトル", clip:true},
   {key:"판매자 상품코드", jp:"ASIN", asin:true},
-  {key:"최종 상품별 총 주문금액", jp:"販売価格", money:true, copy:true},
+  {key:"최종 상품별 총 주문금액", jp:"販売価格(1個)", money:true, copy:true, unit:true},
   {key:"최종 상품별 할인액", jp:"割引額（クーポン等）", money:true},
   {key:"수량", jp:"購入数", qty:true},
   {key:"수취인명", jp:"名前", copy:true},
@@ -1928,8 +1928,8 @@ function renderCust(){
     const cells=view.map(c=>{
       let v=r[c.key||c.en];
       if(c.track){ const tv=led?(led.track||""):""; return `<td><input class="cellinput txt" value="${esc(tv)}" placeholder="追跡番号" onchange="setSaleField('${id}','track',this.value)" title="入力すると自動で発送済みになり、売上管理と共有されます"></td>`; }
-      if(c.money){ const has=v!=null&&String(v)!==""; const rate=(led&&led.rate>0)?led.rate:getRate(); const yen=Math.round(num(v)*rate);
-        return `<td class="money">${esc(won(v))}${(c.copy&&has)?`<button class="cbtn" data-copy="${esc(num(v))}" onclick="copyBtn(this)" title="ウォンをコピー">📋</button>`:""}${has?` = ¥${yen.toLocaleString("ja-JP")}<button class="cbtn" data-copy="${yen}" onclick="copyBtn(this)" title="円をコピー">📋</button>`:""}</td>`; }
+      if(c.money){ const has=v!=null&&String(v)!==""; let wv=num(v); if(c.unit){ const q=num(r[spec.map&&spec.map.qty])||1; if(q>1) wv=Math.round(wv/q); }   /* 販売価格は1個あたり（合計÷数量） */ const rate=(led&&led.rate>0)?led.rate:getRate(); const yen=Math.round(wv*rate);
+        return `<td class="money">${esc(won(wv))}${(c.copy&&has)?`<button class="cbtn" data-copy="${esc(wv)}" onclick="copyBtn(this)" title="ウォンをコピー">📋</button>`:""}${has?` = ¥${yen.toLocaleString("ja-JP")}<button class="cbtn" data-copy="${yen}" onclick="copyBtn(this)" title="円をコピー">📋</button>`:""}</td>`; }
       if(c.deadline){ const st=CLOSED.includes(r._status)?"":deadlineStateVal(v); const cls=st==="today"?"dl-today":(st==="over"?"dl-over":""); return `<td class="${cls}">${esc(v)}</td>`; }
       if(c.asin) return v
         ? `<td ondblclick="editAsin('${id}')"><a class="srclink" href="https://www.amazon.co.jp/dp/${esc(v)}" target="_blank" title="クリックでAmazon（編集はダブルクリック）">${esc(v)}</a><span class="edit-mark" onclick="editAsin('${id}')" title="ASINを編集">✎</span></td>`
