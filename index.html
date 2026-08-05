@@ -1048,7 +1048,7 @@ async function cloudPushRows(rows){ const u=cloudURL(); if(!u||!rows||!rows.leng
 async function cloudDelete(order){ const u=cloudURL(); if(!u) return;
   try{ await fetch(u,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify({action:"delete",order:String(order)})}); }catch(e){ console.warn("cloudDelete",e); } }
 /* ===== その他データの同期（マニュアル・顧客・出品・ブログ等）：key-value方式 ===== */
-const KV_SYNC_PREFIXES=["kr_teb_","kr_bru_","kr_manual_v2","kr_manual_urls","kr_tblman_","kr_cust_","kr_list_attr_","kr_list_cat_","kr_attr_cat_","kr_blog_","kr_hi_","kr_catseg_ja"];
+const KV_SYNC_PREFIXES=["kr_teb_","kr_bru_","kr_manual_v2","kr_manual_urls","kr_tblman_","kr_cust_","kr_list_attr_","kr_list_cat_","kr_attr_cat_","kr_blog_","kr_hi_","kr_catseg_ja","kr_tomb"];
 function isKvSyncKey(k){ return KV_SYNC_PREFIXES.some(p=> k===p || k.indexOf(p)===0 ); }
 let kvReady=false;                 // 初回プル完了まで送信しない（初期シードの誤送信防止）
 const _kvSetItem=localStorage.setItem.bind(localStorage);
@@ -1072,7 +1072,11 @@ function mergeCustArrays(localArr, serverArr, ok){
 }
 /* 汎用マージ：id付きオブジェクト配列・文字列配列・辞書は「統合」して消えないようにする（それ以外の設定値は従来どおり上書き） */
 function _kvId(o){ if(!o||typeof o!=="object") return null; const F=["id","order","asin","code","url","key"]; for(let i=0;i<F.length;i++){ const f=F[i]; if(o[f]!=null && String(o[f]).trim()!=="") return f+"="+String(o[f]); } return null; }
-function mergeKvGeneric(localStr, serverStr){
+/* 削除記録（トゥームストーン）：削除した項目が同期のunion統合で復活しないようにする */
+function loadTomb(){ try{ const d=JSON.parse(localStorage.getItem("kr_tomb_v1")); return (d&&typeof d==="object"&&!Array.isArray(d))?d:{}; }catch(e){ return {}; } }
+function addTomb(storeKey,id){ id=String(id==null?"":id).trim(); if(!id||!storeKey) return; const t=loadTomb(); const kk=storeKey+"|"+id; if(!t[kk]){ t[kk]=1; localStorage.setItem("kr_tomb_v1", JSON.stringify(t)); } }
+function _rid(x){ if(!x||typeof x!=="object") return ""; const F=["id","order","asin","code","url","key"]; for(let i=0;i<F.length;i++){ const v=x[F[i]]; if(v!=null && String(v).trim()!=="") return String(v); } return ""; }
+function mergeKvGeneric(storeKey, localStr, serverStr){
   let a,b;
   try{ a=JSON.parse(localStr); }catch(e){ return null; }   /* ローカルが壊れている等 → 従来の上書きに委ねる */
   try{ b=JSON.parse(serverStr); }catch(e){ return null; }
@@ -1088,8 +1092,10 @@ function mergeKvGeneric(localStr, serverStr){
     a.forEach(x=>{ const idk=_kvId(x); if(!idk){ noId.push(x); return; } if(!(idk in byId)) order.push(idk); byId[idk]=x; });
     b.forEach(x=>{ const idk=_kvId(x); if(!idk) return; if(!(idk in byId)) order.push(idk); byId[idk]=x; seen[idk]=1; });
     const merged=order.map(k=>byId[k]).concat(noId);
-    const pushBack=a.some(x=>{ const idk=_kvId(x); return idk && !seen[idk]; });
-    return { value:JSON.stringify(merged), pushBack };
+    const tomb=loadTomb();
+    const kept=merged.filter(x=>{ const rid=_rid(x); return !(rid && tomb[storeKey+"|"+rid]); });   /* 削除記録にあるものは復活させない */
+    const pushBack=a.some(x=>{ const idk=_kvId(x); return idk && !seen[idk]; }) || (kept.length<merged.length);
+    return { value:JSON.stringify(kept), pushBack };
   }
   const obj=x=> x && typeof x==="object" && !Array.isArray(x);
   if(obj(a) && obj(b)){                                     /* 辞書（カテゴリ翻訳・ブログ等）→ キー和集合（既存キーはサーバー優先） */
@@ -1108,7 +1114,7 @@ function applyServerKV(kv){ Object.keys(kv||{}).forEach(k=>{ if(!isKvSyncKey(k))
     if(pushBack.length) cloudPushKV(k, mstr);                                   /* ローカルにしか無い行をサーバーへ反映 */
     return;
   }
-  const res=mergeKvGeneric(localStorage.getItem(k), v);                        /* ★その他：リスト/辞書は統合、設定値は上書き */
+  const res=mergeKvGeneric(k, localStorage.getItem(k), v);                        /* ★その他：リスト/辞書は統合、設定値は上書き */
   if(res){ if(localStorage.getItem(k)!==res.value) _kvSetItem(k,res.value); if(res.pushBack) cloudPushKV(k,res.value); return; }
   if(localStorage.getItem(k)!==v) _kvSetItem(k,v); }); }
 /* 初回接続時：サーバーに無いローカルデータを一度だけアップロード */
@@ -1315,7 +1321,7 @@ function loadMan(key, seed){ try{ const d=JSON.parse(localStorage.getItem(key));
   const s=(seed||[]).map(x=>({id:uid(),title:x.title||"",url:x.url||""})); localStorage.setItem(key,JSON.stringify(s)); return s; }
 function saveMan(key,l){ localStorage.setItem(key,JSON.stringify(l)); }
 window.manEdit=(key,id,field,val)=>{ const l=loadMan(key); const it=l.find(x=>x.id===id); if(it){ it[field]=String(val); saveMan(key,l); if(field==="url") render(); } };
-window.manDel=(key,id)=>{ if(!confirm("この項目を削除しますか？")) return; saveMan(key, loadMan(key).filter(x=>x.id!==id)); render(); };
+window.manDel=(key,id)=>{ if(!confirm("この項目を削除しますか？")) return; saveMan(key, loadMan(key).filter(x=>x.id!==id)); addTomb(key,id); render(); };
 window.manAdd=(key)=>{ const l=loadMan(key); l.push({id:uid(),title:"",url:""}); saveMan(key,l); render(); };
 function manCardHTML(it,i,key){ const emb=loomEmbed(it.url);
   const video= emb ? `<div class="man-video"><iframe src="${esc(emb)}" allowfullscreen></iframe></div>`
@@ -1429,7 +1435,7 @@ window.bruPostSold=(a)=>{ const o=bruSold(); if(!o[a])o[a]={date:""}; if(!o[a].d
 window.bruUnpostSold=(a)=>{ const o=bruSold(); if(o[a])o[a].posted=false; bruSoldSave(o); renderList(); };
 window.bruCustAdd=()=>{ const l=bruCustom(); l.push({id:uid(),title:"",url:"",posted:false,date:""}); bruCustomSave(l); renderList(); };
 window.bruCustEdit=(id,f,v)=>{ const l=bruCustom(); const it=l.find(x=>x.id===id); if(it){ it[f]=String(v); bruCustomSave(l); } };
-window.bruCustDel=(id)=>{ if(!confirm("この任意商品を削除しますか？"))return; bruCustomSave(bruCustom().filter(x=>x.id!==id)); renderList(); };
+window.bruCustDel=(id)=>{ if(!confirm("この任意商品を削除しますか？"))return; bruCustomSave(bruCustom().filter(x=>x.id!==id)); addTomb(bruKey("custom"),id); renderList(); };
 window.bruCustPost=(id)=>{ const l=bruCustom(); const it=l.find(x=>x.id===id); if(it){ if(!it.date)it.date=todayStr(); it.posted=true; bruCustomSave(l); } renderList(); };
 window.bruCustUnpost=(id)=>{ const l=bruCustom(); const it=l.find(x=>x.id===id); if(it)it.posted=false; bruCustomSave(l); renderList(); };
 function renderBrushup(body){
@@ -1479,7 +1485,7 @@ function saveTebiki(l){ localStorage.setItem(TEBIKI_KEY,JSON.stringify(l)); }
 function tebDateKey(d){ const m=String(d||"").match(/(\d{1,2})\D+(\d{1,2})/); return m?(+m[1])*100+(+m[2]):9999; }
 window.tebEdit=(id,f,v)=>{ const l=loadTebiki(); const it=l.find(x=>x.id===id); if(it){ it[f]=(f==="cost"||f==="qty")?num(v):String(v); if(f==="date" && !String(v).trim()) it.posted=false; saveTebiki(l); if(f==="cost"||f==="date") renderList(); } };
 window.tebToggle=(id)=>{ const l=loadTebiki(); const it=l.find(x=>x.id===id); if(it){ it.posted=!it.posted; saveTebiki(l); } renderList(); };
-window.tebDel=(id)=>{ if(!confirm("この出品を削除しますか？")) return; saveTebiki(loadTebiki().filter(x=>x.id!==id)); renderList(); };
+window.tebDel=(id)=>{ if(!confirm("この出品を削除しますか？")) return; saveTebiki(loadTebiki().filter(x=>x.id!==id)); addTomb(TEBIKI_KEY,id); renderList(); };
 window.tebAdd=()=>{ const l=loadTebiki(); l.push({id:"tb"+Date.now().toString(36),date:"",pnum:"",item:"",title:"",cond:"",cat:"",qty:1,cost:0,memo:"",posted:false}); saveTebiki(l); renderList(); };
 window.tebSearch=()=>{ const inp=document.getElementById("teb-search"); tebQuery=(inp?inp.value:"").trim(); renderList(); };
 function renderTebiki(host){
@@ -1524,7 +1530,7 @@ function saveSmartCat(l){ localStorage.setItem(SMARTCAT_KEY,JSON.stringify(l)); 
 function scScrollTo(id){ const el=document.getElementById("scrow-"+id); if(el) el.scrollIntoView({behavior:"smooth",block:"center"}); }
 window.scEdit=(id,f,v)=>{ const l=loadSmartCat(); const it=l.find(x=>x.id===id); if(it){ it[f]=String(v); saveSmartCat(l); } };
 window.scMove=(id,g)=>{ const l=loadSmartCat(); const it=l.find(x=>x.id===id); if(it){ it.group=g; saveSmartCat(l); } scHighlight=id; renderList(); setTimeout(()=>scScrollTo(id),60); };
-window.scDel=(id)=>{ if(!confirm("この項目を削除しますか？")) return; saveSmartCat(loadSmartCat().filter(x=>x.id!==id)); renderList(); };
+window.scDel=(id)=>{ if(!confirm("この項目を削除しますか？")) return; saveSmartCat(loadSmartCat().filter(x=>x.id!==id)); addTomb(SMARTCAT_KEY,id); renderList(); };
 window.scAdd=(g)=>{ const l=loadSmartCat(); const it={id:"sc"+Date.now().toString(36)+Math.floor(Math.random()*1000),code:"",name:"",memo:"",group:g}; l.push(it); saveSmartCat(l); scHighlight=it.id; renderList(); setTimeout(()=>scScrollTo(it.id),60); };
 window.scSearch=()=>{ const inp=document.getElementById("sc-search"); const q=(inp?inp.value:"").trim(); scQuery=q;
   if(!q){ scHighlight=""; scNotFound=""; renderList(); return; }
@@ -1602,7 +1608,7 @@ window.attrCopy=(id,field,btn)=>{ const r=loadAttr().find(x=>x.id===id); if(!r) 
 window.attrSet=(id,f,v)=>{ const l=loadAttr(); const r=l.find(x=>x.id===id); if(r){ r[f]=v; saveAttr(l); } };
 window.attrEdit=(id)=>{ editingAttr.add(id); renderList(); };
 window.attrEditDone=(id)=>{ editingAttr.delete(id); renderList(); };
-window.attrDel=(id)=>{ if(!confirm("この項目を削除しますか？")) return; saveAttr(loadAttr().filter(x=>x.id!==id)); editingAttr.delete(id); renderList(); };
+window.attrDel=(id)=>{ if(!confirm("この項目を削除しますか？")) return; saveAttr(loadAttr().filter(x=>x.id!==id)); addTomb(attrStore,id); editingAttr.delete(id); renderList(); };
 window.attrAdd=()=>{ const l=loadAttr(); const nid=uid(); l.push({id:nid,kr:"",jp:"",val:""}); saveAttr(l); editingAttr.add(nid); renderList();
   const el=document.querySelector(`#attrtbl tr[data-id="${nid}"] input.attr-in`); if(el) el.focus(); };
 function renderAttr(body){
