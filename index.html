@@ -993,6 +993,7 @@ async function cloudPull(){ const u=cloudURL(); if(!u) return false;
       if(Array.isArray(data.orders)) mergeServer(data.orders);
       if(Array.isArray(data.research)) mergeServerResearch(data.research);
       if(data.kv&&typeof data.kv==="object"){ const wasReady=kvReady; applyServerKV(data.kv); if(!wasReady) pushLocalKvMissing(data.kv); }
+      if(data.rev!=null) _autoRev=String(data.rev);   /* 取り込んだ世代を記録＝次の変化を正しく検知できる */
     } else return false;
     kvReady=true;
     try{ if(typeof ensureReqAttrs==="function") ensureReqAttrs(); }catch(e){}
@@ -1120,7 +1121,17 @@ function calcSale(s,rate){ const cancel=s.status==="キャンセル"; const qty=
   const costTotal=cost*qty; const won=cancel?0:num(s.won); const yen=Math.round(won*r);
   const saleTotal=yen; const shipFee=ship+fee; const profit=saleTotal-costTotal-ship-fee-exp;
   return {qty,cost,costTotal,won,yen,saleTotal,ship,fee,exp,shipFee,profit,cancel}; }
+/* ASIN欄はASINでも商品URLでもよい。URLならそのまま開く（楽天・ヤフショ等）、ASINならAmazonを開く */
 function resolveUrl(v){ v=String(v||"").trim(); if(!v) return ""; return /^https?:\/\//i.test(v)?v:"https://www.amazon.co.jp/dp/"+v; }
+const SHOP_LABEL={"amazon.co.jp":"Amazon","amzn.to":"Amazon","item.rakuten.co.jp":"楽天","rakuten.co.jp":"楽天","search.rakuten.co.jp":"楽天",
+  "shopping.yahoo.co.jp":"ヤフショ","store.shopping.yahoo.co.jp":"ヤフショ","paypaymall.yahoo.co.jp":"ヤフショ","auctions.yahoo.co.jp":"ヤフオク",
+  "jp.mercari.com":"メルカリ","mercari.com":"メルカリ","smartstore.naver.com":"スマストア","coupang.com":"クーパン","www.coupang.com":"クーパン"};
+/* 表示用ラベル：ASINはそのまま／URLはショップ名（無ければドメイン）にして表を崩さない */
+function urlLabel(v){
+  v=String(v||"").trim();
+  if(!/^https?:\/\//i.test(v)) return v;
+  try{ const h=new URL(v).hostname.replace(/^www\./,""); return SHOP_LABEL[h]||h; }catch(e){ return v; }
+}
 
 function canonical(h){ h=String(h||"").trim(); const c=COUPANG_COLS.find(c=>c.en===h||c.kr===h||c.kr.replace(/\s/g,"")===h.replace(/\s/g,"")); return c?c.en:h; }
 const esc = s => String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
@@ -1273,7 +1284,7 @@ function renderBlog(){
   const z=n=>('0'+n).slice(-2); const fmtd=ds=>{const pp=parseDate(ds);return pp?pp.getFullYear()+"-"+z(pp.getMonth()+1)+"-"+z(pp.getDate()):"";};
   if(blogTab==="done") list.sort((a,b)=>String((blog[b.asin]||{}).date||"").localeCompare(String((blog[a.asin]||{}).date||"")));
   else list.sort((a,b)=>b.lastT-a.lastT);
-  const amz=a=>`<a class="srclink" href="https://www.amazon.co.jp/dp/${esc(a)}" target="_blank" title="Amazonで開く">${esc(a)}</a>`;
+  const amz=a=>`<a class="srclink" href="${esc(resolveUrl(a))}" target="_blank" title="${esc(resolveUrl(a))}">${esc(urlLabel(a))}</a>`;
   const titleCell=t=>`<td><span class="clip" title="${esc(t)}" onclick="toggleClip(this)">${esc(t)}</span></td>`;
   if(blogTab==="done"){
     document.getElementById("bloghead").innerHTML="<tr><th>ASIN</th><th>商品タイトル</th><th>投稿日</th><th>操作</th></tr>";
@@ -1434,7 +1445,7 @@ function renderBrushup(body){
   const soldMap=bruSold(), custom=bruCustom(), soldAll=blogData("smart");
   const soldDone=a=>!!(soldMap[a]&&soldMap[a].posted);
   const z=n=>('0'+n).slice(-2), fmtd=ds=>{const pp=parseDate(ds);return pp?pp.getFullYear()+"-"+z(pp.getMonth()+1)+"-"+z(pp.getDate()):"";};
-  const amz=a=>`<a class="srclink" href="https://www.amazon.co.jp/dp/${esc(a)}" target="_blank">${esc(a)}</a>`;
+  const amz=a=>`<a class="srclink" href="${esc(resolveUrl(a))}" target="_blank" title="${esc(resolveUrl(a))}">${esc(urlLabel(a))}</a>`;
   const clip=t=>`<span class="clip" title="${esc(t)}" onclick="toggleClip(this)">${esc(t)}</span>`;
   const tabs=`<div class="seg"><button class="segbtn ${bruTab==="sold"?"active":""}" onclick="setBruTab('sold')">販売済み</button><button class="segbtn ${bruTab==="custom"?"active":""}" onclick="setBruTab('custom')">任意商品</button><button class="segbtn ${bruTab==="done"?"active":""}" onclick="setBruTab('done')">投稿済み</button></div>`;
   let inner="";
@@ -1717,7 +1728,7 @@ function renderSalesRank(){
   const arr=Object.values(g).filter(x=>x.qty>=2).sort((a,b)=> b.qty-a.qty || b.rev-a.rev);
   document.getElementById("rkhead").innerHTML="<tr><th class='right'>順位</th><th>ASIN</th><th>商品名</th><th class='right'>販売個数</th><th class='right'>注文件数</th><th class='right'>売上高</th></tr>";
   document.getElementById("rkbody").innerHTML = arr.length ? arr.map((x,i)=>{
-    const asin=x.asin?`<a class="srclink" href="https://www.amazon.co.jp/dp/${esc(x.asin)}" target="_blank" title="Amazonで開く">${esc(x.asin)}</a>`:"—";
+    const asin=x.asin?`<a class="srclink" href="${esc(resolveUrl(x.asin))}" target="_blank" title="${esc(resolveUrl(x.asin))}">${esc(urlLabel(x.asin))}</a>`:"—";
     const rk=i===0?"🥇":i===1?"🥈":i===2?"🥉":(i+1);
     return `<tr><td class="right mono"><b>${rk}</b></td><td>${asin}</td><td>${esc(x.title||"")}</td><td class="right mono"><b>${x.qty}</b> 個</td><td class="right mono">${x.orders}</td><td class="right mono">${yen(x.rev)}</td></tr>`;
   }).join("") : `<tr><td class="empty" colspan="6"><b>2個以上売れた商品がありません</b>同じASINがこの月に2個以上売れると、ここにランキングで表示されます。</td></tr>`;
@@ -1834,7 +1845,7 @@ function renderSalesDetail(){
     const dcls=dst==="today"?"dl-today":(dst==="over"?"dl-over":"");
     const discCell=hasDisc?`<td class="money mono">${num(s.discount)?("₩"+num(s.discount).toLocaleString("ja-JP")):"—"}</td>`:"";
     const asinCell = s.asin
-      ? `<a class="srclink" href="https://www.amazon.co.jp/dp/${esc(s.asin)}" target="_blank" title="クリックでAmazon（編集はダブルクリック）">${esc(s.asin)}</a><button class="cbtn" data-copy="${esc(s.asin)}" onclick="copyBtn(this)" title="ASINをコピー">📋</button><span class="edit-mark" onclick="editAsin('${id}')" title="ASINを編集">✎</span>`
+      ? `<a class="srclink" href="${esc(resolveUrl(s.asin))}" target="_blank" title="${esc(resolveUrl(s.asin))}">${esc(urlLabel(s.asin))}</a><button class="cbtn" data-copy="${esc(s.asin)}" onclick="copyBtn(this)" title="コピー">📋</button><span class="edit-mark" onclick="editAsin('${id}')" title="ASIN／商品URLを編集">✎</span>`
       : `<span class="edit-mark add" onclick="editAsin('${id}')" title="ASINを入力">＋</span>`;
     const base=s.status==="トラブル"?"trouble":(s.status==="返品"?"returned":(s.status==="キャンセル"?"cancelled":(s.status==="仕入れ済み"?"stocked":"")));
     const cls=[base, hi.has(String(s.order))?"hi":""].filter(Boolean).join(" ");
@@ -1923,7 +1934,7 @@ function renderCust(){
         return `<td class="money">${esc(won(wv))}${(c.copy&&has)?`<button class="cbtn" data-copy="${esc(wv)}" onclick="copyBtn(this)" title="ウォンをコピー">📋</button>`:""}${has?` = ¥${yen.toLocaleString("ja-JP")}<button class="cbtn" data-copy="${yen}" onclick="copyBtn(this)" title="円をコピー">📋</button>`:""}</td>`; }
       if(c.deadline){ const st=CLOSED.includes(r._status)?"":deadlineStateVal(v); const cls=st==="today"?"dl-today":(st==="over"?"dl-over":""); return `<td class="${cls}">${esc(v)}</td>`; }
       if(c.asin) return v
-        ? `<td ondblclick="editAsin('${id}')"><a class="srclink" href="https://www.amazon.co.jp/dp/${esc(v)}" target="_blank" title="クリックでAmazon（編集はダブルクリック）">${esc(v)}</a><span class="edit-mark" onclick="editAsin('${id}')" title="ASINを編集">✎</span></td>`
+        ? `<td ondblclick="editAsin('${id}')"><a class="srclink" href="${esc(resolveUrl(v))}" target="_blank" title="${esc(resolveUrl(v))}">${esc(urlLabel(v))}</a><span class="edit-mark" onclick="editAsin('${id}')" title="ASIN／商品URLを編集">✎</span></td>`
         : `<td ondblclick="editAsin('${id}')"><span class="edit-mark add" onclick="editAsin('${id}')" title="ASINを入力">＋</span></td>`;
       if(c.qty){ return `<td class="mono${num(v)>=2?' qty2':''}">${esc(v)}</td>`; }   /* 仕入れ数量が2以上なら赤字 */
       if(c.copy){ const has=v!=null&&String(v)!==""; return `<td>${esc(v)}${has?`<button class="cbtn" data-copy="${esc(v)}" onclick="copyBtn(this)" title="コピー">📋</button>`:""}</td>`; }
@@ -2148,7 +2159,7 @@ function shortUrl(u){ u=String(u||"").replace(/^https?:\/\//,"").replace(/^www\.
 /* 台帳のorder(=内部キー)から、対応する顧客行をどのプラットフォームでも探して更新 */
 function updateCustField(id,field,val){ for(const p of Object.keys(platforms)){ const sp=platforms[p]; try{ const rows=JSON.parse(localStorage.getItem(sp.key))||[]; const r=rows.find(x=>String(x[sp.orderKey])===String(id)); if(r){ r[field==="asin"?(sp.map&&sp.map.asin):"_status"]=val; localStorage.setItem(sp.key,JSON.stringify(rows)); return; } }catch(e){} } }
 window.editAsin=(id)=>{ const l=loadSales(); const s=l.find(x=>String(x.order)===String(id)); const cur=s?s.asin:"";
-  const v=prompt("ASIN（AmazonのB…コード）を入力してください。\n※間違っていた場合はここで修正できます。", cur||"");
+  const v=prompt("ASIN（AmazonのB…コード）または商品URLを入力してください。\n※楽天・ヤフショ等はURLを貼るとそのまま開きます。", cur||"");
   if(v===null) return; const val=v.trim();
   if(s){ s.asin=val; saveSales(l); pushLedger([s]); }
   updateCustField(id,"asin",val);
@@ -2468,15 +2479,18 @@ async function autoSyncTick(){
   try{
     const r=await fetch(u+(u.indexOf("?")<0?"?":"&")+"check=1",{method:"GET"});
     const j=await r.json(); const rev=(j&&j.rev!=null)?String(j.rev):"";
-    if(_autoRev===null){ _autoRev=rev; }                             /* 初回は基準を覚えるだけ */
-    else if(rev!==""&&rev!==_autoRev){
+    /* _autoRev は cloudPull 成功時にサーバーのrevで更新される。
+       null＝どの世代を持っているか不明（例：ずっと裏タブだった）なので、取りこぼさないよう取り込む。 */
+    if(rev!==""&&rev!==_autoRev){
       if(_editingNow()){ _autoBusy=false; return; }                  /* 入力中は次のtickへ持ち越し */
-      _autoRev=rev; await cloudPull(); refreshSyncUI(); render();
+      await cloudPull(); refreshSyncUI(); render();                  /* _autoRev は cloudPull 内で更新 */
     }
   }catch(e){}
   _autoBusy=false;
 }
 setInterval(autoSyncTick,AUTO_SYNC_MS);
+/* 裏タブの間は止めているので、表に戻った瞬間に一度だけ確認して最新にする */
+document.addEventListener("visibilitychange",()=>{ if(!document.hidden) autoSyncTick(); });
 
 /* ===== バックアップ（全データ書き出し／復元） ===== */
 const bkov=document.getElementById("backupOverlay");
