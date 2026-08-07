@@ -748,7 +748,8 @@ window.CAT_ATTR_JA={"색상": "色", "수량": "数量", "패션의류/잡화 �
       ・レートは<b>取込時点で固定</b>（過去分は当時のレートで計算）<br>
       ・上の「月別明細／年間サマリー」で切替
       <p><b>共有</b></p>
-      ・右上「☁ 同期」でスプレッドシートに接続すると全員で共有。最新化は「今すぐ同期」
+      ・データは全員で自動共有。変更は<b>約10秒</b>で相手の画面にも反映されます（設定は不要）<br>
+      ・右上「☁ 同期」は現在の接続状態の確認用です
       <p style="margin-bottom:6px"><b>わからないことは AI に質問</b></p>
       <a class="btn-primary" href="https://notebooklm.google.com/notebook/22450892-bec4-43b2-af2c-bf3be6afec18" target="_blank" style="display:inline-block;text-decoration:none;line-height:38px">📓 NotebookLM（顧客対応）で質問する</a>
       <span style="color:var(--muted);font-size:12px;margin-left:8px">自分のノートブックをブックマークしておくと便利です</span>
@@ -758,26 +759,14 @@ window.CAT_ATTR_JA={"색상": "色", "수량": "数量", "패션의류/잡화 �
 
 <div class="overlay" id="syncOverlay">
   <div class="modal" style="width:620px">
-    <h3>☁ クラウド同期（Googleスプレッドシート） <span class="x" id="syncClose">✕</span></h3>
+    <h3>☁ 同期の状態 <span class="x" id="syncClose">✕</span></h3>
     <div class="steps">
       <div style="display:flex;align-items:center;gap:8px;margin:2px 0 10px"><span class="sync-dot off" id="sync-dot"></span><b id="sync-state">未接続</b></div>
-      接続すると、外注さん全員が<b>同じデータ（売上台帳＝ステータス・仕入れ値・追跡番号・手数料・売上、およびリサーチ）を共有</b>できます。設定は最初の1回だけです。<br><span style="color:var(--amber)">※リサーチ共有に対応した新しい <code>Code.gs</code> に貼り替えて再デプロイしてください（URLは変わりません）。</span>
-      <ol>
-        <li>Googleスプレッドシートを新規作成 → メニュー<code>拡張機能 → Apps Script</code></li>
-        <li>付属の <code>Code.gs</code> の中身を貼り付けて保存</li>
-        <li><code>デプロイ → 新しいデプロイ → ウェブアプリ</code>。アクセスできるユーザーを<b>「全員」</b>にしてデプロイ</li>
-        <li>表示された <b>ウェブアプリURL（/exec で終わる）</b> を下に貼り付けて「保存して接続」</li>
-        <li>外注さんのPCでも同じURLを貼れば、全員で共有されます</li>
-      </ol>
+      <div id="sync-note"></div>
+      <div style="padding-top:8px;color:var(--muted)">最終同期：<span id="sync-last">—</span></div>
     </div>
-    <div class="field">
-      <label>ウェブアプリURL</label>
-      <input type="text" id="sync-url" placeholder="https://script.google.com/macros/s/××××/exec">
-    </div>
-    <div class="steps" style="padding-top:6px;color:var(--muted)">最終同期：<span id="sync-last">—</span></div>
     <div class="modal-foot" style="display:flex;justify-content:flex-end;gap:10px;padding:14px 24px;border-top:1px solid var(--line)">
       <button class="btn-ghost" id="sync-now">今すぐ同期</button>
-      <button class="btn-primary" id="sync-save">保存して接続</button>
     </div>
   </div>
 </div>
@@ -991,10 +980,26 @@ function syncLedger(rows){ const spec=platforms[current], m=spec.map; const l=lo
     } });
   if(added.length){ saveSales(l); pushLedger(added); } }
 
-/* ===== クラウド同期（Googleスプレッドシート / Apps Script Web App） ===== */
-const CLOUD_URL_KEY="kr_cloud_url", CLOUD_SYNC_KEY="kr_cloud_lastsync";
-function cloudURL(){ return (localStorage.getItem(CLOUD_URL_KEY)||"").trim(); }
-function setCloudURL(u){ localStorage.setItem(CLOUD_URL_KEY,(u||"").trim()); }
+/* ===== クラウド同期（Cloudflare Workers + D1）=====
+   同期先URLは固定。端末ごとの設定は不要＝URLずれによるデータ分裂が起きない。
+   アクセスキーは配布リンクの #s=... から1回だけ取り込んで保存する（公開ソースには載せない）。 */
+const CLOUD_BASE="https://kankoku-kanri.kazunoko090.workers.dev";
+const CLOUD_SYNC_KEY="kr_cloud_lastsync", SYNC_KEY_KEY="kr_sync_key";
+/* 旧 kr_cloud_url（各端末が手入力していた同期先）は読まない＝URLずれによる分裂が起きない */
+
+/* 配布リンク（…/#s=キー）で開かれたら、キーを保存してURLバーからは消す */
+(function adoptKeyFromLink(){
+  try{
+    const m=String(location.hash||"").match(/[#&]s=([^&]+)/);
+    if(m&&m[1]){
+      localStorage.setItem(SYNC_KEY_KEY, decodeURIComponent(m[1]));   /* この時点ではまだ素のsetItem */
+      history.replaceState(null,"",location.pathname+location.search);
+    }
+  }catch(e){}
+})();
+function syncKey(){ try{ return (localStorage.getItem(SYNC_KEY_KEY)||"").trim(); }catch(e){ return ""; } }
+/* キーが無い端末では空文字＝同期処理はすべて素通り（このPC内のみで動作） */
+function cloudURL(){ const k=syncKey(); return k? CLOUD_BASE+"?k="+encodeURIComponent(k) : ""; }
 async function cloudPull(){ const u=cloudURL(); if(!u) return false;
   try{ const r=await fetch(u,{method:"GET"}); const data=await r.json();
     if(Array.isArray(data)){ mergeServer(data); }                                   /* 旧サーバー（ordersのみ） */
@@ -2467,20 +2472,17 @@ function fmtSync(){ const t=localStorage.getItem(CLOUD_SYNC_KEY); return t?new D
 function refreshSyncUI(){
   const on=!!cloudURL();
   document.getElementById("sync-dot").className="sync-dot "+(on?"on":"off");
-  document.getElementById("sync-state").textContent=on?"接続済み":"未接続（このPC内のみ保存）";
-  document.getElementById("sync-url").value=cloudURL();
+  document.getElementById("sync-state").textContent=on?"接続済み（約10秒ごとに自動同期）":"未接続（このPC内のみ保存）";
+  document.getElementById("sync-note").innerHTML=on
+    ? "設定は不要です。変更は自動で全員に反映されます。"
+    : "<span style='color:var(--amber)'>管理者から届いた<b>専用リンク</b>を開いてください。</span>このアドレスのままでは共有データに接続できません。";
   document.getElementById("sync-last").textContent=fmtSync();
   document.getElementById("hdr-sync").className="btn-ghost btn-sm "+(on?"synced":"");
 }
 document.getElementById("hdr-sync").onclick=()=>{ refreshSyncUI(); sov.classList.add("show"); };
 document.getElementById("syncClose").onclick=()=>sov.classList.remove("show");
 sov.addEventListener("click",e=>{ if(e.target===sov) sov.classList.remove("show"); });
-document.getElementById("sync-save").onclick=async()=>{
-  setCloudURL(document.getElementById("sync-url").value);
-  refreshSyncUI();
-  if(cloudURL()){ document.getElementById("sync-state").textContent="同期中…"; const ok=await cloudPull(); refreshSyncUI(); render(); alert(ok?"接続して同期しました。":"URLを保存しました。※接続に失敗した可能性があります。デプロイURL（/exec）と公開設定をご確認ください。"); }
-};
-document.getElementById("sync-now").onclick=async()=>{ if(!cloudURL()){alert("先にURLを保存してください");return;} const ok=await cloudPull(); refreshSyncUI(); render(); alert(ok?"最新の状態に同期しました。":"同期に失敗しました。URLと公開設定をご確認ください。"); };
+document.getElementById("sync-now").onclick=async()=>{ if(!cloudURL()){alert("管理者から届いた専用リンクを開いてください。");return;} const ok=await cloudPull(); refreshSyncUI(); render(); alert(ok?"最新の状態に同期しました。":"同期に失敗しました。通信状態をご確認ください。"); };
 
 /* ===== 自動同期（約10秒ごと）＝軽量チェック→変化があった時だけ全件pull =====
    ・GET ?check=1 で世代トークン(_rev)だけ取得（数十バイト）。変わっていたら cloudPull()。
