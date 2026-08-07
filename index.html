@@ -2482,6 +2482,28 @@ document.getElementById("sync-save").onclick=async()=>{
 };
 document.getElementById("sync-now").onclick=async()=>{ if(!cloudURL()){alert("先にURLを保存してください");return;} const ok=await cloudPull(); refreshSyncUI(); render(); alert(ok?"最新の状態に同期しました。":"同期に失敗しました。URLと公開設定をご確認ください。"); };
 
+/* ===== 自動同期（約10秒ごと）＝軽量チェック→変化があった時だけ全件pull =====
+   ・GET ?check=1 で世代トークン(_rev)だけ取得（数十バイト）。変わっていたら cloudPull()。
+   ・入力中（フォーカスがinput/textarea等）は取り込みを保留＝編集中のセルを壊さない。
+   ・タブが非表示の間は何もしない（無駄な通信ゼロ）。 */
+const AUTO_SYNC_MS=10000; let _autoRev=null,_autoBusy=false;
+function _editingNow(){ const ae=document.activeElement; return !!(ae&&(ae.tagName==="INPUT"||ae.tagName==="TEXTAREA"||ae.isContentEditable)); }
+async function autoSyncTick(){
+  const u=cloudURL(); if(!u||_autoBusy||document.hidden) return;
+  _autoBusy=true;
+  try{
+    const r=await fetch(u+(u.indexOf("?")<0?"?":"&")+"check=1",{method:"GET"});
+    const j=await r.json(); const rev=(j&&j.rev!=null)?String(j.rev):"";
+    if(_autoRev===null){ _autoRev=rev; }                             /* 初回は基準を覚えるだけ */
+    else if(rev!==""&&rev!==_autoRev){
+      if(_editingNow()){ _autoBusy=false; return; }                  /* 入力中は次のtickへ持ち越し */
+      _autoRev=rev; await cloudPull(); refreshSyncUI(); render();
+    }
+  }catch(e){}
+  _autoBusy=false;
+}
+setInterval(autoSyncTick,AUTO_SYNC_MS);
+
 /* ===== バックアップ（全データ書き出し／復元） ===== */
 const bkov=document.getElementById("backupOverlay");
 document.getElementById("hdr-backup").onclick=()=>{ document.getElementById("bk-msg").textContent=""; bkov.classList.add("show"); };
