@@ -36,9 +36,8 @@ window.CAT_ATTR_JA={"색상": "色", "수량": "数量", "패션의류/잡화 �
   .brand-badge{ width:34px; height:34px; border-radius:10px; background:linear-gradient(135deg,var(--accent),var(--accent-2)); color:#fff; display:flex; align-items:center; justify-content:center; font-weight:800; font-size:16px; box-shadow:0 4px 12px rgba(79,107,239,.4); }
   .brand-txt{ font-size:19px; font-weight:800; letter-spacing:.02em; background:linear-gradient(135deg,var(--navy),#43506e); -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent; }
   .userchip{ margin-left:14px; color:var(--muted); font-size:13px; font-weight:600; display:flex; align-items:center; gap:9px; }
-  #hdr-sync.synced{ color:var(--green); border-color:#bfead2; background:#eefaf3; }
-  .sync-dot{ width:9px; height:9px; border-radius:50%; display:inline-block; }
-  .sync-dot.on{ background:var(--green); } .sync-dot.off{ background:#cdd4e5; }
+  /* 同期は完全自動のためUIなし。未接続の時だけ、この帯で気づけるようにする */
+  #nosync-bar{ display:none; padding:9px 18px; background:#fff7e6; border-bottom:1px solid #f0d9a8; color:#8a6100; font-size:13px; font-weight:600; }
   .hist{ font-size:11px; color:var(--muted); cursor:help; margin-left:4px; vertical-align:middle; }
   .memo{ padding:6px 24px 22px; font-size:12.5px; color:var(--txt); line-height:1.8; }
   .memo p{ margin:14px 0 4px; font-size:13px; color:var(--accent-d); }
@@ -329,9 +328,9 @@ window.CAT_ATTR_JA={"색상": "色", "수량": "数量", "패션의류/잡화 �
   <div class="brand"><span class="brand-badge">韓</span><span class="brand-txt">韓国輸出管理表</span></div>
   <button class="btn-ghost btn-sm" id="hdr-help" style="margin-left:auto">❓ 使い方</button>
   <button class="btn-ghost btn-sm" id="hdr-backup">💾 バックアップ</button>
-  <button class="btn-ghost btn-sm" id="hdr-sync">☁ 同期</button>
   <div class="userchip"><span>外注ユーザー</span><span class="dot">U</span></div>
 </header>
+<div id="nosync-bar">⚠ 共有データに接続されていません。管理者から届いた<b>専用リンク</b>を開いてください（今の変更はこのPC内だけに保存されます）。</div>
 
 <div class="layout">
   <aside class="side" id="side">
@@ -748,8 +747,8 @@ window.CAT_ATTR_JA={"색상": "色", "수량": "数量", "패션의류/잡화 �
       ・レートは<b>取込時点で固定</b>（過去分は当時のレートで計算）<br>
       ・上の「月別明細／年間サマリー」で切替
       <p><b>共有</b></p>
-      ・データは全員で自動共有。変更は<b>約10秒</b>で相手の画面にも反映されます（設定は不要）<br>
-      ・右上「☁ 同期」は現在の接続状態の確認用です
+      ・データは全員で自動共有。変更は<b>約10秒</b>で相手の画面にも反映されます<br>
+      ・操作は不要です（同期ボタンはありません）。つながっていない時だけ画面上部に警告が出ます
       <p style="margin-bottom:6px"><b>わからないことは AI に質問</b></p>
       <a class="btn-primary" href="https://notebooklm.google.com/notebook/22450892-bec4-43b2-af2c-bf3be6afec18" target="_blank" style="display:inline-block;text-decoration:none;line-height:38px">📓 NotebookLM（顧客対応）で質問する</a>
       <span style="color:var(--muted);font-size:12px;margin-left:8px">自分のノートブックをブックマークしておくと便利です</span>
@@ -757,19 +756,6 @@ window.CAT_ATTR_JA={"색상": "色", "수량": "数量", "패션의류/잡화 �
   </div>
 </div>
 
-<div class="overlay" id="syncOverlay">
-  <div class="modal" style="width:620px">
-    <h3>☁ 同期の状態 <span class="x" id="syncClose">✕</span></h3>
-    <div class="steps">
-      <div style="display:flex;align-items:center;gap:8px;margin:2px 0 10px"><span class="sync-dot off" id="sync-dot"></span><b id="sync-state">未接続</b></div>
-      <div id="sync-note"></div>
-      <div style="padding-top:8px;color:var(--muted)">最終同期：<span id="sync-last">—</span></div>
-    </div>
-    <div class="modal-foot" style="display:flex;justify-content:flex-end;gap:10px;padding:14px 24px;border-top:1px solid var(--line)">
-      <button class="btn-ghost" id="sync-now">今すぐ同期</button>
-    </div>
-  </div>
-</div>
 
 <div class="overlay" id="backupOverlay">
   <div class="modal" style="width:560px">
@@ -2467,22 +2453,8 @@ document.getElementById("helpClose").onclick=()=>hov.classList.remove("show");
 hov.addEventListener("click",e=>{ if(e.target===hov) hov.classList.remove("show"); });
 
 /* ===== クラウド同期 設定モーダル ===== */
-const sov=document.getElementById("syncOverlay");
-function fmtSync(){ const t=localStorage.getItem(CLOUD_SYNC_KEY); return t?new Date(t).toLocaleString("ja-JP"):"—"; }
-function refreshSyncUI(){
-  const on=!!cloudURL();
-  document.getElementById("sync-dot").className="sync-dot "+(on?"on":"off");
-  document.getElementById("sync-state").textContent=on?"接続済み（約10秒ごとに自動同期）":"未接続（このPC内のみ保存）";
-  document.getElementById("sync-note").innerHTML=on
-    ? "設定は不要です。変更は自動で全員に反映されます。"
-    : "<span style='color:var(--amber)'>管理者から届いた<b>専用リンク</b>を開いてください。</span>このアドレスのままでは共有データに接続できません。";
-  document.getElementById("sync-last").textContent=fmtSync();
-  document.getElementById("hdr-sync").className="btn-ghost btn-sm "+(on?"synced":"");
-}
-document.getElementById("hdr-sync").onclick=()=>{ refreshSyncUI(); sov.classList.add("show"); };
-document.getElementById("syncClose").onclick=()=>sov.classList.remove("show");
-sov.addEventListener("click",e=>{ if(e.target===sov) sov.classList.remove("show"); });
-document.getElementById("sync-now").onclick=async()=>{ if(!cloudURL()){alert("管理者から届いた専用リンクを開いてください。");return;} const ok=await cloudPull(); refreshSyncUI(); render(); alert(ok?"最新の状態に同期しました。":"同期に失敗しました。通信状態をご確認ください。"); };
+/* 同期の操作UIは廃止（完全自動）。未接続の時だけ上部に警告帯を出す。 */
+function refreshSyncUI(){ const b=document.getElementById("nosync-bar"); if(b) b.style.display=cloudURL()?"none":"block"; }
 
 /* ===== 自動同期（約10秒ごと）＝軽量チェック→変化があった時だけ全件pull =====
    ・GET ?check=1 で世代トークン(_rev)だけ取得（数十バイト）。変わっていたら cloudPull()。
