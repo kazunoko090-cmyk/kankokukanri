@@ -974,15 +974,26 @@ const CLOUD_SYNC_KEY="kr_cloud_lastsync", SYNC_KEY_KEY="kr_sync_key";
 /* 旧 kr_cloud_url（各端末が手入力していた同期先）は読まない＝URLずれによる分裂が起きない */
 
 /* 配布リンク（…/#s=キー）で開かれたら、キーを保存してURLバーからは消す */
-(function adoptKeyFromLink(){
+function adoptKeyFromLink(){
   try{
     const m=String(location.hash||"").match(/[#&]s=([^&]+)/);
     if(m&&m[1]){
-      localStorage.setItem(SYNC_KEY_KEY, decodeURIComponent(m[1]));   /* この時点ではまだ素のsetItem */
+      localStorage.setItem(SYNC_KEY_KEY, decodeURIComponent(m[1]));   /* 起動時はまだ素のsetItem */
       history.replaceState(null,"",location.pathname+location.search);
+      return true;
     }
   }catch(e){}
-})();
+  return false;
+}
+adoptKeyFromLink();
+/* ★すでにアプリを開いている状態で配布リンクを開くと、ブラウザは再読み込みせずハッシュだけ変える。
+   その場合も鍵を取り込んで即接続する（これが無いと「リンクを開いたのに未接続」になる）。 */
+window.addEventListener("hashchange",()=>{
+  if(!adoptKeyFromLink()) return;
+  kvReady=false;                                  /* 初回接続として扱う＝ローカルにしか無い分も送り返す */
+  refreshSyncUI();
+  cloudPull().then(()=>{ refreshSyncUI(); render(); });
+});
 function syncKey(){ try{ return (localStorage.getItem(SYNC_KEY_KEY)||"").trim(); }catch(e){ return ""; } }
 /* キーが無い端末では空文字＝同期処理はすべて素通り（このPC内のみで動作） */
 function cloudURL(){ const k=syncKey(); return k? CLOUD_BASE+"?k="+encodeURIComponent(k) : ""; }
