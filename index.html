@@ -840,9 +840,9 @@ const VIEW = [
   {en:"Vendor product code", head:"ASIN", jp:"ASIN", asin:true},
   {en:"paid amount", head:"결제액", jp:"販売価格(1個)", money:true, copy:true, unit:true},
   {en:"Purchased qty", head:"구매수", jp:"購入数", qty:true},
-  {en:"Recipient name", head:"수취인 이름", jp:"名前", copy:true},
   {en:"Zipcode", head:"우편번호", jp:"郵便番号", copy:true},
   {en:"Recipient address", head:"수취인 주소", jp:"住所", copy:true},
+  {en:"Recipient name", head:"수취인 이름", jp:"名前", copy:true},                    /* 通関番号の左隣に配置 */
   {en:"Personal Customs Clearance Code (PCCC)", head:"개인통관고유부호", jp:"個人通関番号", copy:true},
   {en:"Contact information of buyer for customs clearance purpose", head:"연락처", jp:"電話番号", copy:true}
 ];
@@ -859,9 +859,9 @@ const SMART_VIEW = [
   {key:"최종 상품별 총 주문금액", jp:"販売価格(1個)", money:true, copy:true, unit:true},
   {key:"최종 상품별 할인액", jp:"割引額（クーポン等）", money:true},
   {key:"수량", jp:"購入数", qty:true},
-  {key:"수취인명", jp:"名前", copy:true},
   {key:"우편번호", jp:"郵便番号", copy:true},
   {key:"통합배송지", jp:"住所", copy:true},
+  {key:"수취인명", jp:"名前", copy:true},                    /* 通関番号の左隣に配置 */
   {key:"개인통관고유부호", jp:"個人通関番号", copy:true},
   {key:"수취인연락처1", jp:"電話番号", copy:true}
 ];
@@ -1071,7 +1071,9 @@ async function cloudPushRows(rows){ const u=cloudURL(); if(!u||!rows||!rows.leng
 async function cloudDelete(order){ const u=cloudURL(); if(!u) return;
   try{ const r=await fetch(u,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify({action:"delete",order:String(order)})}); noteSync(r.ok); }catch(e){ console.warn("cloudDelete",e); noteSync(false); } }
 /* ===== その他データの同期（マニュアル・顧客・出品・ブログ等）：key-value方式 ===== */
-const KV_SYNC_PREFIXES=["kr_teb_","kr_bru_","kr_manual_v2","kr_manual_urls","kr_tblman_","kr_cust_","kr_list_attr_","kr_list_cat_","kr_attr_cat_","kr_blog_","kr_hi_","kr_catseg_ja","kr_tomb"];
+/* kr_hi_（黄色の選択）は同期しない＝端末ごとの目印。
+   共有すると①和集合で選択が溜まる②複数人で1つの選択を奪い合う、の両方が起きるため。 */
+const KV_SYNC_PREFIXES=["kr_teb_","kr_bru_","kr_manual_v2","kr_manual_urls","kr_tblman_","kr_cust_","kr_list_attr_","kr_list_cat_","kr_attr_cat_","kr_blog_","kr_catseg_ja","kr_tomb"];
 function isKvSyncKey(k){ return KV_SYNC_PREFIXES.some(p=> k===p || k.indexOf(p)===0 ); }
 let kvReady=false;                 // 初回プル完了まで送信しない（初期シードの誤送信防止）
 const _kvSetItem=localStorage.setItem.bind(localStorage);
@@ -1184,8 +1186,10 @@ function load(){ try{ const d=JSON.parse(localStorage.getItem(platforms[current]
 function save(rows){ localStorage.setItem(platforms[current].key, JSON.stringify(rows)); }
 /* 配送指示チェック用ハイライト（クリックで黄色トグル） */
 const HI_KEY="kr_hi_coupang";
-function hiSet(){ try{ return new Set(JSON.parse(localStorage.getItem(HI_KEY))||[]); }catch(e){ return new Set(); } }
-function saveHi(s){ localStorage.setItem(HI_KEY, JSON.stringify([...s])); }
+/* 黄色の選択は常に1個以下。読み書きの両方で上限をかけるので、
+   古い端末が複数件を残していても最新1件に自動で収束する（末尾＝最後に選んだもの）。 */
+function hiSet(){ try{ const a=JSON.parse(localStorage.getItem(HI_KEY)); return new Set((Array.isArray(a)?a:[]).slice(-1).map(String)); }catch(e){ return new Set(); } }
+function saveHi(s){ localStorage.setItem(HI_KEY, JSON.stringify([...s].slice(-1).map(String))); }
 window.setHi=(cb,id)=>{
   if(cb.checked){
     /* 黄色チェックは常に1つだけ：他の行のチェックと色を全て外す（顧客管理・売上管理共通） */
