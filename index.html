@@ -1908,7 +1908,13 @@ function renderCust(){
   syncLedger(rows);
   const lmap=ledgerMap();
   const hi=hiSet();
-  rows.forEach(r=>{ const led=lmap[String(r[okey])]; if(led&&led.status) r._status=led.status; }); // ステータスは台帳(=クラウド)を正とする
+  /* ステータスは台帳(=クラウド)を正とする。★直した結果を必ず保存する：
+     以前は上の save(rows) より後でここを直していたため、画面だけ正しく保存値は古いままになり、
+     その古い値がクラウドへ同期されて他の端末で「古い情報」として見えていた。
+     変化があった時だけ保存する（毎回書くと _rev が動き続けて全端末が再取得し合う無限ループになるため）。 */
+  let _stFixed=false;
+  rows.forEach(r=>{ const led=lmap[String(r[okey])]; if(led&&led.status&&r._status!==led.status){ r._status=led.status; _stFixed=true; } });
+  if(_stFixed) save(rows);
   rows=sortRows(rows);
   rows=rows.filter(r=>{ const dl=daysLeft(r); return dl===null||dl>0; });   /* 表示だけ60日で絞る（データは削除しない） */
 
