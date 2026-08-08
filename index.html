@@ -38,6 +38,7 @@ window.CAT_ATTR_JA={"색상": "色", "수량": "数量", "패션의류/잡화 �
   .userchip{ margin-left:14px; color:var(--muted); font-size:13px; font-weight:600; display:flex; align-items:center; gap:9px; }
   /* 同期は完全自動のためUIなし。未接続の時だけ、この帯で気づけるようにする */
   #nosync-bar{ display:none; padding:9px 18px; background:#fff7e6; border-bottom:1px solid #f0d9a8; color:#8a6100; font-size:13px; font-weight:600; }
+  #nosync-bar.bad{ background:#fdecec; border-bottom-color:#f3b6b6; color:#a12727; }   /* 同期が止まっている＝より強い警告 */
   .hist{ font-size:11px; color:var(--muted); cursor:help; margin-left:4px; vertical-align:middle; }
   .memo{ padding:6px 24px 22px; font-size:12.5px; color:var(--txt); line-height:1.8; }
   .memo p{ margin:14px 0 4px; font-size:13px; color:var(--accent-d); }
@@ -994,22 +995,36 @@ window.addEventListener("hashchange",()=>{
   refreshSyncUI();
   cloudPull().then(()=>{ refreshSyncUI(); render(); });
 });
+/* ★同期の成否を1か所で記録する番人。
+   401（鍵が古い等）やHTTPエラーを「成功」と誤認すると、画面に何も出ないまま同期が止まり
+   「古い情報のまま気づけない」状態になる。それを防ぐため、通信の結果を必ずここに通す。 */
+let _syncFail=0;
+function syncTrouble(){ return _syncFail>=2; }        /* 2回連続で失敗したら異常として表示 */
+function noteSync(ok){
+  if(ok){ if(_syncFail){ _syncFail=0; try{ refreshSyncUI(); }catch(e){} } }
+  else { _syncFail++; if(_syncFail<=2){ try{ refreshSyncUI(); }catch(e){} } }
+  return ok;
+}
 function syncKey(){ try{ return (localStorage.getItem(SYNC_KEY_KEY)||"").trim(); }catch(e){ return ""; } }
 /* キーが無い端末では空文字＝同期処理はすべて素通り（このPC内のみで動作） */
 function cloudURL(){ const k=syncKey(); return k? CLOUD_BASE+"?k="+encodeURIComponent(k) : ""; }
 async function cloudPull(){ const u=cloudURL(); if(!u) return false;
-  try{ const r=await fetch(u,{method:"GET"}); const data=await r.json();
+  try{ const r=await fetch(u,{method:"GET"});
+    if(!r.ok){ console.warn("cloudPull HTTP",r.status); return noteSync(false); }   /* ★401等を成功扱いにしない */
+    const data=await r.json();
     if(Array.isArray(data)){ mergeServer(data); }                                   /* 旧サーバー（ordersのみ） */
     else if(data&&typeof data==="object"){
+      /* 期待した形（orders/research/kv のいずれか）でなければ失敗扱い＝エラー応答を取り込まない */
+      if(!(Array.isArray(data.orders)||Array.isArray(data.research)||(data.kv&&typeof data.kv==="object"))) return noteSync(false);
       if(Array.isArray(data.orders)) mergeServer(data.orders);
       if(Array.isArray(data.research)) mergeServerResearch(data.research);
       if(data.kv&&typeof data.kv==="object"){ const wasReady=kvReady; applyServerKV(data.kv); if(!wasReady) pushLocalKvMissing(data.kv); }
       if(data.rev!=null) _autoRev=String(data.rev);   /* 取り込んだ世代を記録＝次の変化を正しく検知できる */
-    } else return false;
+    } else return noteSync(false);
     kvReady=true;
     try{ if(typeof ensureReqAttrs==="function") ensureReqAttrs(); }catch(e){}
-    localStorage.setItem(CLOUD_SYNC_KEY,new Date().toISOString()); return true;
-  }catch(e){ console.warn("cloudPull",e); } return false; }
+    localStorage.setItem(CLOUD_SYNC_KEY,new Date().toISOString()); return noteSync(true);
+  }catch(e){ console.warn("cloudPull",e); } return noteSync(false); }
 /* 日付を YYYY-MM-DD に整える（スプレッドシートが日付型で返しても表示できるように） */
 function normDateStr(v){ if(v===null||v===undefined||v==="") return ""; const s=String(v).trim(); if(/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
   let d=null; try{ d=parseDate(s); }catch(e){}
@@ -1031,9 +1046,11 @@ function mergeServerResearch(serverRows){
   if(localOnly.length) cloudPushResearch(localOnly);
 }
 async function cloudPushResearch(rows){ const u=cloudURL(); if(!u||!rows||!rows.length) return;
-  try{ await fetch(u,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify({action:"saveResearch",rows})}); localStorage.setItem(CLOUD_SYNC_KEY,new Date().toISOString()); }catch(e){ console.warn("cloudPushResearch",e); } }
+  try{ const r=await fetch(u,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify({action:"saveResearch",rows})});
+    if(!r.ok){ console.warn("cloudPushResearch HTTP",r.status); return noteSync(false); }
+    localStorage.setItem(CLOUD_SYNC_KEY,new Date().toISOString()); noteSync(true); }catch(e){ console.warn("cloudPushResearch",e); noteSync(false); } }
 async function cloudDeleteResearch(id){ const u=cloudURL(); if(!u) return;
-  try{ await fetch(u,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify({action:"deleteResearch",id:String(id)})}); }catch(e){ console.warn("cloudDeleteResearch",e); } }
+  try{ const r=await fetch(u,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify({action:"deleteResearch",id:String(id)})}); noteSync(r.ok); }catch(e){ console.warn("cloudDeleteResearch",e); noteSync(false); } }
 /* サーバーの注文を plat（モール）ごとに各台帳へ振り分けて統合。plat未設定は従来どおりクーパン扱い */
 function mergeServer(server){
   const groups={};
@@ -1048,9 +1065,11 @@ function mergeServer(server){
   if(pushBack.length) cloudPushRows(pushBack);
 }
 async function cloudPushRows(rows){ const u=cloudURL(); if(!u||!rows||!rows.length) return;
-  try{ await fetch(u,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify({action:"save",rows})}); localStorage.setItem(CLOUD_SYNC_KEY,new Date().toISOString()); }catch(e){ console.warn("cloudPush",e); } }
+  try{ const r=await fetch(u,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify({action:"save",rows})});
+    if(!r.ok){ console.warn("cloudPush HTTP",r.status); return noteSync(false); }   /* 保存が届いていないなら黙らせない */
+    localStorage.setItem(CLOUD_SYNC_KEY,new Date().toISOString()); noteSync(true); }catch(e){ console.warn("cloudPush",e); noteSync(false); } }
 async function cloudDelete(order){ const u=cloudURL(); if(!u) return;
-  try{ await fetch(u,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify({action:"delete",order:String(order)})}); }catch(e){ console.warn("cloudDelete",e); } }
+  try{ const r=await fetch(u,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify({action:"delete",order:String(order)})}); noteSync(r.ok); }catch(e){ console.warn("cloudDelete",e); noteSync(false); } }
 /* ===== その他データの同期（マニュアル・顧客・出品・ブログ等）：key-value方式 ===== */
 const KV_SYNC_PREFIXES=["kr_teb_","kr_bru_","kr_manual_v2","kr_manual_urls","kr_tblman_","kr_cust_","kr_list_attr_","kr_list_cat_","kr_attr_cat_","kr_blog_","kr_hi_","kr_catseg_ja","kr_tomb"];
 function isKvSyncKey(k){ return KV_SYNC_PREFIXES.some(p=> k===p || k.indexOf(p)===0 ); }
@@ -1058,7 +1077,9 @@ let kvReady=false;                 // 初回プル完了まで送信しない（
 const _kvSetItem=localStorage.setItem.bind(localStorage);
 const _kvTimers={};
 async function cloudPushKV(key,value){ const u=cloudURL(); if(!u) return;
-  try{ await fetch(u,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify({action:"saveKV",key:String(key),value:String(value==null?"":value)})}); localStorage.setItem(CLOUD_SYNC_KEY,new Date().toISOString()); }catch(e){ console.warn("cloudPushKV",e); } }
+  try{ const r=await fetch(u,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify({action:"saveKV",key:String(key),value:String(value==null?"":value)})});
+    if(!r.ok){ console.warn("cloudPushKV HTTP",r.status); return noteSync(false); }
+    localStorage.setItem(CLOUD_SYNC_KEY,new Date().toISOString()); noteSync(true); }catch(e){ console.warn("cloudPushKV",e); noteSync(false); } }
 function scheduleKvPush(key){ if(_kvTimers[key]) clearTimeout(_kvTimers[key]);
   _kvTimers[key]=setTimeout(()=>{ delete _kvTimers[key]; const v=localStorage.getItem(key); if(v!=null) cloudPushKV(key,v); },800); }
 /* サーバーの値をローカルへ反映（送信は発生させない） */
@@ -2486,8 +2507,23 @@ document.getElementById("helpClose").onclick=()=>hov.classList.remove("show");
 hov.addEventListener("click",e=>{ if(e.target===hov) hov.classList.remove("show"); });
 
 /* ===== クラウド同期 設定モーダル ===== */
-/* 同期の操作UIは廃止（完全自動）。未接続の時だけ上部に警告帯を出す。 */
-function refreshSyncUI(){ const b=document.getElementById("nosync-bar"); if(b) b.style.display=cloudURL()?"none":"block"; }
+/* 同期の操作UIは廃止（完全自動）。異常な時だけ上部に帯を出す。
+   ①鍵が無い＝未接続 ②鍵はあるが通信が続けて失敗（401＝鍵が古い／通信断）
+   ②を出さないと「画面は普通なのに同期だけ止まっている」ことに誰も気づけない。 */
+function refreshSyncUI(){
+  const b=document.getElementById("nosync-bar"); if(!b) return;
+  if(!cloudURL()){
+    b.className="";
+    b.innerHTML="⚠ 共有データに接続されていません。管理者から届いた<b>専用リンク</b>を開いてください（今の変更はこのPC内だけに保存されます）。";
+    b.style.display="block"; return;
+  }
+  if(syncTrouble()){
+    b.className="bad";
+    b.innerHTML="⚠ 同期できていません。通信状況をご確認のうえ、管理者から届いた<b>最新の専用リンク</b>を開き直してください（今の変更はこのPC内だけに保存されています）。";
+    b.style.display="block"; return;
+  }
+  b.style.display="none";
+}
 
 /* ===== 自動同期（約10秒ごと）＝軽量チェック→変化があった時だけ全件pull =====
    ・GET ?check=1 で世代トークン(_rev)だけ取得（数十バイト）。変わっていたら cloudPull()。
@@ -2500,7 +2536,10 @@ async function autoSyncTick(){
   _autoBusy=true;
   try{
     const r=await fetch(u+(u.indexOf("?")<0?"?":"&")+"check=1",{method:"GET"});
+    if(!r.ok){ noteSync(false); _autoBusy=false; return; }        /* 401等＝黙って止まらせない */
     const j=await r.json(); const rev=(j&&j.rev!=null)?String(j.rev):"";
+    if(j&&j.rev==null){ noteSync(false); _autoBusy=false; return; }  /* 期待した応答でない */
+    noteSync(true);
     /* _autoRev は cloudPull 成功時にサーバーのrevで更新される。
        null＝どの世代を持っているか不明（例：ずっと裏タブだった）なので、取りこぼさないよう取り込む。 */
     if(rev!==""&&rev!==_autoRev){
