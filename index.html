@@ -1037,9 +1037,10 @@ async function cloudPull(){ const u=cloudURL(); if(!u) return false;
     else if(data&&typeof data==="object"){
       /* 期待した形（orders/research/kv のいずれか）でなければ失敗扱い＝エラー応答を取り込まない */
       if(!(Array.isArray(data.orders)||Array.isArray(data.research)||(data.kv&&typeof data.kv==="object"))) return noteSync(false);
+      /* kv（削除記録 kr_tomb_v1 を含む）を先に取り込む＝この後の統合で「削除済み」を復活させないため */
+      if(data.kv&&typeof data.kv==="object"){ const wasReady=kvReady; applyServerKV(data.kv); if(!wasReady) pushLocalKvMissing(data.kv); }
       if(Array.isArray(data.orders)) mergeServer(data.orders);
       if(Array.isArray(data.research)) mergeServerResearch(data.research);
-      if(data.kv&&typeof data.kv==="object"){ const wasReady=kvReady; applyServerKV(data.kv); if(!wasReady) pushLocalKvMissing(data.kv); }
       if(data.rev!=null) _autoRev=String(data.rev);   /* 取り込んだ世代を記録＝次の変化を正しく検知できる */
     } else return noteSync(false);
     kvReady=true;
@@ -1054,10 +1055,12 @@ function normDateStr(v){ if(v===null||v===undefined||v==="") return ""; const s=
   return s; }
 /* リサーチ：サーバー内容をローカルへ反映（idで統合、ローカルのみの行はサーバーへ送る） */
 function mergeServerResearch(serverRows){
+  /* 削除した行は、他の端末のローカルに残っていても復活させない（kr_tomb_v1 は端末間で同期される） */
+  const tomb=loadTomb(); const dead=id=>!!tomb["research|"+String(id)];
   const local=loadResearch(); const byId={};
-  Object.keys(local).forEach(cat=>{ (Array.isArray(local[cat])?local[cat]:[]).forEach(r=>{ byId[String(r.id)]={cat, ...r}; }); });
+  Object.keys(local).forEach(cat=>{ (Array.isArray(local[cat])?local[cat]:[]).forEach(r=>{ if(!dead(r.id)) byId[String(r.id)]={cat, ...r}; }); });
   const seen={};
-  serverRows.forEach(sr=>{ if(!sr||!sr.id) return; const id=String(sr.id);
+  serverRows.forEach(sr=>{ if(!sr||!sr.id) return; const id=String(sr.id); if(dead(id)) return;
     byId[id]={ id, cat:sr.cat||"soldA", name:sr.name||"", amazon:sr.amazon||"", rakuten:sr.rakuten||"", coupang:sr.coupang||"", memo:sr.memo||"", date:normDateStr(sr.date) };
     seen[id]=1; });
   const grouped={};
@@ -2321,7 +2324,7 @@ window.rvUrlEdit=(id,field)=>{ const key=id+":"+field; editingUrl.add(key); rvFo
 window.rvUrlDone=(id,field,v)=>{ const rows=catRows(researchTab); const r=rows.find(x=>x.id===id); if(r){ r[field]=v; setCatRows(researchTab,rows); cloudPushResearch([{cat:researchTab, ...r}]); } editingUrl.delete(id+":"+field); renderResearch(); };
 window.rvOpenUrl=(id,field)=>{ const r=catRows(researchTab).find(x=>x.id===id); if(!r) return; const us=splitUrls(r[field]);
   if(!us.length){ alert("URLが未入力です。"); return; } us.forEach(u=>window.open(u,"_blank")); };
-window.rvDel=(id)=>{ if(!confirm("この行を削除しますか？")) return; setCatRows(researchTab, catRows(researchTab).filter(x=>x.id!==id)); cloudDeleteResearch(id); renderResearch(); };
+window.rvDel=(id)=>{ if(!confirm("この行を削除しますか？")) return; setCatRows(researchTab, catRows(researchTab).filter(x=>x.id!==id)); addTomb("research",id); cloudDeleteResearch(id); renderResearch(); };
 /* 別カテゴリへ移動（プルダウン選択で即実行） */
 window.rvMove=(id,target)=>{ if(!target) return; const from=researchTab; if(target===from) return;
   const rows=catRows(from); const idx=rows.findIndex(x=>x.id===id); if(idx<0) return;
