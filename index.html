@@ -575,6 +575,7 @@ window.CAT_ATTR_JA={"색상": "色", "수량": "数量", "패션의류/잡화 �
       <div class="retnote" id="rv-hint" style="color:var(--muted);background:#fafbff">
         <b>使い方：</b>行を追加してブランド名・Amazon URL・楽天 URLを入力 → 左の <b>✓</b> を付けて「<b>選択を一括で開く</b>」でAmazon・楽天をまとめてタブ表示。URLは一度入れると小さなボタンになり、<b>✎</b>で再編集できます（複数URLは改行/スペース区切り）。CSV取込で一覧を一気に追加できます。
       </div>
+      <div class="retnote" id="rv-auto" style="display:none;color:#0a6b3d;background:#eefaf3;border-color:#bfe6cf"></div>
       <div class="tablewrap"><table id="rvtbl"><thead id="rvhead"></thead><tbody id="rvbody"></tbody></table></div>
       <div class="count" id="rvcount"></div>
     </div>
@@ -786,6 +787,26 @@ window.CAT_ATTR_JA={"색상": "色", "수량": "数量", "패션의류/잡화 �
 </div>
 
 <script>
+/* ===== 取込ファイルの文字化け対策 =====
+   XLSX.read(…,{type:"array"}) は CSV を Windows-1252 として読むため、UTF-8の日本語が
+   "カメラ"→"ã«ã¡ã©" のように壊れる。ここでバイト列を見て自分で復号してから渡す。
+   ・xlsx(PK…) / xls(D0CF…) はバイナリなのでそのまま
+   ・BOM付き UTF-8 / UTF-16 はBOMどおりに復号
+   ・BOM無しは UTF-8 で厳密に試し、失敗したら Shift_JIS とみなす */
+function decodeSheetText(u8){
+  if(u8[0]===0xef&&u8[1]===0xbb&&u8[2]===0xbf) return new TextDecoder("utf-8").decode(u8.subarray(3));
+  if(u8[0]===0xff&&u8[1]===0xfe) return new TextDecoder("utf-16le").decode(u8.subarray(2));
+  if(u8[0]===0xfe&&u8[1]===0xff) return new TextDecoder("utf-16be").decode(u8.subarray(2));
+  try{ return new TextDecoder("utf-8",{fatal:true}).decode(u8); }catch(e){}
+  try{ return new TextDecoder("shift_jis").decode(u8); }catch(e){}
+  return new TextDecoder("utf-8").decode(u8);
+}
+function readWB(buf){
+  const u8=new Uint8Array(buf);
+  const bin=(u8[0]===0x50&&u8[1]===0x4b)||(u8[0]===0xd0&&u8[1]===0xcf);   /* xlsx / xls */
+  if(bin) return XLSX.read(buf,{type:"array"});
+  return XLSX.read(decodeSheetText(u8),{type:"string"});
+}
 /* ===== クーパン配送リスト 全40列（原文=韓国語 / 日本語解説） ===== */
 const COUPANG_COLS = [
   {en:"Number", kr:"번호", jp:"通し番号（連番）"},
@@ -1715,7 +1736,7 @@ ensureReqAttrs();
 /* Attributes：Excel/CSV取込（列＝ハングル/日本語/記入欄。ハングル名で既存を一括更新） */
 window.attrImport=()=>{ const inp=document.createElement("input"); inp.type="file"; inp.accept=".xlsx,.xls,.csv";
   inp.onchange=e=>{ const f=e.target.files[0]; if(!f) return; const rd=new FileReader();
-    rd.onload=ev=>{ try{ const wb=XLSX.read(ev.target.result,{type:"array"}); const arr=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{header:1,raw:false,defval:""});
+    rd.onload=ev=>{ try{ const wb=readWB(ev.target.result); const arr=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{header:1,raw:false,defval:""});
       if(!arr.length){ alert("空のファイルです"); return; }
       const first=(arr[0]||[]).map(x=>String(x||"").trim().toLowerCase());
       const hasHead=first.some(h=>/ハングル|韓国語|한글|日本語|記入|value|kr|jp|hangul/.test(h));
@@ -2075,7 +2096,7 @@ document.getElementById("btn-import-sales").onclick=()=>{ document.getElementByI
 document.getElementById("btn-import-ship").onclick=()=>{ document.getElementById("ship-file").click(); };
 document.getElementById("ship-file").addEventListener("change",e=>{ const f=e.target.files[0]; if(!f) return; const rd=new FileReader();
   rd.onload=ev=>{ try{
-    const wb=XLSX.read(ev.target.result,{type:"array"}); const arr=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{header:1,raw:true,defval:""});
+    const wb=readWB(ev.target.result); const arr=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{header:1,raw:true,defval:""});
     const l=loadSales(); const byTrack={}; l.forEach(s=>{ const t=String(s.track||"").trim(); if(t) byTrack[t]=s; });
     let up=0,nomatch=0; const changed=[];
     arr.forEach(line=>{ const track=String(line[7]==null?"":line[7]).trim(); if(!track) return;
@@ -2090,7 +2111,7 @@ document.getElementById("ship-file").addEventListener("change",e=>{ const f=e.ta
 document.getElementById("btn-import-fee").onclick=()=>{ document.getElementById("fee-file").click(); };
 document.getElementById("fee-file").addEventListener("change",e=>{ const f=e.target.files[0]; if(!f) return; const rd=new FileReader();
   rd.onload=ev=>{ try{
-    const wb=XLSX.read(ev.target.result,{type:"array"}); const arr=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{header:1,raw:false,defval:""});
+    const wb=readWB(ev.target.result); const arr=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{header:1,raw:false,defval:""});
     if(!arr.length){ alert("空のファイルです"); return; }
     const head=arr[0].map(h=>String(h||"").trim().toLowerCase());
     let ci=head.indexOf("order id"); if(ci<0) ci=0;                 /* Order ID列（無ければA列） */
@@ -2112,7 +2133,7 @@ document.getElementById("fee-file").addEventListener("change",e=>{ const f=e.tar
 document.getElementById("file").addEventListener("change",e=>{
   const f=e.target.files[0]; if(!f) return; const rd=new FileReader();
   rd.onload=ev=>{ try{
-    const wb=XLSX.read(ev.target.result,{type:"array"});
+    const wb=readWB(ev.target.result);
     const arr=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{header:1,raw:false,defval:""});
     if(!arr.length){alert("空のファイルです");return;}
     if(current==="coupang"){
@@ -2369,8 +2390,59 @@ function renderBrandRank(cat){
   document.getElementById("rv-head").innerHTML=`${esc(cat.label)} <small>${arr.length}ブランド</small>`;
   document.getElementById("rvcount").textContent=`${cat.label} ・ ${arr.length}ブランド ・ 販売個数の多い順`;
 }
+/* ===== 競合リサーチ：初めて売れたブランドを自動で Sold B へ移す =====
+   判定：売上台帳（キャンセル/返品を除く）の商品名に、そのブランド名が出てくれば「売れた」。
+   ・商品名が取れない注文（タイトル空＋Amazon以外のURL）は判定材料にならない＝そのブランドは動かさない。
+   ・すでに Sold A / Sold B に同じ名前がある＝「初めて」ではないので動かさない。
+   ・誤爆防止：英数字は単語単位で照合し、2文字以下の語（"Le Creuset" の "Le" 等）では照合しない。 */
+let rvAutoMoved=[];                       /* 自動移動した名前（画面の案内用。閉じるまで残す） */
+window.rvAutoClose=()=>{ rvAutoMoved=[]; renderResearch(); };
+function rvNorm(s){ return String(s||"").replace(/[\s　]+/g," ").trim().toLowerCase(); }
+function rvBrandInTitle(cand,lowTitle){
+  if(!cand) return false;
+  if(/^[\x20-\x7e]+$/.test(cand)){                                   /* 英数記号のみ＝単語単位で照合 */
+    if(cand.replace(/[^a-z0-9]/g,"").length<4) return false;         /* 3文字以下は誤爆するので見ない（"Le"/"Ace"等） */
+    const q=cand.replace(/[.*+?^${}()|[\]\\]/g,"\\$&");
+    return new RegExp("(^|[^a-z0-9])"+q+"([^a-z0-9]|$)").test(lowTitle);
+  }
+  return lowTitle.indexOf(cand)>=0;                                  /* 日本語などは部分一致 */
+}
+function autoMoveSoldBrands(){
+  if(current!=="coupang") return;
+  const d=loadResearch(); const compe=Array.isArray(d.compe)?d.compe:[];
+  if(!compe.length) return;
+  const titles=[];
+  loadSales(platforms.coupang.salesKey).forEach(s=>{
+    if(s.status==="キャンセル"||s.status==="返品") return;
+    const t=brandTitleOf(s); if(t) titles.push(t.toLowerCase()); });
+  if(!titles.length) return;                                         /* 台帳が未取得なら何もしない */
+  const known=new Set();
+  ["soldA","soldB"].forEach(k=>{ (Array.isArray(d[k])?d[k]:[]).forEach(r=>known.add(rvNorm(r.name))); });
+  const stay=[], moved=[];
+  compe.forEach(r=>{
+    const n=rvNorm(r.name);
+    if(!n || known.has(n)){ stay.push(r); return; }
+    const cands=[n]; const head=n.split(" ")[0]; if(head!==n) cands.push(head);
+    if(!cands.some(c=>titles.some(t=>rvBrandInTitle(c,t)))){ stay.push(r); return; }
+    const memo=String(r.memo||"").trim();
+    moved.push({ id:r.id, name:String(r.name||"").trim(), amazon:r.amazon||"", rakuten:r.rakuten||"",
+      coupang:r.coupang||"", date:r.date||todayStr(),
+      memo: memo.indexOf("初販売→Sold B")>=0 ? memo : (memo?memo+" ｜":"")+"初販売→Sold B "+todayStr() });
+  });
+  if(!moved.length) return;
+  d.compe=stay; d.soldB=(Array.isArray(d.soldB)?d.soldB:[]).concat(moved);
+  saveResearch(d);
+  cloudPushResearch(moved.map(m=>({cat:"soldB", ...m})));
+  moved.forEach(m=>rvAutoMoved.push(m.name));                     /* 件数＝移動した行数（同名も1件ずつ数える） */
+}
+
 function renderResearch(){
   if(window.rvComposing){ window.rvRenderPending=true; return; }   /* 変換中は再描画しない（文字化け防止） */
+  autoMoveSoldBrands();                                            /* 初めて売れた競合ブランドを Sold B へ */
+  const rvAutoEl=document.getElementById("rv-auto");
+  if(rvAutoEl){ if(rvAutoMoved.length){ rvAutoEl.style.display="";
+      rvAutoEl.innerHTML=`<b>✅ 初めて売れたブランドを Sold B へ移動しました（${rvAutoMoved.length}件）</b><br>${esc([...new Set(rvAutoMoved)].join(" / "))}<button class="mini" style="margin-left:8px" onclick="rvAutoClose()">閉じる</button>`; }
+    else { rvAutoEl.style.display="none"; rvAutoEl.innerHTML=""; } }
   const cats=researchCats();
   if(!cats.some(c=>c.id===researchTab)) researchTab=cats[0].id;   /* 現在のモールに合うタブへ切替 */
   document.getElementById("rv-tabs").innerHTML=cats.map(c=>`<button class="segbtn${c.id===researchTab?' active':''}" data-cat="${c.id}" onclick="rvTabClick('${c.id}')">${esc(c.short)}</button>`).join("");
@@ -2456,7 +2528,7 @@ document.getElementById("rv-import-btn").onclick=()=>document.getElementById("rv
 document.getElementById("rv-file").addEventListener("change",e=>{
   const f=e.target.files[0]; if(!f) return; const rd=new FileReader();
   rd.onload=ev=>{ try{
-    const wb=XLSX.read(ev.target.result,{type:"array"});
+    const wb=readWB(ev.target.result);
     const arr=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{header:1,raw:false,defval:""});
     if(!arr.length){ alert("空のファイルです"); e.target.value=""; return; }
     const cat=researchTab, seller=rcat(cat).type==="seller";
