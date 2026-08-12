@@ -1552,6 +1552,16 @@ function shinPutIn(x,label,val){ const k=">"+label+"</w:t>", i=x.indexOf(k);
 function shinPutAfter(x,label,val){ const i=x.indexOf(">"+label+"</w:t>"); if(i<0) return x;
   const j=x.indexOf("</w:t>", i+label.length+6); return j<0?x:(x.slice(0,j)+shinXmlEsc(val)+x.slice(j)); }
 
+/* 署名欄：名前を手書きする空白が狭いので、字下げを浅くして「신청인」と押印欄の間を広げる */
+function shinWidenSign(x){
+  const k='<w:t xml:space="preserve">신청인             (인 또는 서명)</w:t>';
+  const i=x.indexOf(k); if(i<0) return x;
+  const j=x.lastIndexOf('w:firstLine="5264"', i);
+  const wide='<w:t xml:space="preserve">신청인' + " ".repeat(34) + '(인 또는 서명)</w:t>';
+  x = x.slice(0,i) + wide + x.slice(i+k.length);
+  if(j>=0) x = x.slice(0,j) + 'w:firstLine="3000"' + x.slice(j+'w:firstLine="5264"'.length);
+  return x;
+}
 window.shinMakeDocx=async(btn)=>{
   const d=shinLoad();
   if(!window.CompressionStream){ alert("このブラウザではWordファイルを作れません。\nChrome か Edge の新しいバージョンで開いてください。"); return; }
@@ -1579,6 +1589,7 @@ window.shinMakeDocx=async(btn)=>{
     x=shinPutIn(x,"TEL：",vt);
     x=x.split("〇〇○").join(shinXmlEsc(d.brand||""));
     x=x.replace("20   년     월     일", z[0]+" 년   "+z[1]+" 월   "+z[2]+" 일");
+    x=shinWidenSign(x);
     const bytes=new TextEncoder().encode(x);
     doc.data=await shinDeflate(bytes); doc.crc=shinCrc32(bytes); doc.usize=bytes.length; doc.method=8;
     const blob=shinZipWrite(items);
@@ -1728,7 +1739,7 @@ function shinRefresh(){
                 :`<div class="shin-ok"><b>入力はそろっています。</b>下の内容を書類とメールに貼り付けてください。</div>`)+
     `<h4 class="shin-h">① 正品販売確約書（Word）</h4>
      <div class="shin-g"><b>押すだけです。</b>上で入れた内容が全部入ったWordファイルが落ちてきます。書式はネイバーのテンプレートのままです。<br>
-       開いたら、<b>①PDFにして印刷 → ②1ページ目の「□ 구매대행」にレ点と「예」に◯ → ③最後のページに名前をアルファベットで手書き → ④その右の「(인 또는 서명)」の上に押印 → ⑤スキャンして1つのPDFに</b>。</div>
+       開いたら、<b>①PDFにして印刷 → ②1ページ目の「□ 구매대행」にレ点と「예」に◯ → ③最後のページ「신청인」の右の空白に名前をアルファベットで手書き → ④その右の「(인 또는 서명)」の上に押印 → ⑤スキャンして1つのPDFに</b>。<br>署名欄は書きやすいように、押印欄との間を広げてあります。</div>
      <div class="shin-dl"><button class="btn-primary" onclick="shinMakeDocx(this)">📄 Wordで書類をダウンロード</button>
        <span class="shin-hint" style="margin:0">テンプレに下の値を差し込んだ .docx を作ります。開いてそのまま印刷できます。${d.hist==="none"?"（販売履歴なし用のテンプレ）":"（販売履歴あり用のテンプレ）"}</span></div>
      <h4 class="shin-h">② 書類に入る値（手で書くとき用）</h4>
@@ -1806,7 +1817,7 @@ function renderShingan(host){
       <div class="shin-hint">${mall}は<b>AACD加盟店</b>であることが前提です。<a href="https://www.aacd.gr.jp/member-list" target="_blank">AACD会員リストで確認</a>してから会社名を英語で入れてください。</div>`;
   }
   host.innerHTML=shinCss()+
-   `<div class="shin-warn" style="margin-bottom:16px"><b>いちばん大事なこと：</b>絶対に自分の判断で返信しないでください。まず<b>藤井に一報を送って</b>、確認を取ってから動いてください。</div>
+   `<div class="shin-warn" style="margin-bottom:16px"><b style="font-size:15px">一番大事：書類作成後は藤井に提出</b><br>自分の判断で送信しないでください。書類とメール文面ができたら、<b>先に藤井へ送ってOKをもらってから</b>ネイバーに送信します。</div>
     <div class="shin-steps">
       <div><b>① 入れる（30秒）</b>メールを貼る → ASINを入れる → 販売履歴を選ぶ。この3つだけです。</div>
       <div><b>② 作る（1分）</b>Wordの確約書とメール文面が自動でできます。印刷して署名・押印してPDFに。</div>
