@@ -1727,9 +1727,12 @@ function shinRefresh(){
     (miss.length?`<div class="shin-warn"><b>まだ足りません：</b>${esc(miss.join(" ／ "))}</div>`
                 :`<div class="shin-ok"><b>入力はそろっています。</b>下の内容を書類とメールに貼り付けてください。</div>`)+
     `<h4 class="shin-h">① 正品販売確約書（Word）</h4>
+     <div class="shin-g"><b>押すだけです。</b>上で入れた内容が全部入ったWordファイルが落ちてきます。書式はネイバーのテンプレートのままです。<br>
+       開いたら、<b>①PDFにして印刷 → ②1ページ目の「□ 구매대행」にレ点と「예」に◯ → ③最後のページに名前をアルファベットで手書き → ④その右の「(인 또는 서명)」の上に押印 → ⑤スキャンして1つのPDFに</b>。</div>
      <div class="shin-dl"><button class="btn-primary" onclick="shinMakeDocx(this)">📄 Wordで書類をダウンロード</button>
        <span class="shin-hint" style="margin:0">テンプレに下の値を差し込んだ .docx を作ります。開いてそのまま印刷できます。${d.hist==="none"?"（販売履歴なし用のテンプレ）":"（販売履歴あり用のテンプレ）"}</span></div>
-     <h4 class="shin-h">② 書類に入る値（手で貼るとき用）</h4>
+     <h4 class="shin-h">② 書類に入る値（手で書くとき用）</h4>
+     <div class="shin-g">Wordの自動作成を使うなら<b>見なくて大丈夫</b>です。テンプレートを手で埋めるときだけ、ここの📋を押して貼り付けてください。</div>
      <table class="shin-t">
        ${shinRow("상품번호",d.pnum,"shin-v1")}
        ${shinRow("상품명",d.pname,"shin-v2")}
@@ -1738,15 +1741,21 @@ function shinRefresh(){
        ${shinRow("作成日",t.kr+"（"+t.iso+"）","shin-v5")}
      </table>
      <h4 class="shin-h">③ ［거래처(점포) 정보］（書類に貼り付け）</h4>
+     <div class="shin-g"><b>貼る場所：</b>書類の枠の中の「[거래처(점포) 정보]」から「TEL：」までの3行。Wordの自動作成を使うなら不要です。</div>
      <div class="shin-pre-wrap"><pre class="shin-pre" id="shin-vb">${esc(vb)}</pre>${shinCopyBtn("shin-vb")}</div>
      <h4 class="shin-h">④ メールの宛先・件名</h4>
+     <div class="shin-g"><b>いちばん確実なのは、届いた真贋調査メールに「返信」することです。</b>ネイバーが「소명 요청 메일과 동일한 제목 사용을 권장」＝<b>同じ件名で送ってほしい</b>と書いているためです。返信なら宛先も件名もそのまま残ります。<br>
+       新規で作る場合だけ、下の宛先と件名を使ってください。<b>判매자명と상품번호が入っていないと受け付けられないことがあります。</b></div>
      <table class="shin-t">
        <tr><th>宛先</th><td><span class="shin-v" id="shin-to" data-raw="nv_product_ips@navercorp.com">nv_product_ips@navercorp.com</span></td><td style="width:1%">${shinCopyBtn("shin-to")}</td></tr>
        ${shinRow("件名",sub,"shin-sub")}
      </table>
      <h4 class="shin-h">⑤ メール本文（${d.hist==="none"?"販売履歴なし":"販売履歴あり"}用）</h4>
+     <div class="shin-g"><b>やること：</b>📋を押して、メールの本文欄にそのまま貼り付けます。<b>書き換えないでください。</b>中のURLは、書類に入っているURLと1文字も違わないように作ってあります。ここがずれると受理されません。<br>
+       添付するもの：<b>確約書のPDF</b>${d.hist==="none"?"":"と<b>領収書のPDF</b>"}。${d.hist==="none"?"":"領収書に住所・電話番号・カード番号が写っていたら隠してください（個人情報が入っていると突き返されます）。"}</div>
      <div class="shin-pre-wrap"><pre class="shin-pre" id="shin-body">${esc(body)}</pre>${shinCopyBtn("shin-body")}</div>
      <h4 class="shin-h">⑥ 送信前のチェック</h4>
+     <div class="shin-g">全部できているか、上から順に確かめてください。1つでも抜けると突き返されます。</div>
      <ul class="shin-ck">
        <li>書類をPDFにして印刷した</li>
        <li>1ページ目のレ点チェックと◯を入れた</li>
@@ -1783,7 +1792,7 @@ function renderShingan(host){
   const histBtn=(v,label)=>`<button class="segbtn ${d.hist===v?"active":""}" onclick="shinSetHard('hist','${v}')">${label}</button>`;
   let srcFields="";
   if(d.src==="amazon"){
-    srcFields=`<label class="shin-f"><span>ASIN</span><input id="shin-asin" value="${esc(d.asin)}" placeholder="B0XXXXXXXX" oninput="shinSet('asin',this.value)"></label>
+    srcFields=`<label class="shin-f"><span>ASIN<small>Amazonの商品ページURLの /dp/ の後ろの10桁</small></span><input id="shin-asin" value="${esc(d.asin)}" placeholder="例：B0C6KBF1YF" oninput="shinSet('asin',this.value)"></label>
       <div class="shin-hint">ASINを入れると <code>https://www.amazon.co.jp/dp/ASIN/</code> と TEL <code>0120-999-373</code> が自動で入ります。販売元がAmazon以外のセラーでも書き方は同じです。</div>`;
   } else if(d.src==="official"){
     srcFields=`<label class="shin-f"><span>公式ストア名</span><input value="${esc(d.offName)}" placeholder="CASIO Official Online Shop" oninput="shinSet('offName',this.value)"></label>
@@ -1798,30 +1807,43 @@ function renderShingan(host){
   }
   host.innerHTML=shinCss()+
    `<div class="shin-warn" style="margin-bottom:16px"><b>いちばん大事なこと：</b>絶対に自分の判断で返信しないでください。まず<b>藤井に一報を送って</b>、確認を取ってから動いてください。</div>
+    <div class="shin-steps">
+      <div><b>① 入れる（30秒）</b>メールを貼る → ASINを入れる → 販売履歴を選ぶ。この3つだけです。</div>
+      <div><b>② 作る（1分）</b>Wordの確約書とメール文面が自動でできます。印刷して署名・押印してPDFに。</div>
+      <div><b>③ 出す</b>藤井に一報 → OKが出たら、届いたメールに<b>返信</b>で送ります。</div>
+    </div>
     <div class="shin-card">
       <div class="shin-cardhead">1. 届いた真贋調査メールを貼り付ける
         <button class="mini add" onclick="shinReadMail()">🔍 メールから読み取る</button>
         <button class="mini" onclick="shinClear()" style="margin-left:auto">新しい案件にする</button></div>
+      <div class="shin-g"><b>ここに書くこと：</b>ネイバーから届いたメールの本文を、<b>全部そのまま</b>貼り付けてください。<br>
+        Yahoo!メールなら、本文の上でクリック → <b>Ctrl+A</b>（全部選ぶ）→ <b>Ctrl+C</b>（コピー）→ ここで <b>Ctrl+V</b>（貼り付け）。<br>
+        貼ったら右上の「🔍 メールから読み取る」を押します。下の欄が自動で埋まります。</div>
       <textarea class="shin-mail" placeholder="届いたメールの本文をそのまま貼り付けてください" oninput="shinSet('mail',this.value)">${esc(d.mail)}</textarea>
       <label class="shin-f" style="margin-top:10px"><span>メールのリンク（任意）</span><input value="${esc(d.mailurl)}" placeholder="Yahoo!メールなどの、このメールを開けるURL" oninput="shinSet('mailurl',this.value)"></label>
       <div class="shin-hint">読み取れないときは、下の3つを手で入れてください。読み取り結果も必ず目で確認してください。<br>リンクを入れておくと、藤井への報告文に一緒に入るので、原文をすぐ確認してもらえます。</div>
     </div>
     <div class="shin-card">
       <div class="shin-cardhead">2. 該当商品の情報</div>
-      <label class="shin-f"><span>商品番号（상품번호）</span><input value="${esc(d.pnum)}" placeholder="メール内の商品番号" oninput="shinSet('pnum',this.value)"></label>
-      <label class="shin-f"><span>商品名（상품명）</span><input value="${esc(d.pname)}" placeholder="メール内の商品名" oninput="shinSet('pname',this.value)"></label>
-      <label class="shin-f"><span>ブランド名（韓国語）</span><input value="${esc(d.brand)}" placeholder="メール内のブランド名" oninput="shinSet('brand',this.value)"></label>
-      <label class="shin-f"><span>ストアURL名</span><input value="${esc(d.shop)}" placeholder="tokyomart7585" oninput="shinSet('shop',this.value)"></label>
-      <div class="shin-hint">ストアURL名と商品番号から、商品ページURL <code>https://smartstore.naver.com/ストアURL名/products/商品番号</code> を自動で作ります。</div>
+      <div class="shin-g"><b>自動で入ります。</b>ただし<b>必ず目で確認</b>してください。メールの書き方によっては拾い間違えます。違っていたら直接書き換えて大丈夫です。</div>
+      <label class="shin-f"><span>商品番号（상품번호）<small>メールの「- 상품번호:」の右にある数字</small></span><input value="${esc(d.pnum)}" placeholder="例：13400459850" oninput="shinSet('pnum',this.value)"></label>
+      <label class="shin-f"><span>商品名（상품명）<small>メールの「- 상품명:」の右にある文字を全部</small></span><input value="${esc(d.pname)}" placeholder="例：[GUCCI OUTLET ...] 남성 시계 타임리스 블랙" oninput="shinSet('pname',this.value)"></label>
+      <label class="shin-f"><span>ブランド名（韓国語）<small>商品名の中の（　）に入っている韓国語。例：(구찌) → 구찌</small></span><input value="${esc(d.brand)}" placeholder="例：구찌" oninput="shinSet('brand',this.value)"></label>
+      <label class="shin-f"><span>ストアURL名<small>スマートストアのURLの smartstore.naver.com/<b>ここ</b>/products/… の部分</small></span><input value="${esc(d.shop)}" placeholder="tokyomart7585" oninput="shinSet('shop',this.value)"></label>
+      <div class="shin-hint">この2つから商品ページURL <code>https://smartstore.naver.com/ストアURL名/products/商品番号</code> を自動で作ります。書類とメールの両方に入ります。</div>
     </div>
     <div class="shin-card">
       <div class="shin-cardhead">ストアの固定情報（1回入れれば次から自動で入ります）</div>
-      <label class="shin-f"><span>판매자명（書類・署名）</span><input value="${esc(d.seller)}" placeholder="TokyoMart" oninput="shinSet('seller',this.value)"></label>
-      <label class="shin-f"><span>연락처 및 이메일 주소</span><input value="${esc(d.contact)}" placeholder="メールアドレス（必要なら電話番号も）" oninput="shinSet('contact',this.value)"></label>
+      <div class="shin-g"><b>最初に1回だけ入れてください。</b>次からは自動で入ります。パソコンを変えたときは入れ直しが必要です。</div>
+      <label class="shin-f"><span>판매자명（書類・署名）<small>ストアの名前。URL名ではありません</small></span><input value="${esc(d.seller)}" placeholder="TokyoMart" oninput="shinSet('seller',this.value)"></label>
+      <label class="shin-f"><span>연락처 및 이메일 주소<small>スマートストアに登録してあるメールアドレス</small></span><input value="${esc(d.contact)}" placeholder="例：xxxx@yahoo.co.jp" oninput="shinSet('contact',this.value)"></label>
       <div class="shin-hint">この2つは<b>このパソコンの中だけ</b>に保存されます（共有もされませんし、公開ページにも入りません）。</div>
     </div>
     <div class="shin-card">
       <div class="shin-cardhead">3. 販売履歴</div>
+      <div class="shin-g"><b>ここで選ぶこと：</b>この商品が<b>1個でも売れたことがあるか</b>。スマートストアの「판매 기록」で確認してください。<br>
+        <b>売れたことがある＝あり</b>（仕入れた時の<b>領収書が必要</b>になります）／<b>一度も売れていない＝なし</b>（領収書は不要）。<br>
+        テンプレートも、メールの文面も、ここで切り替わります。<b>間違えると書類ごと作り直しです。</b></div>
       <div class="seg">${histBtn("none","販売履歴なし")}${histBtn("have","販売履歴あり")}</div>
       <div class="shin-hint" id="shin-hist-hint"></div>
       <div class="shin-hint">${d.hist==="none"
@@ -1830,6 +1852,8 @@ function renderShingan(host){
     </div>
     <div class="shin-card">
       <div class="shin-cardhead">4. 仕入れ先</div>
+      <div class="shin-g"><b>ここで選ぶこと：</b>この商品を<b>どこから仕入れる（仕入れた）か</b>。ここで書類の［거래처(점포) 정보］の書き方が決まります。<br>
+        まだ売れていない商品なら、<b>これから仕入れる予定の店</b>を入れてください。</div>
       <div class="seg">${srcBtn("amazon","Amazon")}${srcBtn("rakuten","楽天")}${srcBtn("yahoo","ヤフショ")}${srcBtn("official","公式ストア")}</div>
       <div style="margin-top:12px">${srcFields}</div>
       <div class="shin-hint"><b>公式ストアに商品ページが無い場合</b>は、①Amazonの商品ページ（評価が極端に少ないセラーは避ける）②正規販売店・正規代理店 ③AACD加盟店 のいずれかを探して入れてください。</div>
@@ -1859,6 +1883,13 @@ function shinCss(){ return `<style>
  #smart-list-host .shin-pre-wrap{position:relative}
  #smart-list-host .shin-pre{background:#f7f8fc;border:1px solid var(--line);border-radius:9px;padding:13px 15px;font:12.5px/1.75 "SF Mono",Menlo,monospace;white-space:pre-wrap;word-break:break-all;margin:0}
  #smart-list-host .shin-pre-wrap>.mini{position:absolute;top:9px;right:9px}
+ #smart-list-host .shin-g{font-size:12.5px;color:#5a6478;background:#f5f7ff;border-left:3px solid var(--accent);
+     border-radius:0 7px 7px 0;padding:8px 11px;margin:6px 0 12px;line-height:1.85}
+ #smart-list-host .shin-g b{color:var(--accent)}
+ #smart-list-host .shin-f>span small{display:block;color:#a2aab8;font-weight:400;font-size:11.5px;line-height:1.5;margin-top:2px}
+ #smart-list-host .shin-steps{display:flex;gap:10px;flex-wrap:wrap;margin:0 0 18px}
+ #smart-list-host .shin-steps>div{flex:1;min-width:190px;background:#f5f7ff;border:1px solid #dfe4f5;border-radius:10px;padding:11px 13px;font-size:12.5px;line-height:1.8}
+ #smart-list-host .shin-steps b{display:block;color:var(--accent);font-size:13px;margin-bottom:3px}
  #smart-list-host .shin-dl{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin:10px 0 4px}
  #smart-list-host .shin-ck{margin:8px 0;padding-left:20px;font-size:13.5px;line-height:2}
  #smart-list-host #shin-man{margin-top:38px;border-top:3px solid var(--line);padding-top:8px}
