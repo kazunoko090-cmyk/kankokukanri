@@ -1751,6 +1751,25 @@ function shinWidenSign(x){
   if(j>=0) x = x.slice(0,j) + 'w:firstLine="3000"' + x.slice(j+'w:firstLine="5264"'.length);
   return x;
 }
+/* テンプレはGoogleドキュメント製で、段落ごとに8ptの余白が入っている。
+   そのままWordで開くとページ数が増える（4ページ）ので、余白を詰めて3ページに収める。 */
+function shinCompact(x){
+  x = x.split('w:after="160"').join('w:after="0"');            /* 段落後の余白8pt */
+  x = x.replace(/w:line="\d+\.\d+"/g, 'w:line="240"');          /* Wordが解釈できない行間値 */
+  x = x.replace(/<w:pgMar[^>]*\/>/g, m =>
+        m.replace(/w:top="(\d+)"/,    (s,v)=> (+v>1134) ? 'w:top="1134"'    : s)
+         .replace(/w:bottom="(\d+)"/, (s,v)=> (+v>1134) ? 'w:bottom="1134"' : s));
+  const i=x.indexOf("<w:txbxContent>");
+  if(i>=0){
+    const inner=x.slice(i, x.indexOf("</w:txbxContent>"));
+    const n=(inner.match(/<w:p[ >]/g)||[]).length;
+    const cut=Math.round(0.5*n*101600);                          /* 消した余白のぶんだけ枠も縮める */
+    const shr=(m,pre,v)=> (+v>3000000) ? pre+'cy="'+Math.max(+v-cut,1800000)+'"' : m;
+    x = x.replace(/(<wp:extent [^>]*?)cy="(\d+)"/g, shr);
+    x = x.replace(/(<a:ext [^>]*?)cy="(\d+)"/g, shr);
+  }
+  return x;
+}
 window.shinMakeDocx=async(btn)=>{
   const d=shinLoad();
   if(!window.CompressionStream){ alert("このブラウザではWordファイルを作れません。\nChrome か Edge の新しいバージョンで開いてください。"); return; }
@@ -1779,6 +1798,7 @@ window.shinMakeDocx=async(btn)=>{
     x=x.split("〇〇○").join(shinXmlEsc(d.brand||""));
     x=x.replace("20   년     월     일", z[0]+" 년   "+z[1]+" 월   "+z[2]+" 일");
     x=shinWidenSign(x);
+    x=shinCompact(x);
     const bytes=new TextEncoder().encode(x);
     doc.data=await shinDeflate(bytes); doc.crc=shinCrc32(bytes); doc.usize=bytes.length; doc.method=8;
     const blob=shinZipWrite(items);
