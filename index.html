@@ -30,6 +30,9 @@ window.CAT_ATTR_JA={"색상": "色", "수량": "数量", "패션의류/잡화 �
   *::-webkit-scrollbar-thumb{ background:#d7dced; border-radius:20px; border:2px solid transparent; background-clip:content-box; }
   *::-webkit-scrollbar-thumb:hover{ background:#c2c9df; background-clip:content-box; }
   body{ font-family:"Inter","Noto Sans JP","Hiragino Kaku Gothic ProN",-apple-system,sans-serif; background:var(--bg); color:var(--txt); font-size:14px; -webkit-font-smoothing:antialiased; }
+  /* 横スクロールで端まで行っても「戻る」に飛ばない（表を左右に動かす操作を優先する） */
+  html,body{ overscroll-behavior-x:none; }
+  *{ overscroll-behavior-x:contain; }
 
   header{ background:rgba(255,255,255,.85); backdrop-filter:saturate(180%) blur(10px); border-bottom:1px solid var(--line); padding:0 24px; height:62px; display:flex; align-items:center; gap:26px; position:sticky; top:0; z-index:20; }
   .brand{ display:flex; align-items:center; gap:11px; }
