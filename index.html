@@ -1097,7 +1097,7 @@ async function cloudDelete(order){ const u=cloudURL(); if(!u) return;
 /* ===== その他データの同期（マニュアル・顧客・出品・ブログ等）：key-value方式 ===== */
 /* kr_hi_（黄色の選択）は同期しない＝端末ごとの目印。
    共有すると①和集合で選択が溜まる②複数人で1つの選択を奪い合う、の両方が起きるため。 */
-const KV_SYNC_PREFIXES=["kr_teb_","kr_bru_","kr_manual_v2","kr_manual_urls","kr_tblman_","kr_cust_","kr_list_attr_","kr_list_cat_","kr_attr_cat_","kr_blog_","kr_catseg_ja","kr_tomb"];
+const KV_SYNC_PREFIXES=["kr_teb_","kr_bru_","kr_manual_v2","kr_manual_urls","kr_tblman_","kr_cust_","kr_list_attr_","kr_list_cat_","kr_attr_cat_","kr_blog_","kr_catseg_ja","kr_shinfix","kr_tomb"];
 function isKvSyncKey(k){ return KV_SYNC_PREFIXES.some(p=> k===p || k.indexOf(p)===0 ); }
 let kvReady=false;                 // 初回プル完了まで送信しない（初期シードの誤送信防止）
 const _kvSetItem=localStorage.setItem.bind(localStorage);
@@ -1485,6 +1485,195 @@ function renderList(){
     body.innerHTML=`<div class="empty"><b>出品（${PNAME[current]||current}）はこれから作ります</b>必要な項目を教えてください。</div>`;
   }
 }
+/* ===== 領収書・請求書のマスク＋読み取り =====
+   PDF/画像を読み込み、住所や電話番号などを黒く塗って提出用に変換する。
+   黒い四角を重ねるだけだと文字が残るので、画像化してから塗る＝文字ごと消える。 */
+const SHIN_PDFJS="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js";
+const SHIN_PDFJSW="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+let _pdfjs=null, invPages=[], invBoxes=[], invRead={}, invName="", invDrag=null;
+function shinPdfJs(){
+  if(_pdfjs) return Promise.resolve(_pdfjs);
+  return new Promise((ok,ng)=>{ const s=document.createElement("script"); s.src=SHIN_PDFJS;
+    s.onload=()=>{ const L=window.pdfjsLib; L.GlobalWorkerOptions.workerSrc=SHIN_PDFJSW; _pdfjs=L; ok(L); };
+    s.onerror=()=>ng(new Error("PDFの読み込み部品を取得できませんでした（ネット接続を確認してください）"));
+    document.head.appendChild(s); });
+}
+/* 隠す候補を見つける。※自動判定は完璧ではないので、必ず画面で確認して増減させる */
+const INV_PREF="北海道|青森県|岩手県|宮城県|秋田県|山形県|福島県|茨城県|栃木県|群馬県|埼玉県|千葉県|東京都|神奈川県|新潟県|富山県|石川県|福井県|山梨県|長野県|岐阜県|静岡県|愛知県|三重県|滋賀県|京都府|大阪府|兵庫県|奈良県|和歌山県|鳥取県|島根県|岡山県|広島県|山口県|徳島県|香川県|愛媛県|高知県|福岡県|佐賀県|長崎県|熊本県|大分県|宮崎県|鹿児島県|沖縄県";
+function shinInvWhy(t){
+  t=String(t||"").trim(); if(!t) return null;
+  if(/^\d{3}-?\d{4}$/.test(t.replace(/[〒 ]/g,""))) return "郵便番号";
+  if(/[\w.\-]+@[\w.\-]+\.\w+/.test(t)) return "メールアドレス";
+  if(/(^|[^0-9])0\d{1,3}-\d{2,4}-\d{4}([^0-9]|$)/.test(t)) return "電話番号";
+  if(/(下\s*4\s*桁|末尾|ending in|\*{4})\s*\d{0,4}/.test(t)) return "カード番号";
+  if(new RegExp(INV_PREF).test(t)) return "住所（都道府県）";
+  if(/登録番号|^T\d{13}$|インボイス/.test(t)) return null;               /* 適格請求書の登録番号は隠さない */
+  if(/(市|区|郡|町|村|丁目|番地|番|号)/.test(t) && /\d/.test(t)) return "住所（番地）";
+  return null;
+}
+window.shinInvFile=async(inp)=>{
+  const f=inp.files&&inp.files[0]; if(!f) return;
+  const box=document.getElementById("shin-inv-body");
+  box.innerHTML='<div class="shin-hint">読み込み中…</div>';
+  invPages=[]; invBoxes=[]; invRead={}; invName=f.name.replace(/\.[^.]+$/,"");
+  try{
+    if(/\.pdf$/i.test(f.name) || f.type==="application/pdf"){
+      const L=await shinPdfJs();
+      const doc=await L.getDocument({data:new Uint8Array(await f.arrayBuffer()),
+        cMapUrl:"https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/cmaps/", cMapPacked:true,
+        standardFontDataUrl:"https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/standard_fonts/"}).promise;
+      let all="";
+      for(let n=1;n<=doc.numPages;n++){
+        const pg=await doc.getPage(n), vp=pg.getViewport({scale:2});
+        const cv=document.createElement("canvas"); cv.width=vp.width; cv.height=vp.height;
+        const task=pg.render({canvasContext:cv.getContext("2d"), viewport:vp});
+        task.onContinue=(cont)=>cont();   /* 裏タブだと描画が止まるので、pdf.js側の待ち合わせを使わない */
+        await task.promise;
+        const tc=await pg.getTextContent();
+        tc.items.forEach(it=>{
+          const s=String(it.str||"").trim(); if(!s) return; all+=s+"\n";
+          const why=shinInvWhy(s); if(!why) return;
+          const tr=L.Util.transform(vp.transform,it.transform);
+          const h=Math.hypot(tr[2],tr[3])||12, w=(it.width||s.length*6)*vp.scale;
+          invBoxes.push({p:n-1,x:tr[4]-2,y:tr[5]-h-2,w:w+6,h:h+6,why:why,text:s,on:true});
+        });
+        invPages.push(cv);
+      }
+      invRead=shinInvRead(all);
+      const cnt={}; invBoxes.forEach(b=>{ cnt[b.text]=(cnt[b.text]||0)+1; });
+      invBoxes.forEach(b=>{ b.on = (cnt[b.text]>1) || /郵便番号|メール|電話|カード/.test(b.why); });
+    }else{
+      const img=new Image(); img.src=URL.createObjectURL(f);
+      await new Promise(r=>{img.onload=r;});
+      const cv=document.createElement("canvas"); cv.width=img.naturalWidth; cv.height=img.naturalHeight;
+      cv.getContext("2d").drawImage(img,0,0); invPages.push(cv);
+      URL.revokeObjectURL(img.src);
+    }
+    shinInvDraw();
+  }catch(e){ console.error(e); box.innerHTML='<div class="shin-warn">読み込めませんでした：'+esc(e.message)+'</div>'; }
+};
+/* 請求書から使える値を拾う */
+function shinInvRead(t){
+  const g=(re)=>{ const m=t.match(re); return m?m[1].trim():""; };
+  return { order:g(/(\d{3}-\d{7}-\d{7})/), date:g(/注文日\s*\n?\s*(\d{4}-\d{2}-\d{2})/)||g(/(\d{4}-\d{2}-\d{2})/),
+           total:(()=>{ const a=[...t.matchAll(/[¥￥]\s*([\d,]+)/g)].map(m=>m[1]);
+                        if(!a.length) return "";
+                        return a.sort((x,y)=>parseInt(y.replace(/,/g,""))-parseInt(x.replace(/,/g,"")))[0]; })(),
+           asin:g(/\b(B0[A-Z0-9]{8})\b/) };
+}
+function shinInvDraw(){
+  const box=document.getElementById("shin-inv-body"); if(!box) return;
+  if(!invPages.length){ box.innerHTML=""; return; }
+  const r=invRead, hit=[r.order&&"注文番号 "+r.order, r.date&&"注文日 "+r.date, r.total&&"金額 ¥"+r.total, r.asin&&"ASIN "+r.asin].filter(Boolean);
+  const on=invBoxes.filter(b=>b.on).length;
+  const kinds={}; invBoxes.forEach(b=>{ kinds[b.why]=(kinds[b.why]||0)+1; });
+  box.innerHTML=
+    (hit.length?`<div class="shin-ok" style="margin:0 0 10px">読み取れました：${esc(hit.join(" ／ "))}
+       <button class="mini add" style="margin-left:8px" onclick="shinInvApply()">この内容を上の欄に入れる</button></div>`:"")+
+    `<div class="shin-g" style="margin-top:0"><b>黒い枠が隠す場所です。</b>クリックすると外せます。<b>足りない場所は、画像の上をドラッグ</b>すると追加できます。<br>
+      赤い点線の枠は<b>「見つけたけれど隠していない」</b>場所です（お店の住所など）。隠したいならクリックしてください。<br>
+      自動で見つけたもの：${esc(Object.keys(kinds).map(k=>k+" "+kinds[k]+"件").join(" / ")||"なし")}
+      <b>いま隠す：${on}箇所</b>　<button class="mini" onclick="shinInvAll(true)">全部隠す</button>
+      <button class="mini" onclick="shinInvAll(false)">全部外す</button></div>
+     <div class="shin-warn" style="margin:8px 0"><b>発行者（お店）の住所まで隠さないでください。</b>隠すのは自分の住所・電話番号・メール・カード番号です。隠しすぎても突き返されます。</div>
+     <div id="shin-inv-pages"></div>
+     <div class="shin-dl" style="margin-top:12px">
+       <button class="btn-primary" onclick="shinInvSave(this)">📄 マスクして提出用PDFをダウンロード</button>
+       <span class="shin-hint" style="margin:0">画像に変換してから塗るので、コピーしても文字は残りません。</span></div>`;
+  const host=document.getElementById("shin-inv-pages");
+  invPages.forEach((cv,pi)=>{
+    const w=Math.min(760,cv.width), sc=w/cv.width;
+    const d=document.createElement("div"); d.style.cssText="position:relative;display:inline-block;margin:0 10px 10px 0;border:1px solid var(--line)";
+    const im=document.createElement("img"); im.src=cv.toDataURL("image/png"); im.style.cssText="display:block;width:"+w+"px";
+    d.appendChild(im);
+    invBoxes.forEach((b,bi)=>{ if(b.p!==pi) return;
+      const e=document.createElement("div");
+      e.style.cssText="position:absolute;left:"+(b.x*sc)+"px;top:"+(b.y*sc)+"px;width:"+(b.w*sc)+"px;height:"+(b.h*sc)+"px;cursor:pointer;"+
+        (b.on?"background:#000":"background:rgba(229,69,60,.18);border:1px dashed #e5453c");
+      e.title=(b.on?"クリックで外す：":"クリックで隠す：")+b.why+" / "+b.text;
+      e.onclick=(ev)=>{ ev.stopPropagation(); invBoxes[bi].on=!invBoxes[bi].on; shinInvDraw(); };
+      d.appendChild(e);
+    });
+    /* ドラッグで自分で枠を足す */
+    d.onmousedown=(ev)=>{ if(ev.target!==im) return; const r=im.getBoundingClientRect();
+      invDrag={pi:pi,sc:sc,x0:ev.clientX-r.left,y0:ev.clientY-r.top,el:null,host:d}; ev.preventDefault(); };
+    host.appendChild(d);
+  });
+}
+document.addEventListener("mousemove",(ev)=>{ if(!invDrag) return;
+  const im=invDrag.host.querySelector("img"), r=im.getBoundingClientRect();
+  const x=Math.min(invDrag.x0,ev.clientX-r.left), y=Math.min(invDrag.y0,ev.clientY-r.top);
+  const w=Math.abs(ev.clientX-r.left-invDrag.x0), h=Math.abs(ev.clientY-r.top-invDrag.y0);
+  if(!invDrag.el){ invDrag.el=document.createElement("div");
+    invDrag.el.style.cssText="position:absolute;background:rgba(0,0,0,.6);pointer-events:none"; invDrag.host.appendChild(invDrag.el); }
+  invDrag.el.style.left=x+"px"; invDrag.el.style.top=y+"px"; invDrag.el.style.width=w+"px"; invDrag.el.style.height=h+"px";
+});
+document.addEventListener("mouseup",()=>{ if(!invDrag) return;
+  if(invDrag.el){ const s=invDrag.el.style, sc=invDrag.sc;
+    const w=parseFloat(s.width), h=parseFloat(s.height);
+    if(w>4&&h>4) invBoxes.push({p:invDrag.pi,x:parseFloat(s.left)/sc,y:parseFloat(s.top)/sc,w:w/sc,h:h/sc,why:"手で追加",text:"",on:true});
+    invDrag.el.remove(); invDrag=null; shinInvDraw(); return; }
+  invDrag=null;
+});
+window.shinInvAll=(v)=>{ invBoxes.forEach(b=>b.on=v); shinInvDraw(); };
+window.shinInvApply=()=>{ const r=invRead;
+  if(r.asin) shinSet("asin",r.asin);
+  const d=shinLoad(); const memo=[];
+  if(r.order) memo.push("注文番号 "+r.order); if(r.date) memo.push("注文日 "+r.date); if(r.total) memo.push("仕入 ¥"+r.total);
+  alert("上の欄に入れました。\n"+(r.asin?"ASIN："+r.asin+"\n":"")+(memo.length?memo.join(" / '"+"'"):""));
+  renderList(); };
+/* 画像化して塗りつぶし、1つのPDFにまとめる */
+window.shinInvSave=async(btn)=>{
+  if(!invPages.length) return;
+  const o=btn?btn.textContent:""; if(btn) btn.textContent="変換中…";
+  try{
+    const jpgs=[];
+    for(let i=0;i<invPages.length;i++){
+      const src=invPages[i], cv=document.createElement("canvas");
+      cv.width=src.width; cv.height=src.height;
+      const g=cv.getContext("2d"); g.drawImage(src,0,0);
+      g.fillStyle="#000";
+      invBoxes.forEach(b=>{ if(b.p===i&&b.on) g.fillRect(b.x,b.y,b.w,b.h); });
+      const blob=await new Promise(r=>cv.toBlob(r,"image/jpeg",0.92));
+      jpgs.push({bytes:new Uint8Array(await blob.arrayBuffer()), w:cv.width, h:cv.height});
+    }
+    const blob=shinImgsToPdf(jpgs);
+    const a=document.createElement("a"); a.href=URL.createObjectURL(blob);
+    a.download=(invName||"領収書")+"_提出用.pdf"; a.click();
+    setTimeout(()=>URL.revokeObjectURL(a.href),4000);
+    if(btn) btn.textContent="ダウンロードしました";
+  }catch(e){ console.error(e); alert("変換に失敗しました：\n"+e.message); }
+  setTimeout(()=>{ if(btn) btn.textContent=o; },2000);
+};
+/* JPEGを並べただけの最小PDFを組み立てる（外部ライブラリ不要） */
+function shinImgsToPdf(imgs){
+  const enc=new TextEncoder(), parts=[], off=[]; let pos=0;
+  const put=(u)=>{ parts.push(u); pos+=u.length; };
+  const puts=(s)=>put(enc.encode(s));
+  puts("%PDF-1.4\n");
+  const nPages=imgs.length, objTotal=2+nPages*3;
+  const kids=[]; for(let i=0;i<nPages;i++) kids.push((3+i*3)+" 0 R");
+  const mark=(n)=>{ off[n]=pos; };
+  mark(1); puts("1 0 obj\n<</Type/Catalog/Pages 2 0 R>>\nendobj\n");
+  mark(2); puts("2 0 obj\n<</Type/Pages/Kids["+kids.join(" ")+"]/Count "+nPages+">>\nendobj\n");
+  imgs.forEach((im,i)=>{
+    const pg=3+i*3, ct=pg+1, ix=pg+2;
+    const W=(im.w*72/144).toFixed(2), H=(im.h*72/144).toFixed(2);   /* 2倍で描いたので144dpi相当 */
+    mark(pg); puts(pg+" 0 obj\n<</Type/Page/Parent 2 0 R/MediaBox[0 0 "+W+" "+H+"]"+
+      "/Resources<</XObject<</Im0 "+ix+" 0 R>>/ProcSet[/PDF/ImageC]>>/Contents "+ct+" 0 R>>\nendobj\n");
+    const cs="q "+W+" 0 0 "+H+" 0 0 cm /Im0 Do Q\n";
+    mark(ct); puts(ct+" 0 obj\n<</Length "+cs.length+">>\nstream\n"+cs+"endstream\nendobj\n");
+    mark(ix); puts(ix+" 0 obj\n<</Type/XObject/Subtype/Image/Width "+im.w+"/Height "+im.h+
+      "/ColorSpace/DeviceRGB/BitsPerComponent 8/Filter/DCTDecode/Length "+im.bytes.length+">>\nstream\n");
+    put(im.bytes); puts("\nendstream\nendobj\n");
+  });
+  const xref=pos;
+  let x="xref\n0 "+(objTotal+1)+"\n0000000000 65535 f \n";
+  for(let n=1;n<=objTotal;n++) x+=String(off[n]||0).padStart(10,"0")+" 00000 n \n";
+  puts(x); puts("trailer\n<</Size "+(objTotal+1)+"/Root 1 0 R>>\nstartxref\n"+xref+"\n%%EOF\n");
+  return new Blob(parts,{type:"application/pdf"});
+}
+
 /* ===== 正品販売確約書（Word）の自動作成 =====
    テンプレ .docx を丸ごと持っておき、word/document.xml の文字だけ差し替えて
    同じ書式のまま新しい .docx を組み立てる。外部ライブラリなし・費用ゼロ。 */
@@ -1604,14 +1793,28 @@ window.shinMakeDocx=async(btn)=>{
 
 /* ===== 真贋調査（出品/スマートストア：正品販売確約書とメールの自動作成） ===== */
 const SHIN_KEY="kr_shingan_smart_v1";   /* 端末ごとの下書き（同期しない＝2人で同時に別案件を扱えるように） */
+const SHINFIX_KEY="kr_shinfix_v1";      /* ストアの固定情報。案件をリセットしても消えない／端末間で共有される */
+const SHINFIX=["shop","seller","contact"];
+function shinFix(){ try{ const d=JSON.parse(localStorage.getItem(SHINFIX_KEY)); if(d&&typeof d==="object") return d; }catch(e){} return {}; }
+function shinFixSave(o){ localStorage.setItem(SHINFIX_KEY, JSON.stringify(o)); }
 const SHIN_DEF={shop:"tokyomart7585", seller:"", contact:"", hist:"none", src:"amazon", mail:"", mailurl:"", due:"", pnum:"", pname:"", brand:"",
                 asin:"", offName:"", offUrl:"", offTel:"", coName:"", coUrl:"", coTel:""};
-function shinLoad(){ try{ const d=JSON.parse(localStorage.getItem(SHIN_KEY)); if(d&&typeof d==="object") return {...SHIN_DEF,...d}; }catch(e){} return {...SHIN_DEF}; }
+function shinLoad(){ let d={};
+  try{ const t=JSON.parse(localStorage.getItem(SHIN_KEY)); if(t&&typeof t==="object") d=t; }catch(e){}
+  const f=shinFix();
+  /* 旧データからの引き継ぎ：下書き側にしか無ければ固定側へ移す（1回だけ） */
+  let mv=false; SHINFIX.forEach(k=>{ if(!f[k] && d[k]){ f[k]=d[k]; mv=true; } });
+  if(mv) shinFixSave(f);
+  const out={...SHIN_DEF,...d};
+  SHINFIX.forEach(k=>{ if(f[k]!==undefined && f[k]!=="") out[k]=f[k]; });
+  return out; }
 function shinSave(d){ localStorage.setItem(SHIN_KEY, JSON.stringify(d)); }
-window.shinSet=(k,v)=>{ const d=shinLoad(); d[k]=v; shinSave(d); shinRefresh(); };
+window.shinSet=(k,v)=>{
+  if(SHINFIX.indexOf(k)>=0){ const f=shinFix(); f[k]=v; shinFixSave(f); shinRefresh(); return; }   /* 固定情報は別枠に保存 */
+  const d=shinLoad(); d[k]=v; shinSave(d); shinRefresh(); };
 window.shinSetHard=(k,v)=>{ const d=shinLoad(); d[k]=v; shinSave(d); renderList(); };   /* 表示する欄が変わるものは作り直す */
-window.shinClear=()=>{ if(!confirm("入力内容をすべて消して、新しい案件を始めますか？")) return;
-  const d=shinLoad(); shinSave({...SHIN_DEF, shop:d.shop}); renderList(); };            /* ショップ名だけ残す */
+window.shinClear=()=>{ if(!confirm("この案件の入力内容を消して、新しい案件を始めますか？\n（판매자명・メールアドレス・ストアURL名は残ります）")) return;
+  shinSave({...SHIN_DEF}); renderList(); };   /* 固定情報は別キーなので消えない */
 
 /* 届いた真贋調査メールから、商品番号・商品名・ブランド名を拾う（拾えなければ手入力） */
 function shinParseMail(t){
@@ -1845,10 +2048,10 @@ function renderShingan(host){
     </div>
     <div class="shin-card">
       <div class="shin-cardhead">ストアの固定情報（1回入れれば次から自動で入ります）</div>
-      <div class="shin-g"><b>最初に1回だけ入れてください。</b>次からは自動で入ります。パソコンを変えたときは入れ直しが必要です。</div>
+      <div class="shin-g"><b>最初に1回だけ入れてください。</b>ここは<b>案件をリセットしても消えません</b>。もう一方のパソコンにも自動で共有されます（公開ページには入りません）。</div>
       <label class="shin-f"><span>판매자명（書類・署名）<small>ストアの名前。URL名ではありません</small></span><input value="${esc(d.seller)}" placeholder="TokyoMart" oninput="shinSet('seller',this.value)"></label>
       <label class="shin-f"><span>연락처 및 이메일 주소<small>スマートストアに登録してあるメールアドレス</small></span><input value="${esc(d.contact)}" placeholder="例：xxxx@yahoo.co.jp" oninput="shinSet('contact',this.value)"></label>
-      <div class="shin-hint">この2つは<b>このパソコンの中だけ</b>に保存されます（共有もされませんし、公開ページにも入りません）。</div>
+      <div class="shin-hint">この3つは共有データ（鍵で保護）に保存されます。<b>公開ページには入りません。</b></div>
     </div>
     <div class="shin-card">
       <div class="shin-cardhead">3. 販売履歴</div>
@@ -1870,6 +2073,14 @@ function renderShingan(host){
       <div class="shin-hint"><b>公式ストアに商品ページが無い場合</b>は、①Amazonの商品ページ（評価が極端に少ないセラーは避ける）②正規販売店・正規代理店 ③AACD加盟店 のいずれかを探して入れてください。</div>
     </div>
     <div class="shin-warn" id="shin-due" style="display:none;margin-bottom:14px"></div>
+    <div class="shin-card">
+      <div class="shin-cardhead">5. 領収書・請求書のマスク（販売履歴ありのときだけ）</div>
+      <div class="shin-g"><b>ここですること：</b>仕入れたときの<b>領収書・請求書のPDF（または写真）</b>を選ぶと、住所や電話番号を自動で見つけて黒く塗ります。<br>
+        ネイバーは<b>個人情報が写っていると差し戻し</b><b>／隠しすぎて読めなくても差し戻し</b>です。画面で確認しながら、隠す場所を増減してください。</div>
+      <input type="file" id="shin-inv-file" accept=".pdf,.png,.jpg,.jpeg" onchange="shinInvFile(this)"
+             style="font-size:13px;padding:6px 0">
+      <div id="shin-inv-body"></div>
+    </div>
     <div id="shin-out"></div>
     <div id="shin-man"></div>`;
   shinRefresh();
@@ -2012,6 +2223,28 @@ Amazon・楽天・ヤフショなどで、次のどれかに当てはまるセ�
 
 <h5>9〜10. <span class="fujii">藤井に一報</span> → 送信 → 返信が来たら報告</h5>
 <p>Aと同じです。報告には<b>領収書も含めて</b>ください。</p>
+
+<h4>C. 出したあとに「追加で書類を出して」と来たとき</h4>
+<div class="shin-warn"><b>これはこのマニュアルの範囲外です。まず届いたメールの全文を、韓国語のまま <span class="fujii">藤井に送ってください。</span></b>何を出すかは案件ごとに変わります。自分で判断して送らないでください。</div>
+<p><b>相手が求めていること：</b>確約書だけでは足りず、<b>その商品を本当に仕入れて売ったのか</b>の裏付けです。販売履歴のある商品で起きます。</p>
+<p><b>メールに挙がる書類名（韓国語 → 意味）</b></p>
+<ul>
+<li><b>주문내역</b>… 注文履歴（Amazon・楽天などの注文詳細）</li>
+<li><b>카드내역서</b>… クレジットカードの利用明細</li>
+<li><b>청구서</b>… 請求書</li>
+<li><b>배송내역</b>… 配送履歴（DHL・FedExなどの発送記録）</li>
+<li><b>거래내역서</b>… 取引明細</li>
+<li><b>수입신고필증</b>… 輸入申告済証（購入代行では出せません）</li>
+</ul>
+<p>このうち<b>出せるものを出す</b>形です。全部そろえる必要はありません。購入代行なら、現実的には<b>注文履歴・領収書・カード明細・発送記録</b>あたりになります。</p>
+<div class="shin-warn"><b>出すときの条件（最初のメールに書いてあります。守らないと突き返されます）</b>
+<ul style="margin:6px 0 0">
+<li><b>指摘された商品が必ず写っていること</b></li>
+<li><b>最近3か月以内</b>の資料であること</li>
+<li><b>個人情報を隠すこと</b>… 住所・電話番号・メールアドレス・カード番号・口座番号。入っていると<b>반려（差し戻し）</b>されます</li>
+<li><b>隠しすぎて文字が読めないのもNG</b>… モザイクで読めないと反려されます。必要な部分だけ隠してください</li>
+</ul></div>
+<p><b>期限が延長されることがあります。</b>追加要求のメールに新しい日時が書かれていたら、<b>そちらが期限</b>です。上のツールにメールを貼り直せば、新しい期限が赤帯に出ます。</p>
 
 <h4>やりがちなミス</h4>
 <table class="shin-t" style="margin-top:10px">
