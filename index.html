@@ -336,6 +336,12 @@ window.CAT_ATTR_JA={"색상": "色", "수량": "数量", "패션의류/잡화 �
  #view-cs .cs-go{ display:flex; align-items:center; gap:12px; margin-top:11px; flex-wrap:wrap; }
  #view-cs .cs-hint{ color:var(--muted); font-size:12px; font-weight:600; }
  #view-cs .cs-tplhead{ color:var(--muted); font-size:12px; font-weight:700; margin:2px 0 7px; }
+ #view-cs .cs-tog{ display:flex; align-items:center; gap:8px; width:100%; text-align:left; border:1px solid var(--line); background:#fbfcff; border-radius:10px; padding:9px 12px; font-size:13px; font-weight:800; color:var(--txt); cursor:pointer; font-family:inherit; margin:2px 0 8px; }
+ #view-cs .cs-tog:hover{ border-color:var(--accent); background:var(--accent-soft); }
+ #view-cs .cs-tog small{ font-weight:600; color:var(--muted); font-size:11.5px; }
+ #view-cs .cs-tog2{ background:#fff; font-size:12.5px; padding:7px 12px; }
+ #view-cs .cs-arw{ color:var(--accent); font-size:11px; }
+ #view-cs .cs-tplwrap{ border-left:2px solid var(--line); padding-left:12px; margin-bottom:6px; }
  #view-cs .cs-grp{ color:var(--accent-d); font-size:11px; font-weight:800; letter-spacing:.04em; margin:2px 0 6px; }
  #view-cs .cs-tpl{ display:flex; flex-wrap:wrap; gap:7px; margin-bottom:12px; }
  #view-cs .cs-add{ margin-left:10px; border:1px solid #f0d9a8; background:#fff; color:#8a6100; border-radius:999px; padding:3px 11px; font-size:11px; font-weight:800; cursor:pointer; font-family:inherit; }
@@ -1339,11 +1345,11 @@ const CS_TPL=[
  {g:"よく使う", n:"変圧器① 事前の案内", t:"안녕하세요😊\n주문번호 : {주문번호}\n상품명 : {상품명}\n구매해주셔서 감사합니다!\n이 상품은 변압기가 필요할 수 있습니다.\n확인을 부탁합니다."},
  {g:"よく使う", n:"変圧器② 発送前の再確認", t:"안녕하세요\n다시 한번 확인해보니 변압기가 필요합니다.\n이대로 발송하는데 괜찮으신가요?\n답장 기다리겠습니다."},
  {g:"よく使う", n:"変圧器③ 発送後の念押し", t:"안녕하세요\n발송 완료 되었습니다.\n얼마 전 확인했기 때문에 변압기를 이유로 취소 및 반품은 접수하지 않으므로 양해 바랍니다.\n또한 도착 후 문제가 없다면 리뷰를 주시면 감사하겠습니다."},
+ {g:"よく使う", n:"通関中・関税のお支払い", t:"안녕하세요\n주문번호 : {주문번호}\n상품명 : {상품명}\n송장번호 : {송장번호}\n현재 상품이 통관 절차를 진행 중입니다.\n관세가 발생하였으니 결제 부탁드립니다.\n결제가 확인되면 바로 배송이 진행됩니다."},
  {g:"よく使う", n:"通関番号が合わない", t:"안녕하세요\n주문번호 : {주문번호}\n상품명 : {상품명}\n구매해주셔서 감사합니다!\n개인통관고유부호와 성함(또는 주소)이 서로 일치하지 않습니다.\n번거로우시겠지만 한 번 확인해 주시겠어요?\n확인 후 정보가 일치하면 바로 발송해 드리겠습니다.\n회신 부탁드립니다."},
  /* ── おすすめ（あると助かる場面） ── */
  {g:"おすすめ", n:"追跡番号を知らせる", t:"안녕하세요\n주문번호 : {주문번호}\n상품명 : {상품명}\n택배사 : {택배사}\n송장번호 : {송장번호}\n아래 번호로 배송 조회가 가능합니다.\n통관 상황에 따라 하루 이틀 늦어질 수 있는 점 양해 부탁드립니다."},
  {g:"おすすめ", n:"発送が遅れるお詫び", t:"안녕하세요\n주문번호 : {주문번호}\n상품명 : {상품명}\n발송이 {기간} 정도 지연되고 있습니다.\n{사유} 때문이며, 준비되는 대로 바로 발송해 드리겠습니다.\n기다리게 해 드려 죄송합니다."},
- {g:"おすすめ", n:"通関で止まっている", t:"안녕하세요\n현재 상품이 통관 절차를 진행 중입니다.\n송장번호 {송장번호} 로 조회하실 수 있습니다.\n통관이 끝나면 국내 배송으로 이어지며, 보통 {기간} 정도 걸립니다.\n조금만 기다려 주시면 감사하겠습니다."},
  {g:"おすすめ", n:"在庫切れ・キャンセル", t:"안녕하세요\n주문번호 : {주문번호}\n상품명 : {상품명}\n죄송합니다. 주문하신 상품이 품절되어 발송이 어렵게 되었습니다.\n해당 주문은 전액 환불 처리해 드리겠습니다.\n불편을 드려 대단히 죄송합니다."},
  {g:"おすすめ", n:"正規品であることの説明", t:"안녕하세요\n주문번호 : {주문번호}\n상품명 : {상품명}\n판매 중인 {브랜드} 상품은 일본 정규 판매점에서 직접 구매한 정품입니다.\n구매 영수증 등 정품을 증명할 수 있는 서류도 보관하고 있습니다.\n안심하고 이용해 주시면 감사하겠습니다."},
  {g:"おすすめ", n:"返品・交換の案内", t:"안녕하세요\n주문번호 : {주문번호}\n상품명 : {상품명}\n반품/교환 요청 확인하였습니다.\n해외배송 상품이므로 반품 배송비 {금액} 원이 발생하는 점 양해 부탁드립니다.\n반품 주소는 회신으로 안내해 드리겠습니다."},
@@ -1430,9 +1436,12 @@ function renderCs(){
           <button class="btn-ghost btn-sm" onclick="csCopy('cs-ko',this)">コピー</button>
           <button class="btn-ghost btn-sm" onclick="csClear('ko')">消す</button>
         </span></div>
-      <div class="cs-tplhead">定型文（押すと下に入ります。<b>{ }</b> の部分はあとから埋められます）</div>
-      ${["よく使う","おすすめ"].map(g=>`<div class="cs-grp">${esc(g)}</div><div class="cs-tpl">`+
+      <button class="cs-tog" data-t="all"><span class="cs-arw">▸</span>定型文<small>押すと開きます。選ぶとそのまま下に入ります（<b>{ }</b> はあとから埋められます）</small></button>
+      <div class="cs-tplwrap" data-w="all" style="display:none">
+      ${["よく使う","おすすめ"].map(g=>`<button class="cs-tog cs-tog2" data-t="${esc(g)}"><span class="cs-arw">▸</span>${esc(g)}</button>`+
+        `<div class="cs-tpl" data-w="${esc(g)}" style="display:none">`+
         CS_TPL.map((t,i)=>t.g===g?`<button class="cs-chip" data-i="${i}">${esc(t.n)}</button>`:"").join("")+`</div>`).join("")}
+      </div>
       <div id="cs-ph" class="cs-phbox"></div>
       <textarea id="cs-ko" class="cs-ta" placeholder="韓国語の文がここに出ます。&#10;お客様から届いた韓国語を貼り付けて「翻訳する」を押すと、上に日本語が出ます。"></textarea>
       <div class="cs-go"><button class="btn-primary" id="cs-to-ja">韓国語を日本語に翻訳する　↑</button>
@@ -1442,6 +1451,12 @@ function renderCs(){
   csApply();
   csEl("cs-ko").addEventListener("input",()=>{ csRaw=csEl("cs-ko").value; csPhRender(); csPapago(); csSave(); });
   csEl("cs-ja").addEventListener("input",()=>{ csPapago(); csSave(); });
+  csEl("cs-body").querySelectorAll(".cs-tog").forEach(b=>b.addEventListener("click",()=>{
+    const w=csEl("cs-body").querySelector('[data-w="'+b.dataset.t+'"]'); if(!w) return;
+    const open=(w.style.display==="none");
+    w.style.display=open?"":"none";
+    b.querySelector(".cs-arw").textContent=open?"▾":"▸";
+  }));
   csEl("cs-body").querySelectorAll(".cs-chip").forEach(b=>b.addEventListener("click",()=>{
     const t=CS_TPL[+b.dataset.i]; if(!t) return;
     if(csEl("cs-ko").value.trim() && !confirm("下の韓国語を、この定型文で置きかえますか？")) return;
