@@ -325,6 +325,23 @@ window.CAT_ATTR_JA={"색상": "色", "수량": "数量", "패션의류/잡화 �
   .sc-orange .sc-item{ background:#fdece0; } .sc-orange .sc-item:nth-child(even){ background:#fbe0cd; }
   .rvmove{ height:31px; border:1px solid var(--line); border-radius:8px; font-size:12px; font-weight:600; padding:0 6px; background:var(--surface); color:var(--txt); cursor:pointer; margin-right:6px; vertical-align:middle; }
   .rvmove:focus{ outline:none; border-color:var(--accent); box-shadow:0 0 0 3px var(--ring); }
+ #view-banned .ban-alert{ background:#fff5f5; border:1px solid #f6c9c5; color:#8a2b23; border-radius:12px; padding:12px 15px; font-size:13px; line-height:1.9; margin-bottom:16px; }
+ #view-banned .ban-ok-note{ background:#f2fbf5; border:1px solid #bfe6cd; color:#1d6b3c; border-radius:12px; padding:12px 15px; font-size:13px; line-height:1.9; margin-bottom:16px; }
+ #view-banned .ban-grp{ border:1px solid var(--line); border-radius:12px; padding:13px 15px; margin-bottom:14px; }
+ #view-banned .ban-grp.ban-no{ border-color:#f0b8b3; background:#fffafa; }
+ #view-banned .ban-grp.ban-ask{ border-color:#f0d9a8; background:#fffdf6; }
+ #view-banned .ban-grp.ban-warn{ border-color:#e6d3a3; background:#fffdf8; }
+ #view-banned .ban-grp.ban-ok{ border-color:#cfe4d6; background:#fbfefc; }
+ #view-banned .ban-grphead{ display:flex; align-items:center; gap:10px; margin-bottom:4px; }
+ #view-banned .ban-badge{ font-size:13.5px; font-weight:800; color:var(--txt); }
+ #view-banned .ban-cnt{ color:var(--muted); font-size:11.5px; font-weight:700; }
+ #view-banned .ban-grpdesc{ color:var(--muted); font-size:12px; line-height:1.8; margin-bottom:10px; }
+ #view-banned .ban-list{ display:flex; flex-wrap:wrap; gap:8px; }
+ #view-banned .ban-item{ background:#fff; border:1px solid var(--line); border-radius:10px; padding:8px 12px; min-width:150px; flex:0 1 auto; max-width:100%; }
+ #view-banned .ban-name{ font-weight:800; font-size:13px; color:var(--txt); }
+ #view-banned .ban-name small{ display:block; color:var(--muted); font-weight:600; font-size:11px; margin-top:1px; }
+ #view-banned .ban-memo{ margin-top:6px; padding-top:6px; border-top:1px dashed var(--line); color:var(--txt); font-size:12px; line-height:1.85; max-width:560px; }
+ #view-banned .ban-src{ color:var(--muted); font-size:11.5px; line-height:1.8; margin-top:6px; }
  #view-cs .cs-note{ background:#f4f7ff; border:1px solid #dbe3ff; color:#33406b; border-radius:12px; padding:11px 14px; font-size:12.5px; line-height:1.8; margin-bottom:14px; }
  #view-cs .cs-card{ padding:16px 18px 18px; margin-bottom:14px; }
  #view-cs .cs-head{ display:flex; align-items:center; gap:10px; margin-bottom:10px; }
@@ -431,7 +448,6 @@ window.CAT_ATTR_JA={"색상": "色", "수량": "数量", "패션의류/잡화 �
     <div class="navgroup" data-g="banned">
       <div class="navhead">禁止ブランド <span class="arw">▶</span></div>
       <div class="navsub">
-        <a data-sec="banned" data-p="coupang"><span class="dot"></span>クーパン</a>
         <a data-sec="banned" data-p="smart"><span class="dot"></span>スマートストア</a>
         <a data-sec="banned" data-p="st11"><span class="dot"></span>11番街</a>
       </div>
@@ -1611,9 +1627,97 @@ function blogManualSeed(){ let ov={}; try{ ov=JSON.parse(localStorage.getItem("k
   return MANUAL_SEED.map(x=>({title:x.title, url:(ov[x.title]!==undefined?ov[x.title]:x.url)})); }
 function renderManual(){ renderManInto("manual-videos","kr_manual_v2", blogManualSeed()); }
 /* ===== 禁止ブランド（枠のみ・中身はこれから） ===== */
+/* ===== 禁止ブランド（スマートストア／11番街）=====
+   「スマートストアノート - 禁止ブランド」の内容を、モール別・危険度別に整理したもの。
+   lv: no=出さない / ask=出す前に確認 / warn=出してよいが警告が来たら即連絡 / ok=今のところ問題なし */
+const BAN_ROWS=[
+ {n:"ナイキ", ko:"나이키", s:"ok", t:"warn"},
+ {n:"アディダス", ko:"아디다스", s:"ok", t:"warn"},
+ {n:"デサント", ko:"데상트", s:"ok", t:"warn"},
+ {n:"asics", ko:"", s:"ok", t:"warn"},
+ {n:"ザ・ノース・フェイス", ko:"노스페이스", s:"ok", t:"warn"},
+ {n:"オニツカタイガー", ko:"오니츠카타이거", s:"ok", t:"warn"},
+ {n:"フレッドペリー", ko:"프레드 페리", s:"ok", t:"warn"},
+ {n:"チャンピオン", ko:"챔피언", s:"ok", t:"warn"},
+ {n:"コンバース", ko:"컨버스", s:"ok", t:"warn"},
+ {n:"リーバイス", ko:"리바이스", s:"ok", t:"warn"},
+ {n:"プーマ", ko:"푸마", s:"ok", t:"warn"},
+ {n:"ビルケンシュトック", ko:"비루켄슈톳쿠", s:"ok", t:"warn"},
+ {n:"セイコー", ko:"", s:"ok", t:"warn"},
+ {n:"カシオ", ko:"", s:"ok", t:"warn"},
+ {n:"シチズン", ko:"", s:"ok", t:"warn"},
+ {n:"ダックス", ko:"DAKS／닥스", s:"ok", t:"warn"},
+ {n:"ニューバランス", ko:"", s:"ok", t:"warn"},
+ {n:"トリバーチ", ko:"", s:"ok", t:"warn"},
+ {n:"ラコステ", ko:"", s:"ok", t:"warn"},
+ {n:"バンズ", ko:"VANS", s:"ok", t:"warn"},
+ {n:"ヴィヴィアンウェストウッド", ko:"", s:"ok", t:"warn"},
+ {n:"フルラ", ko:"FURLA／훌라", s:"ok", t:"warn"},
+ {n:"ルコック", ko:"le coq sportif／르꼬끄", s:"ok", t:"warn"},
+ {n:"トミーヒルフィガー", ko:"", s:"ok", t:"warn"},
+ {n:"タイトリスト", ko:"", s:"ok", t:"warn"},
+ {n:"マイケルコース", ko:"", s:"ok", t:"warn"},
+ {n:"コーチ", ko:"", s:"ok", t:"warn"},
+ {n:"フィリップス", ko:"", s:"ok", t:"warn"},
+ {n:"エコー", ko:"", s:"ok", t:"warn"},
+ {n:"ダイソン", ko:"Dyson", s:"ok", t:"warn",
+   tm:"警告の理由は<b>商品画像の著作権</b>。来たら販売中止か削除、または自分で撮った画像に差し替えて返信すればOK。"},
+ {n:"ダニエル ウェリントン", ko:"Daniel Wellington", s:"ok", t:"no",
+   tm:"商品画像の著作権で警告が来る。対処法はあるが<b>最近きびしくなっているので出さない</b>。"},
+ {n:"o’melon", ko:"", s:"ask", t:"no",
+   tm:"<b>韓国メーカー</b>。釈明書を出しても<b>100%の確率でID永久停止</b>。絶対に出さない。<br>出品禁止商品リストに入っているのでツールでは取得されない。新商品が出てきたら連絡を。",
+   sm:"韓国ブランド。元メモは11番街のことしか書かれていない。<b>出す前に神岡さんに確認</b>。"},
+ {n:"OMEGAlight", ko:"", s:"ask", t:"no",
+   tm:"<b>韓国メーカー</b>。釈明書を出しても<b>100%の確率でID永久停止</b>。絶対に出さない。",
+   sm:"韓国ブランド。元メモは11番街のことしか書かれていない。<b>出す前に神岡さんに確認</b>。"},
+ {n:"OSOI（オソイ）", ko:"", s:"ask", t:"no",
+   tm:"<b>韓国メーカー</b>。釈明書を出しても11番街が承諾しなければ<b>ID一時停止</b>。絶対に出さない。<br>韓国ブランドかを1つずつ確認するのは大変だが、めったに無いので神経質にならなくてよい。真贋調査が来たらすぐ連絡を。",
+   sm:"韓国ブランド。元メモは11番街のことしか書かれていない。<b>出す前に神岡さんに確認</b>。"},
+ {n:"LOGOS", ko:"", s:"no", t:"ask",
+   sm:"<b>商品画像の著作権</b>でスマートストアから警告メールが来た。出品しない。",
+   tm:"元メモに11番街のことは書かれていない。<b>出す前に神岡さんに確認</b>。"},
+ {n:"BUNKER RING", ko:"", s:"no", t:"no",
+   sm:"<b>韓国で商標登録</b>されている。スマートストアで警告メールが来た。<b>販売中止ではダメで、完全に削除</b>すること。ツールでも取得しない設定にしてある。",
+   tm:"<b>11番街からも完全に削除</b>すること（販売中止ではダメ）。ツールでも取得しない設定にしてある。"}
+];
+const BAN_LV={
+  no:  {t:"🚫 出さない",              c:"no",   d:"このブランドは出品しないでください。"},
+  ask: {t:"❓ 出す前に確認",           c:"ask",  d:"元のメモにこのモールのことが書かれていません。出す前に神岡さんに確認してください。"},
+  warn:{t:"⚠️ 出してよい（警告が来たら即連絡）", c:"warn", d:"出品して大丈夫です。ただし警告メールが来たら、下の手順ですぐ動いてください。"},
+  ok:  {t:"✅ 今のところ問題なし",      c:"ok",   d:"今のところ警告メールは来ていません。"}
+};
 function renderBanned(){
-  document.getElementById("banned-head").innerHTML=`禁止ブランド：${PNAME[current]||current} <small>準備中</small>`;
-  document.getElementById("banned-body").innerHTML=`<div class="empty"><b>禁止ブランド（${PNAME[current]||current}）はこれから作ります</b>どんな項目が必要か教えてください。<br>（例：ブランド名・禁止理由・登録日・メモ など）</div>`;
+  const p=current, head=document.getElementById("banned-head"), body=document.getElementById("banned-body");
+  if(p!=="smart" && p!=="st11"){
+    head.innerHTML=`禁止ブランド`;
+    body.innerHTML=`<div class="empty"><b>このモールは対象外です</b>左の「スマートストア」か「11番街」を選んでください。</div>`;
+    return;
+  }
+  const isT=(p==="st11"), key=isT?"t":"s", memo=isT?"tm":"sm";
+  head.innerHTML=`禁止ブランド：${PNAME[p]||p} <small>${BAN_ROWS.length}ブランド</small>`;
+  const note = isT
+    ? `<div class="ban-alert"><b>警告メールが来たときの動き（11番街）</b>
+         11番街の安全取引センター 知的財産権担当から警告メールが来て、<b>釈明書</b>の提出を求められます。<br>
+         <b>提出期限はだいたい24時間以内。</b>間に合わないと、ほぼ100%の確率でID停止になります。<br>
+         <b>メールが来たら、まっ先に神岡さんに連絡してください。</b>自分で抱えないこと。</div>`
+    : `<div class="ban-ok-note"><b>スマートストアは、ほとんどのブランドで警告メールは来ていません。</b>
+         下の「出さない」に入っている2つだけ気をつけてください。11番街とは基準が違います。</div>`;
+  const order=["no","ask","warn","ok"];
+  const html=order.map(lv=>{
+    const rows=BAN_ROWS.filter(r=>r[key]===lv);
+    if(!rows.length) return "";
+    const L=BAN_LV[lv];
+    return `<div class="ban-grp ban-${L.c}">
+      <div class="ban-grphead"><span class="ban-badge">${L.t}</span><span class="ban-cnt">${rows.length}件</span></div>
+      <div class="ban-grpdesc">${L.d}</div>
+      <div class="ban-list">${rows.map(r=>`<div class="ban-item">
+        <div class="ban-name">${esc(r.n)}${r.ko?`<small>${esc(r.ko)}</small>`:""}</div>
+        ${r[memo]?`<div class="ban-memo">${r[memo]}</div>`:""}
+      </div>`).join("")}</div></div>`;
+  }).join("");
+  body.innerHTML=note+html+
+    `<div class="ban-src">元データ：スマートストアノート「禁止ブランド」。<b>クーパンは対象外</b>なので消しています。<br>
+      ブランドが増えたら教えてください。ここに足します。</div>`;
 }
 /* ===== 出品禁止（NGカテゴリー一覧・参照表） ===== */
 const BANLIST=[
