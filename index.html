@@ -325,6 +325,27 @@ window.CAT_ATTR_JA={"색상": "色", "수량": "数量", "패션의류/잡화 �
   .sc-orange .sc-item{ background:#fdece0; } .sc-orange .sc-item:nth-child(even){ background:#fbe0cd; }
   .rvmove{ height:31px; border:1px solid var(--line); border-radius:8px; font-size:12px; font-weight:600; padding:0 6px; background:var(--surface); color:var(--txt); cursor:pointer; margin-right:6px; vertical-align:middle; }
   .rvmove:focus{ outline:none; border-color:var(--accent); box-shadow:0 0 0 3px var(--ring); }
+ #view-cs .cs-note{ background:#f4f7ff; border:1px solid #dbe3ff; color:#33406b; border-radius:12px; padding:11px 14px; font-size:12.5px; line-height:1.8; margin-bottom:14px; }
+ #view-cs .cs-card{ padding:16px 18px 18px; margin-bottom:14px; }
+ #view-cs .cs-head{ display:flex; align-items:center; gap:10px; margin-bottom:10px; }
+ #view-cs .cs-flag{ font-weight:800; font-size:14px; color:var(--txt); }
+ #view-cs .cs-actions{ margin-left:auto; display:flex; align-items:center; gap:8px; }
+ #view-cs .cs-ext{ color:var(--accent-d); text-decoration:none; font-weight:700; font-size:11px; white-space:nowrap; }
+ #view-cs .cs-ta{ width:100%; min-height:150px; box-sizing:border-box; border:1px solid var(--line); border-radius:10px; padding:12px 13px; font-size:14px; line-height:1.9; font-family:inherit; color:var(--txt); background:#fff; outline:none; resize:vertical; }
+ #view-cs .cs-ta:focus{ border-color:var(--accent); box-shadow:0 0 0 3px var(--ring); }
+ #view-cs .cs-go{ display:flex; align-items:center; gap:12px; margin-top:11px; flex-wrap:wrap; }
+ #view-cs .cs-hint{ color:var(--muted); font-size:12px; font-weight:600; }
+ #view-cs .cs-tplhead{ color:var(--muted); font-size:12px; font-weight:700; margin:2px 0 7px; }
+ #view-cs .cs-tpl{ display:flex; flex-wrap:wrap; gap:7px; margin-bottom:12px; }
+ #view-cs .cs-chip{ border:1px solid var(--line); background:#fff; border-radius:999px; padding:6px 13px; font-size:12px; font-weight:700; color:var(--txt); cursor:pointer; font-family:inherit; }
+ #view-cs .cs-chip:hover{ border-color:var(--accent); color:var(--accent-d); background:var(--accent-soft); }
+ #view-cs .cs-phbox{ border:1px solid #ffe2b8; background:#fffaf1; border-radius:12px; padding:11px 13px; margin-bottom:12px; }
+ #view-cs .cs-phhead{ color:#8a6100; font-size:12px; font-weight:800; margin-bottom:8px; }
+ #view-cs .cs-ph1{ display:flex; align-items:center; gap:10px; margin-bottom:7px; }
+ #view-cs .cs-ph1 > span{ min-width:120px; font-size:12px; font-weight:700; color:var(--txt); }
+ #view-cs .cs-ph1 > span small{ display:block; color:var(--muted); font-weight:600; font-size:10.5px; }
+ #view-cs .cs-ph1 input{ flex:1; height:34px; border:1px solid var(--line); border-radius:8px; padding:0 10px; font-size:13px; font-family:inherit; outline:none; background:#fff; }
+ #view-cs .cs-ph1 input:focus{ border-color:var(--accent); box-shadow:0 0 0 3px var(--ring); }
 </style>
 </head>
 <body>
@@ -352,6 +373,12 @@ window.CAT_ATTR_JA={"색상": "色", "수량": "数量", "패션의류/잡화 �
         <a data-sec="sales" data-p="coupang"><span class="dot"></span>クーパン</a>
         <a data-sec="sales" data-p="smart"><span class="dot"></span>スマートストア</a>
         <a class="soon-item"><span class="dot"></span>11番街 <span class="soon">準備中</span></a>
+      </div>
+    </div>
+    <div class="navgroup" data-g="cs">
+      <div class="navhead">顧客対応 <span class="arw">▶</span></div>
+      <div class="navsub">
+        <a id="nav-cs"><span class="dot"></span>翻訳・定型文</a>
       </div>
     </div>
     <div class="navgroup" data-g="research">
@@ -597,6 +624,11 @@ window.CAT_ATTR_JA={"색상": "色", "수량": "数量", "패션의류/잡화 �
   <div id="view-banlist" style="display:none">
     <div class="page-head">出品禁止 <small>出品NGカテゴリー一覧</small></div>
     <div class="panel"><div id="banlist-body"></div></div>
+  </div>
+
+  <div id="view-cs" style="display:none">
+    <div class="page-head">顧客対応 <small>日本語⇄韓国語の翻訳と、韓国語の定型文</small></div>
+    <div id="cs-body"></div>
   </div>
 
   <div id="view-shipfee" style="display:none">
@@ -1256,7 +1288,7 @@ function render(){
   const _locked = pwNeed();   /* 対象画面のみロック（ナビは操作可能・モール別の暗証番号） */
   document.getElementById("view-lock").style.display=_locked?"":"none";
   if(_locked){
-    ["view-home","view-cust","view-sales","view-research","view-list","view-banned","view-banlist","view-shortcut","view-blog","view-manual","view-tblman"].forEach(id=>{ const el=document.getElementById(id); if(el) el.style.display="none"; });
+    ["view-home","view-cust","view-sales","view-research","view-list","view-banned","view-banlist","view-shortcut","view-blog","view-manual","view-tblman","view-cs","view-shipfee"].forEach(id=>{ const el=document.getElementById(id); if(el) el.style.display="none"; });
     const lm=document.getElementById("lockMsg"); if(lm) lm.textContent="「"+(PW_PLATNAMES[current]||"")+" "+(PW_NAMES[section]||"")+"」を開くには暗証番号を入力してください";
     const li=document.getElementById("lockInput"); if(li) setTimeout(()=>{ try{ li.focus(); }catch(e){} },40);
     return;
@@ -1264,8 +1296,8 @@ function render(){
   const home=section==="home";
   document.getElementById("view-home").style.display=home?"":"none";
   if(home){ const c=document.getElementById("crumb"); if(c) c.innerHTML="ホーム"; }
-  const sales=section==="sales", research=section==="research", list=section==="list", banned=section==="banned", banlist=section==="banlist", shortcut=section==="shortcut", blog=section==="blog", manual=section==="manual", tblman=section==="tblman", shipfee=section==="shipfee";
-  document.getElementById("view-cust").style.display=(home||sales||research||list||banned||banlist||shortcut||blog||manual||tblman||shipfee)?"none":"";
+  const sales=section==="sales", research=section==="research", list=section==="list", banned=section==="banned", banlist=section==="banlist", shortcut=section==="shortcut", blog=section==="blog", manual=section==="manual", tblman=section==="tblman", shipfee=section==="shipfee", cs=section==="cs";
+  document.getElementById("view-cust").style.display=(home||sales||research||list||banned||banlist||shortcut||blog||manual||tblman||shipfee||cs)?"none":"";
   document.getElementById("view-sales").style.display=sales?"":"none";
   document.getElementById("view-research").style.display=research?"":"none";
   document.getElementById("view-list").style.display=list?"":"none";
@@ -1276,7 +1308,8 @@ function render(){
   document.getElementById("view-manual").style.display=manual?"":"none";
   document.getElementById("view-tblman").style.display=tblman?"":"none";
   document.getElementById("view-shipfee").style.display=shipfee?"":"none";
-  if(home){ /* ホームは何も描画しない */ } else if(shipfee) renderShipfee(); else if(tblman) renderTblMan(); else if(manual) renderManual(); else if(blog) renderBlog(); else if(shortcut) renderShortcut(); else if(banlist) renderBanlist(); else if(banned) renderBanned(); else if(list) renderList(); else if(research) renderResearch(); else if(sales) renderSales(); else renderCust();
+  document.getElementById("view-cs").style.display=cs?"":"none";
+  if(home){ /* ホームは何も描画しない */ } else if(cs) renderCs(); else if(shipfee) renderShipfee(); else if(tblman) renderTblMan(); else if(manual) renderManual(); else if(blog) renderBlog(); else if(shortcut) renderShortcut(); else if(banlist) renderBanlist(); else if(banned) renderBanned(); else if(list) renderList(); else if(research) renderResearch(); else if(sales) renderSales(); else renderCust();
 }
 /* ===== 管理表マニュアル（ブログマニュアルと同じフォーマット・モール別） ===== */
 const TBLMAN_SEED=[{title:"",url:""},{title:"",url:""},{title:"",url:""},{title:"",url:""}];
@@ -1286,6 +1319,140 @@ function renderTblMan(){
   document.getElementById("tblman-body").innerHTML=`<div class="man-note">タイトルを入れ、動画URL（Loom等）を貼るとその場で再生できます。「＋ 項目を追加」で箱を増やせます。</div><div id="tblman-list"></div>`;
   renderManInto("tblman-list","kr_tblman_"+p, TBLMAN_SEED);
 }
+/* ===== 顧客対応（日本語⇄韓国語の翻訳・韓国語の定型文） =====
+   翻訳は無料のエンドポイント（Google gtx →失敗時 MyMemory）。APIキー不要・費用ゼロ。
+   入力した本文は端末内にだけ保存する（クラウドへは送らない＝顧客の個人情報を出さない）。 */
+const CS_KEY="kr_cs_v1";
+const CS_PH={ "주문번호":"注文番号", "상품명":"商品名", "송장번호":"追跡番号", "택배사":"配送会社",
+  "일자":"日付", "기간":"期間", "금액":"金額", "사유":"理由", "브랜드":"ブランド名" };
+const CS_TPL=[
+ {n:"注文のお礼", t:"안녕하세요, 고객님.\n주문해 주셔서 진심으로 감사합니다.\n주문번호 : {주문번호}\n상품명 : {상품명}\n확인 후 빠르게 준비하여 발송해 드리겠습니다.\n감사합니다."},
+ {n:"発送しました", t:"안녕하세요, 고객님.\n주문하신 {상품명} 을(를) {일자} 에 발송하였습니다.\n택배사 : {택배사}\n송장번호 : {송장번호}\n통관 상황에 따라 배송이 다소 늦어질 수 있는 점 양해 부탁드립니다.\n감사합니다."},
+ {n:"発送が遅れるお詫び", t:"안녕하세요, 고객님.\n주문번호 {주문번호} 상품의 발송이 {기간} 정도 지연되고 있습니다.\n{사유} 로 인해 늦어지고 있으며, 준비되는 대로 바로 발송해 드리겠습니다.\n기다리게 해 드려 죄송합니다."},
+ {n:"通関で止まっている", t:"안녕하세요, 고객님.\n현재 상품이 통관 절차를 진행 중입니다.\n송장번호 {송장번호} 로 조회하실 수 있습니다.\n통관이 완료되면 국내 배송으로 이어지며, 보통 {기간} 정도 소요됩니다.\n조금만 기다려 주시면 감사하겠습니다."},
+ {n:"在庫切れ・キャンセル", t:"안녕하세요, 고객님.\n죄송합니다. 주문하신 {상품명} 이(가) 품절되어 발송이 어렵게 되었습니다.\n주문번호 {주문번호} 건은 전액 환불 처리해 드리겠습니다.\n불편을 드려 대단히 죄송합니다."},
+ {n:"通関番号・住所の確認", t:"안녕하세요, 고객님.\n주문번호 {주문번호} 의 배송지 정보 확인 부탁드립니다.\n해외배송 상품이라 개인통관고유부호(P로 시작)와 휴대폰 번호가 필요합니다.\n회신 주시면 바로 발송해 드리겠습니다."},
+ {n:"正規品であることの説明", t:"안녕하세요, 고객님.\n판매 중인 {브랜드} 상품은 일본 정규 판매점에서 직접 구매한 정품입니다.\n구매 영수증 등 정품을 증명할 수 있는 서류도 보관하고 있습니다.\n안심하고 이용해 주시면 감사하겠습니다."},
+ {n:"返品・交換の案内", t:"안녕하세요, 고객님.\n반품/교환 요청 확인하였습니다.\n주문번호 : {주문번호}\n상품명 : {상품명}\n해외배송 상품이므로 반품 배송비 {금액} 원이 발생하는 점 양해 부탁드립니다.\n반품 주소는 회신으로 안내해 드리겠습니다."},
+ {n:"一部返金の提案", t:"안녕하세요, 고객님.\n불편을 드려 죄송합니다.\n반품 대신 {금액} 원 부분 환불로 처리해 드려도 괜찮으실까요?\n확인 후 회신 부탁드립니다."},
+ {n:"レビューのお願い", t:"안녕하세요, 고객님.\n상품은 잘 받으셨을까요?\n만족하셨다면 짧은 후기를 남겨 주시면 큰 힘이 됩니다.\n앞으로도 좋은 상품으로 보답하겠습니다. 감사합니다."}
+];
+let csRaw="", csVals={}, csPhKeys="", csBuilt=false;
+
+/* 長文はURL長で失敗するので、行単位で1200字ずつに切って順番に訳す */
+function csChunks(t){
+  const out=[]; let cur="";
+  String(t).split("\n").forEach(line=>{
+    if((cur+line).length>1200 && cur){ out.push(cur); cur=""; }
+    cur += (cur?"\n":"") + line;
+  });
+  if(cur) out.push(cur);
+  return out.length?out:[""];
+}
+async function csTr1(text,sl,tl){
+  try{ const r=await fetch("https://translate.googleapis.com/translate_a/single?client=gtx&sl="+sl+"&tl="+tl+"&dt=t&q="+encodeURIComponent(text));
+    const j=await r.json(); if(Array.isArray(j)&&Array.isArray(j[0])) return j[0].map(x=>x&&x[0]?x[0]:"").join(""); }catch(e){}
+  try{ const r=await fetch("https://api.mymemory.translated.net/get?langpair="+sl+"|"+tl+"&q="+encodeURIComponent(text));
+    const j=await r.json(); if(j&&j.responseData&&j.responseData.translatedText) return j.responseData.translatedText; }catch(e){}
+  return "";
+}
+async function csTr(text,sl,tl){
+  text=String(text||"").trim(); if(!text) return "";
+  const parts=csChunks(text), res=[];
+  for(const p of parts){ res.push(p.trim()?await csTr1(p,sl,tl):""); }
+  return res.join("\n");
+}
+function csSave(){ try{ localStorage.setItem(CS_KEY, JSON.stringify({ja:csEl("cs-ja").value, ko:csEl("cs-ko").value, raw:csRaw, vals:csVals})); }catch(e){} }
+function csEl(id){ return document.getElementById(id); }
+function csPapago(){
+  const ja=csEl("cs-ja").value, ko=csEl("cs-ko").value;
+  csEl("cs-pa-ja").href="https://papago.naver.com/?sk=ja&tk=ko&st="+encodeURIComponent(ja.slice(0,900));
+  csEl("cs-pa-ko").href="https://papago.naver.com/?sk=ko&tk=ja&st="+encodeURIComponent(ko.slice(0,900));
+}
+/* 韓国語のテンプレの {  } を埋める欄。中身が変わった時だけ作り直す（入力中にカーソルが飛ばないように） */
+function csPhRender(){
+  const keys=[]; String(csRaw).replace(/\{([^{}\n]+)\}/g, (m,k)=>{ if(keys.indexOf(k)<0) keys.push(k); return m; });
+  const sig=keys.join("|");
+  const box=csEl("cs-ph");
+  if(sig===csPhKeys){ return; }
+  csPhKeys=sig;
+  if(!keys.length){ box.innerHTML=""; box.style.display="none"; return; }
+  box.style.display="";
+  box.innerHTML=`<div class="cs-phhead">この欄を埋めると、下の韓国語に入ります</div>`+
+    keys.map(k=>`<label class="cs-ph1"><span>${esc(CS_PH[k]||k)}<small>{${esc(k)}}</small></span>`+
+      `<input value="${esc(csVals[k]||"")}" data-k="${esc(k)}" placeholder="${esc(CS_PH[k]||k)}を入力"></label>`).join("");
+  box.querySelectorAll("input").forEach(inp=>inp.addEventListener("input",()=>{
+    csVals[inp.dataset.k]=inp.value; csApply();
+  }));
+}
+function csApply(){
+  csEl("cs-ko").value = String(csRaw).replace(/\{([^{}\n]+)\}/g, (m,k)=> (csVals[k]&&csVals[k].trim()) ? csVals[k] : m );
+  csPhRender(); csPapago(); csSave();
+}
+function csSetKo(t){ csRaw=String(t||""); csVals={}; csPhKeys=" "; csApply(); }
+
+function renderCs(){
+  if(csBuilt) return;
+  const saved=(()=>{ try{ return JSON.parse(localStorage.getItem(CS_KEY)||"{}")||{}; }catch(e){ return {}; } })();
+  csRaw=saved.raw||saved.ko||""; csVals=saved.vals||{};
+  csEl("cs-body").innerHTML=`
+    <div class="cs-note">日本語で書いて「翻訳する」を押すと、下に韓国語が出ます。逆に、届いた韓国語を下に貼って「翻訳する」を押すと、上に日本語が出ます。<b>翻訳は無料の仕組みを使っていて費用はかかりません。</b></div>
+    <div class="panel cs-card">
+      <div class="cs-head"><span class="cs-flag">🇯🇵 日本語</span>
+        <span class="cs-actions">
+          <a class="cs-ext" id="cs-pa-ja" href="https://papago.naver.com/?sk=ja&tk=ko" target="_blank" title="Papagoで開く">Papago↗</a>
+          <button class="btn-ghost btn-sm" onclick="csCopy('cs-ja',this)">コピー</button>
+          <button class="btn-ghost btn-sm" onclick="csClear('ja')">消す</button>
+        </span></div>
+      <textarea id="cs-ja" class="cs-ta" placeholder="お客様へ送りたい内容を、日本語で書いてください。&#10;例）ご注文ありがとうございます。本日発送いたしました。"></textarea>
+      <div class="cs-go"><button class="btn-primary" id="cs-to-ko">日本語で入れて翻訳する　↓</button>
+        <span class="cs-hint" id="cs-msg1"></span></div>
+    </div>
+    <div class="panel cs-card">
+      <div class="cs-head"><span class="cs-flag">🇰🇷 韓国語（お客様に送る文）</span>
+        <span class="cs-actions">
+          <a class="cs-ext" id="cs-pa-ko" href="https://papago.naver.com/?sk=ko&tk=ja" target="_blank" title="Papagoで開く">Papago↗</a>
+          <button class="btn-ghost btn-sm" onclick="csCopy('cs-ko',this)">コピー</button>
+          <button class="btn-ghost btn-sm" onclick="csClear('ko')">消す</button>
+        </span></div>
+      <div class="cs-tplhead">定型文（押すと下に入ります。<b>{ }</b> の部分はあとから埋められます）</div>
+      <div class="cs-tpl">${CS_TPL.map((t,i)=>`<button class="cs-chip" data-i="${i}">${esc(t.n)}</button>`).join("")}</div>
+      <div id="cs-ph" class="cs-phbox" style="display:none"></div>
+      <textarea id="cs-ko" class="cs-ta" placeholder="韓国語の文がここに出ます。&#10;お客様から届いた韓国語を貼り付けて「翻訳する」を押すと、上に日本語が出ます。"></textarea>
+      <div class="cs-go"><button class="btn-primary" id="cs-to-ja">韓国語を日本語に翻訳する　↑</button>
+        <span class="cs-hint" id="cs-msg2"></span></div>
+    </div>`;
+  csEl("cs-ja").value=saved.ja||"";
+  csApply();
+  csEl("cs-ko").addEventListener("input",()=>{ csRaw=csEl("cs-ko").value; csVals={}; csPhRender(); csPapago(); csSave(); });
+  csEl("cs-ja").addEventListener("input",()=>{ csPapago(); csSave(); });
+  csEl("cs-body").querySelectorAll(".cs-chip").forEach(b=>b.addEventListener("click",()=>{
+    const t=CS_TPL[+b.dataset.i]; if(!t) return;
+    if(csEl("cs-ko").value.trim() && !confirm("下の韓国語を、この定型文で置きかえますか？")) return;
+    csSetKo(t.t);
+  }));
+  csEl("cs-to-ko").onclick=async()=>{
+    const b=csEl("cs-to-ko"), m=csEl("cs-msg1"), src=csEl("cs-ja").value.trim();
+    if(!src){ m.textContent="上の欄に日本語を入れてください"; return; }
+    b.disabled=true; m.textContent="翻訳中…";
+    const r=await csTr(src,"ja","ko"); b.disabled=false;
+    if(!r){ m.textContent="翻訳できませんでした。Papago↗ を使ってください"; return; }
+    m.textContent="訳しました（下の文は直せます）"; csSetKo(r);
+  };
+  csEl("cs-to-ja").onclick=async()=>{
+    const b=csEl("cs-to-ja"), m=csEl("cs-msg2"), src=csEl("cs-ko").value.trim();
+    if(!src){ m.textContent="下の欄に韓国語を入れてください"; return; }
+    b.disabled=true; m.textContent="翻訳中…";
+    const r=await csTr(src,"ko","ja"); b.disabled=false;
+    if(!r){ m.textContent="翻訳できませんでした。Papago↗ を使ってください"; return; }
+    m.textContent="上に日本語で出しました"; csEl("cs-ja").value=r; csPapago(); csSave();
+  };
+  csBuilt=true;
+}
+window.csCopy=(id,btn)=>{ const t=csEl(id).value; if(!t.trim()) return;
+  navigator.clipboard.writeText(t).then(()=>{ const o=btn.textContent; btn.textContent="コピーしました"; setTimeout(()=>btn.textContent=o,1200); }).catch(()=>{}); };
+window.csClear=(w)=>{ if(w==="ja"){ csEl("cs-ja").value=""; } else { csSetKo(""); } csPapago(); csSave(); };
+
 /* ===== 配送料金（HANIROLINE 重量別料金表） ===== */
 function renderShipfee(){
   const rows=[]; for(let i=0;i<24;i++){ const w=((i+1)*0.5).toFixed(2); const pr=950+i*100; rows.push([w+" KG","¥"+pr.toLocaleString("ja-JP")]); }
@@ -2852,6 +3019,13 @@ document.getElementById("nav-banlist").addEventListener("click",()=>{
   document.querySelectorAll(".navsub a").forEach(x=>x.classList.remove("active"));
   document.getElementById("nav-banlist").classList.add("active");
   document.getElementById("crumb").innerHTML=`HOME / <b>出品禁止</b>`;
+  document.getElementById("search").value=""; render();
+});
+document.getElementById("nav-cs").addEventListener("click",()=>{
+  section="cs";
+  document.querySelectorAll(".navsub a").forEach(x=>x.classList.remove("active"));
+  document.getElementById("nav-cs").classList.add("active");
+  document.getElementById("crumb").innerHTML=`HOME / <b>顧客対応</b> / 翻訳・定型文`;
   document.getElementById("search").value=""; render();
 });
 document.getElementById("nav-shipfee").addEventListener("click",()=>{
