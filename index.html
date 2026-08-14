@@ -336,7 +336,10 @@ window.CAT_ATTR_JA={"색상": "色", "수량": "数量", "패션의류/잡화 �
  #view-cs .cs-go{ display:flex; align-items:center; gap:12px; margin-top:11px; flex-wrap:wrap; }
  #view-cs .cs-hint{ color:var(--muted); font-size:12px; font-weight:600; }
  #view-cs .cs-tplhead{ color:var(--muted); font-size:12px; font-weight:700; margin:2px 0 7px; }
+ #view-cs .cs-grp{ color:var(--accent-d); font-size:11px; font-weight:800; letter-spacing:.04em; margin:2px 0 6px; }
  #view-cs .cs-tpl{ display:flex; flex-wrap:wrap; gap:7px; margin-bottom:12px; }
+ #view-cs .cs-add{ margin-left:10px; border:1px solid #f0d9a8; background:#fff; color:#8a6100; border-radius:999px; padding:3px 11px; font-size:11px; font-weight:800; cursor:pointer; font-family:inherit; }
+ #view-cs .cs-add:hover{ background:#fff3dc; }
  #view-cs .cs-chip{ border:1px solid var(--line); background:#fff; border-radius:999px; padding:6px 13px; font-size:12px; font-weight:700; color:var(--txt); cursor:pointer; font-family:inherit; }
  #view-cs .cs-chip:hover{ border-color:var(--accent); color:var(--accent-d); background:var(--accent-soft); }
  #view-cs .cs-phbox{ border:1px solid #ffe2b8; background:#fffaf1; border-radius:12px; padding:11px 13px; margin-bottom:12px; }
@@ -1325,17 +1328,27 @@ function renderTblMan(){
 const CS_KEY="kr_cs_v1";
 const CS_PH={ "주문번호":"注文番号", "상품명":"商品名", "송장번호":"追跡番号", "택배사":"配送会社",
   "일자":"日付", "기간":"期間", "금액":"金額", "사유":"理由", "브랜드":"ブランド名" };
+const CS_IDS="주문번호 : {주문번호}\n상품명 : {상품명}\n";      /* ワンボタンで入れる2行 */
+const CS_BASE_PH=["주문번호","상품명"];                          /* テンプレを使わない時も出す欄 */
 const CS_TPL=[
- {n:"注文のお礼", t:"안녕하세요, 고객님.\n주문해 주셔서 진심으로 감사합니다.\n주문번호 : {주문번호}\n상품명 : {상품명}\n확인 후 빠르게 준비하여 발송해 드리겠습니다.\n감사합니다."},
- {n:"発送しました", t:"안녕하세요, 고객님.\n주문하신 {상품명} 을(를) {일자} 에 발송하였습니다.\n택배사 : {택배사}\n송장번호 : {송장번호}\n통관 상황에 따라 배송이 다소 늦어질 수 있는 점 양해 부탁드립니다.\n감사합니다."},
- {n:"発送が遅れるお詫び", t:"안녕하세요, 고객님.\n주문번호 {주문번호} 상품의 발송이 {기간} 정도 지연되고 있습니다.\n{사유} 로 인해 늦어지고 있으며, 준비되는 대로 바로 발송해 드리겠습니다.\n기다리게 해 드려 죄송합니다."},
- {n:"通関で止まっている", t:"안녕하세요, 고객님.\n현재 상품이 통관 절차를 진행 중입니다.\n송장번호 {송장번호} 로 조회하실 수 있습니다.\n통관이 완료되면 국내 배송으로 이어지며, 보통 {기간} 정도 소요됩니다.\n조금만 기다려 주시면 감사하겠습니다."},
- {n:"在庫切れ・キャンセル", t:"안녕하세요, 고객님.\n죄송합니다. 주문하신 {상품명} 이(가) 품절되어 발송이 어렵게 되었습니다.\n주문번호 {주문번호} 건은 전액 환불 처리해 드리겠습니다.\n불편을 드려 대단히 죄송합니다."},
- {n:"通関番号・住所の確認", t:"안녕하세요, 고객님.\n주문번호 {주문번호} 의 배송지 정보 확인 부탁드립니다.\n해외배송 상품이라 개인통관고유부호(P로 시작)와 휴대폰 번호가 필요합니다.\n회신 주시면 바로 발송해 드리겠습니다."},
- {n:"正規品であることの説明", t:"안녕하세요, 고객님.\n판매 중인 {브랜드} 상품은 일본 정규 판매점에서 직접 구매한 정품입니다.\n구매 영수증 등 정품을 증명할 수 있는 서류도 보관하고 있습니다.\n안심하고 이용해 주시면 감사하겠습니다."},
- {n:"返品・交換の案内", t:"안녕하세요, 고객님.\n반품/교환 요청 확인하였습니다.\n주문번호 : {주문번호}\n상품명 : {상품명}\n해외배송 상품이므로 반품 배송비 {금액} 원이 발생하는 점 양해 부탁드립니다.\n반품 주소는 회신으로 안내해 드리겠습니다."},
- {n:"一部返金の提案", t:"안녕하세요, 고객님.\n불편을 드려 죄송합니다.\n반품 대신 {금액} 원 부분 환불로 처리해 드려도 괜찮으실까요?\n확인 후 회신 부탁드립니다."},
- {n:"レビューのお願い", t:"안녕하세요, 고객님.\n상품은 잘 받으셨을까요?\n만족하셨다면 짧은 후기를 남겨 주시면 큰 힘이 됩니다.\n앞으로도 좋은 상품으로 보답하겠습니다. 감사합니다."}
+ /* ── よく使う（実際に送っている文） ── */
+ {g:"よく使う", n:"発送しました", t:"안녕하세요\n주문번호 : {주문번호}\n상품명 : {상품명}\n상품 발송이 완료되었습니다\n무사히 잘 도착하면 리뷰 부탁드려요\n좋은 하루 보내세요"},
+ {g:"よく使う", n:"関税① 事前の案内", t:"안녕하세요\n주문번호 : {주문번호}\n상품명 : {상품명}\n구매해주셔서 감사합니다!\n이 상품은 관세가 발생할 수 있습니다.\n문제가 생기면 연락주세요."},
+ {g:"よく使う", n:"関税② 発送前の再確認", t:"안녕하세요\n다시 한 번 이 상품은 발송해도 괜찮습니까?\n만약 관세 지불이 어렵다면 알려주세요.\n회신 부탁드립니다."},
+ {g:"よく使う", n:"関税③ 発送後の念押し", t:"안녕하세요\n상품 발송 완료했습니다.\n저번에 연락드린대로 관세가 발생할 수 있습니다.\n관세와 관련된 취소나 관세 거부는 접수되지 않으므로 이해해 주시기 바랍니다.\n또한 도착 후 문제가 없다면 리뷰를 주시면 감사하겠습니다."},
+ {g:"よく使う", n:"変圧器① 事前の案内", t:"안녕하세요😊\n주문번호 : {주문번호}\n상품명 : {상품명}\n구매해주셔서 감사합니다!\n이 상품은 변압기가 필요할 수 있습니다.\n확인을 부탁합니다."},
+ {g:"よく使う", n:"変圧器② 発送前の再確認", t:"안녕하세요\n다시 한번 확인해보니 변압기가 필요합니다.\n이대로 발송하는데 괜찮으신가요?\n답장 기다리겠습니다."},
+ {g:"よく使う", n:"変圧器③ 発送後の念押し", t:"안녕하세요\n발송 완료 되었습니다.\n얼마 전 확인했기 때문에 변압기를 이유로 취소 및 반품은 접수하지 않으므로 양해 바랍니다.\n또한 도착 후 문제가 없다면 리뷰를 주시면 감사하겠습니다."},
+ {g:"よく使う", n:"通関番号が合わない", t:"안녕하세요\n주문번호 : {주문번호}\n상품명 : {상품명}\n구매해주셔서 감사합니다!\n개인통관고유부호와 성함(또는 주소)이 서로 일치하지 않습니다.\n번거로우시겠지만 한 번 확인해 주시겠어요?\n확인 후 정보가 일치하면 바로 발송해 드리겠습니다.\n회신 부탁드립니다."},
+ /* ── おすすめ（あると助かる場面） ── */
+ {g:"おすすめ", n:"追跡番号を知らせる", t:"안녕하세요\n주문번호 : {주문번호}\n상품명 : {상품명}\n택배사 : {택배사}\n송장번호 : {송장번호}\n아래 번호로 배송 조회가 가능합니다.\n통관 상황에 따라 하루 이틀 늦어질 수 있는 점 양해 부탁드립니다."},
+ {g:"おすすめ", n:"発送が遅れるお詫び", t:"안녕하세요\n주문번호 : {주문번호}\n상품명 : {상품명}\n발송이 {기간} 정도 지연되고 있습니다.\n{사유} 때문이며, 준비되는 대로 바로 발송해 드리겠습니다.\n기다리게 해 드려 죄송합니다."},
+ {g:"おすすめ", n:"通関で止まっている", t:"안녕하세요\n현재 상품이 통관 절차를 진행 중입니다.\n송장번호 {송장번호} 로 조회하실 수 있습니다.\n통관이 끝나면 국내 배송으로 이어지며, 보통 {기간} 정도 걸립니다.\n조금만 기다려 주시면 감사하겠습니다."},
+ {g:"おすすめ", n:"在庫切れ・キャンセル", t:"안녕하세요\n주문번호 : {주문번호}\n상품명 : {상품명}\n죄송합니다. 주문하신 상품이 품절되어 발송이 어렵게 되었습니다.\n해당 주문은 전액 환불 처리해 드리겠습니다.\n불편을 드려 대단히 죄송합니다."},
+ {g:"おすすめ", n:"正規品であることの説明", t:"안녕하세요\n주문번호 : {주문번호}\n상품명 : {상품명}\n판매 중인 {브랜드} 상품은 일본 정규 판매점에서 직접 구매한 정품입니다.\n구매 영수증 등 정품을 증명할 수 있는 서류도 보관하고 있습니다.\n안심하고 이용해 주시면 감사하겠습니다."},
+ {g:"おすすめ", n:"返品・交換の案内", t:"안녕하세요\n주문번호 : {주문번호}\n상품명 : {상품명}\n반품/교환 요청 확인하였습니다.\n해외배송 상품이므로 반품 배송비 {금액} 원이 발생하는 점 양해 부탁드립니다.\n반품 주소는 회신으로 안내해 드리겠습니다."},
+ {g:"おすすめ", n:"一部返金の提案", t:"안녕하세요\n불편을 드려 죄송합니다.\n반품 대신 {금액} 원 부분 환불로 처리해 드려도 괜찮으실까요?\n확인 후 회신 부탁드립니다."},
+ {g:"おすすめ", n:"レビューのお願い", t:"안녕하세요\n상품은 잘 받으셨을까요?\n만족하셨다면 짧은 후기를 남겨 주시면 큰 힘이 됩니다.\n앞으로도 좋은 상품으로 보답하겠습니다. 감사합니다."}
 ];
 let csRaw="", csVals={}, csPhKeys="", csBuilt=false;
 
@@ -1371,14 +1384,15 @@ function csPapago(){
 }
 /* 韓国語のテンプレの {  } を埋める欄。中身が変わった時だけ作り直す（入力中にカーソルが飛ばないように） */
 function csPhRender(){
-  const keys=[]; String(csRaw).replace(/\{([^{}\n]+)\}/g, (m,k)=>{ if(keys.indexOf(k)<0) keys.push(k); return m; });
+  const keys=CS_BASE_PH.slice();     /* 注文番号・商品名は、テンプレを使わない時もいつも出す */
+  String(csRaw).replace(/\{([^{}\n]+)\}/g, (m,k)=>{ if(keys.indexOf(k)<0) keys.push(k); return m; });
   const sig=keys.join("|");
   const box=csEl("cs-ph");
   if(sig===csPhKeys){ return; }
   csPhKeys=sig;
-  if(!keys.length){ box.innerHTML=""; box.style.display="none"; return; }
   box.style.display="";
-  box.innerHTML=`<div class="cs-phhead">この欄を埋めると、下の韓国語に入ります</div>`+
+  box.innerHTML=`<div class="cs-phhead">この欄を埋めると、下の韓国語に入ります`+
+    `<button class="cs-add" onclick="csAddIds()">＋ 注文番号・商品名の2行を入れる</button></div>`+
     keys.map(k=>`<label class="cs-ph1"><span>${esc(CS_PH[k]||k)}<small>{${esc(k)}}</small></span>`+
       `<input value="${esc(csVals[k]||"")}" data-k="${esc(k)}" placeholder="${esc(CS_PH[k]||k)}を入力"></label>`).join("");
   box.querySelectorAll("input").forEach(inp=>inp.addEventListener("input",()=>{
@@ -1389,14 +1403,15 @@ function csApply(){
   csEl("cs-ko").value = String(csRaw).replace(/\{([^{}\n]+)\}/g, (m,k)=> (csVals[k]&&csVals[k].trim()) ? csVals[k] : m );
   csPhRender(); csPapago(); csSave();
 }
-function csSetKo(t){ csRaw=String(t||""); csVals={}; csPhKeys=" "; csApply(); }
+/* テンプレを切り替えても、入れた注文番号・商品名はそのまま使う */
+function csSetKo(t){ csRaw=String(t||""); csPhKeys="@reset@"; csApply(); }
 
 function renderCs(){
   if(csBuilt) return;
   const saved=(()=>{ try{ return JSON.parse(localStorage.getItem(CS_KEY)||"{}")||{}; }catch(e){ return {}; } })();
   csRaw=saved.raw||saved.ko||""; csVals=saved.vals||{};
   csEl("cs-body").innerHTML=`
-    <div class="cs-note">日本語で書いて「翻訳する」を押すと、下に韓国語が出ます。逆に、届いた韓国語を下に貼って「翻訳する」を押すと、上に日本語が出ます。<b>翻訳は無料の仕組みを使っていて費用はかかりません。</b></div>
+    <div class="cs-note">日本語で書いて「翻訳する」を押すと、下に韓国語が出ます。逆に、届いた韓国語を下に貼って「翻訳する」を押すと、上に日本語が出ます。<b>翻訳は無料の仕組みを使っていて費用はかかりません。</b><br>注文番号・商品名の欄はいつも出しています。テンプレを使わないときは「<b>＋ 注文番号・商品名の2行を入れる</b>」を押すと、韓国語の先頭に2行が入ります。</div>
     <div class="panel cs-card">
       <div class="cs-head"><span class="cs-flag">🇯🇵 日本語</span>
         <span class="cs-actions">
@@ -1416,15 +1431,16 @@ function renderCs(){
           <button class="btn-ghost btn-sm" onclick="csClear('ko')">消す</button>
         </span></div>
       <div class="cs-tplhead">定型文（押すと下に入ります。<b>{ }</b> の部分はあとから埋められます）</div>
-      <div class="cs-tpl">${CS_TPL.map((t,i)=>`<button class="cs-chip" data-i="${i}">${esc(t.n)}</button>`).join("")}</div>
-      <div id="cs-ph" class="cs-phbox" style="display:none"></div>
+      ${["よく使う","おすすめ"].map(g=>`<div class="cs-grp">${esc(g)}</div><div class="cs-tpl">`+
+        CS_TPL.map((t,i)=>t.g===g?`<button class="cs-chip" data-i="${i}">${esc(t.n)}</button>`:"").join("")+`</div>`).join("")}
+      <div id="cs-ph" class="cs-phbox"></div>
       <textarea id="cs-ko" class="cs-ta" placeholder="韓国語の文がここに出ます。&#10;お客様から届いた韓国語を貼り付けて「翻訳する」を押すと、上に日本語が出ます。"></textarea>
       <div class="cs-go"><button class="btn-primary" id="cs-to-ja">韓国語を日本語に翻訳する　↑</button>
         <span class="cs-hint" id="cs-msg2"></span></div>
     </div>`;
   csEl("cs-ja").value=saved.ja||"";
   csApply();
-  csEl("cs-ko").addEventListener("input",()=>{ csRaw=csEl("cs-ko").value; csVals={}; csPhRender(); csPapago(); csSave(); });
+  csEl("cs-ko").addEventListener("input",()=>{ csRaw=csEl("cs-ko").value; csPhRender(); csPapago(); csSave(); });
   csEl("cs-ja").addEventListener("input",()=>{ csPapago(); csSave(); });
   csEl("cs-body").querySelectorAll(".cs-chip").forEach(b=>b.addEventListener("click",()=>{
     const t=CS_TPL[+b.dataset.i]; if(!t) return;
@@ -1452,6 +1468,13 @@ function renderCs(){
 window.csCopy=(id,btn)=>{ const t=csEl(id).value; if(!t.trim()) return;
   navigator.clipboard.writeText(t).then(()=>{ const o=btn.textContent; btn.textContent="コピーしました"; setTimeout(()=>btn.textContent=o,1200); }).catch(()=>{}); };
 window.csClear=(w)=>{ if(w==="ja"){ csEl("cs-ja").value=""; } else { csSetKo(""); } csPapago(); csSave(); };
+/* テンプレを使わない時に、注文番号・商品名の2行だけを先頭に入れる */
+window.csAddIds=()=>{
+  const m=csEl("cs-msg2");
+  if(csRaw.indexOf("{주문번호}")>=0 || csRaw.indexOf("주문번호")>=0){ if(m) m.textContent="もう入っています"; return; }
+  csRaw = CS_IDS + csRaw; csPhKeys="@reset@"; csApply();
+  if(m) m.textContent="注文番号・商品名の2行を入れました";
+};
 
 /* ===== 配送料金（HANIROLINE 重量別料金表） ===== */
 function renderShipfee(){
@@ -1675,10 +1698,12 @@ function shinInvWhy(t){
   if(/^\d{3}-?\d{4}$/.test(t.replace(/[〒 ]/g,""))) return "郵便番号";
   if(/[\w.\-]+@[\w.\-]+\.\w+/.test(t)) return "メールアドレス";
   if(/(^|[^0-9])0\d{1,3}-\d{2,4}-\d{4}([^0-9]|$)/.test(t)) return "電話番号";
-  if(/(下\s*4\s*桁|末尾|ending in|\*{4})\s*\d{0,4}/.test(t)) return "カード番号";
+  if(/(下\s*4\s*桁|末尾|ending in|[*•●＊]{3,})\s*\d{0,4}/.test(t)) return "カード番号";
+  if(/^(Visa|Master ?Card|JCB|American ?Express|AMEX|Diners)\b/i.test(t)) return "カード情報";
   if(new RegExp(INV_PREF).test(t)) return "住所（都道府県）";
-  if(/登録番号|^T\d{13}$|インボイス/.test(t)) return null;               /* 適格請求書の登録番号は隠さない */
+  if(/登録番号|請求書番号|注文番号|^T\d{13}$|インボイス/.test(t)) return null;   /* 番号類は隠さない（隠すと突き返される） */
   if(/(市|区|郡|町|村|丁目|番地|番|号)/.test(t) && /\d/.test(t)) return "住所（番地）";
+  if(/^(ペタ|WEB|KEEPA|メルカリ|Yショ|楽天|新品|中古|FBA|直販[:：]|FBA[:：])/.test(t)||/^\S*\s*[\d,]+位$/.test(t)) return "サイト以外の表示";
   return null;
 }
 window.shinInvFile=async(inp)=>{
@@ -1700,18 +1725,37 @@ window.shinInvFile=async(inp)=>{
         task.onContinue=(cont)=>cont();   /* 裏タブだと描画が止まるので、pdf.js側の待ち合わせを使わない */
         await task.promise;
         const tc=await pg.getTextContent();
-        tc.items.forEach(it=>{
-          const s=String(it.str||"").trim(); if(!s) return; all+=s+"\n";
-          const why=shinInvWhy(s); if(!why) return;
-          const tr=L.Util.transform(vp.transform,it.transform);
-          const h=Math.hypot(tr[2],tr[3])||12, w=(it.width||s.length*6)*vp.scale;
-          invBoxes.push({p:n-1,x:tr[4]-2,y:tr[5]-h-2,w:w+6,h:h+6,why:why,text:s,on:true});
+        /* ブラウザの印刷で作ったPDFは1文字ずつに分かれることがある。まず行にまとめてから判定する */
+        const its=tc.items.map(it=>{ const tr=L.Util.transform(vp.transform,it.transform);
+            const h=Math.hypot(tr[2],tr[3])||12;
+            return {s:String(it.str||""), x:tr[4], y:tr[5], h:h, w:(it.width||0)*vp.scale}; })
+          .filter(o=>o.s!=="");
+        its.sort((a,b)=> Math.abs(a.y-b.y)>2 ? a.y-b.y : a.x-b.x);
+        const lines=[];
+        its.forEach(o=>{ const p=lines[lines.length-1];
+          if(p && Math.abs(p.y-o.y)<=2 && (o.x-(p.x+p.w)) < p.h*0.6){
+            p.w=Math.max(p.w, o.x+o.w-p.x); p.h=Math.max(p.h,o.h); p.s+=o.s;
+          } else lines.push({s:o.s,x:o.x,y:o.y,w:o.w||o.h*0.6,h:o.h});
+        });
+        /* Amazonの「注文の詳細（領収書）」は見出しの下にひとかたまりで並ぶ。
+           見出しを見つけたら、同じ列の続きの行をまとめて隠す対象にする（横に別の列があっても混ざらない）。 */
+        const blocks=[];
+        lines.forEach(ln=>{
+          const s=ln.s.normalize("NFKC").trim(); if(!s) return; all+=s+"\n";
+          const head=/^お届け先/.test(s) ? "お届け先"
+                   : /^(お?支払い方法|支払方法)/.test(s) ? "支払い方法" : null;
+          if(head){ blocks.push({x:ln.x, lastY:ln.y, h:ln.h, why:head}); return; }
+          const b=blocks.find(b=>Math.abs(ln.x-b.x)<=30 && ln.y>b.lastY && (ln.y-b.lastY)<=b.h*2.5);
+          if(b) b.lastY=ln.y;
+          const why=(b&&b.why)||shinInvWhy(s); if(!why) return;
+          invBoxes.push({p:n-1,x:ln.x-2,y:ln.y-ln.h-2,w:ln.w+6,h:ln.h+6,why:why,text:s,on:true});
         });
         invPages.push(cv);
       }
-      invRead=shinInvRead(all);
+      invRead=shinInvRead(all.normalize("NFKC"));
       const cnt={}; invBoxes.forEach(b=>{ cnt[b.text]=(cnt[b.text]||0)+1; });
-      invBoxes.forEach(b=>{ b.on = (cnt[b.text]>1) || /郵便番号|メール|電話|カード/.test(b.why); });
+      invBoxes.forEach(b=>{ b.on = /サイト以外/.test(b.why) ? false
+        : ((cnt[b.text]>1) || /郵便番号|メール|電話|カード|お届け先|支払い方法/.test(b.why)); });
     }else{
       const img=new Image(); img.src=URL.createObjectURL(f);
       await new Promise(r=>{img.onload=r;});
@@ -1725,7 +1769,10 @@ window.shinInvFile=async(inp)=>{
 /* 請求書から使える値を拾う */
 function shinInvRead(t){
   const g=(re)=>{ const m=t.match(re); return m?m[1].trim():""; };
-  return { order:g(/(\d{3}-\d{7}-\d{7})/), date:g(/注文日\s*\n?\s*(\d{4}-\d{2}-\d{2})/)||g(/(\d{4}-\d{2}-\d{2})/),
+  return { order:g(/(\d{3}-\d{7}-\d{7})/), date:(()=>{ const m=t.match(/(\d{4})\s*年\s*(\d{1,2})\s*月\s*(\d{1,2})\s*日/);
+                       if(m) return m[1]+"-"+String(m[2]).padStart(2,"0")+"-"+String(m[3]).padStart(2,"0");
+                       const d=t.match(/注文日\s*\n?\s*(\d{4}-\d{2}-\d{2})/)||t.match(/(\d{4}-\d{2}-\d{2})/);
+                       return d?d[1]:""; })(),
            total:(()=>{ const a=[...t.matchAll(/[¥￥]\s*([\d,]+)/g)].map(m=>m[1]);
                         if(!a.length) return "";
                         return a.sort((x,y)=>parseInt(y.replace(/,/g,""))-parseInt(x.replace(/,/g,"")))[0]; })(),
