@@ -1157,7 +1157,7 @@ async function cloudDelete(order){ const u=cloudURL(); if(!u) return;
 /* ===== その他データの同期（マニュアル・顧客・出品・ブログ等）：key-value方式 ===== */
 /* kr_hi_（黄色の選択）は同期しない＝端末ごとの目印。
    共有すると①和集合で選択が溜まる②複数人で1つの選択を奪い合う、の両方が起きるため。 */
-const KV_SYNC_PREFIXES=["kr_teb_","kr_bru_","kr_manual_v2","kr_manual_urls","kr_tblman_","kr_cust_","kr_list_attr_","kr_list_cat_","kr_attr_cat_","kr_blog_","kr_catseg_ja","kr_shinfix","kr_tomb"];
+const KV_SYNC_PREFIXES=["kr_teb_","kr_bru_","kr_manual_v2","kr_manual_urls","kr_tblman_","kr_cust_","kr_list_attr_","kr_list_cat_","kr_list_brand_","kr_attr_cat_","kr_blog_","kr_catseg_ja","kr_shinfix","kr_tomb"];
 function isKvSyncKey(k){ return KV_SYNC_PREFIXES.some(p=> k===p || k.indexOf(p)===0 ); }
 let kvReady=false;                 // 初回プル完了まで送信しない（初期シードの誤送信防止）
 const _kvSetItem=localStorage.setItem.bind(localStorage);
@@ -1673,9 +1673,9 @@ const BAN_ROWS=[
  {n:"OSOI（オソイ）", ko:"", s:"no", t:"no",
    tm:"<b>韓国メーカー</b>。釈明書を出しても11番街が承諾しなければ<b>ID一時停止</b>。絶対に出さない。<br>韓国ブランドかを1つずつ確認するのは大変だが、めったに無いので神経質にならなくてよい。真贋調査が来たらすぐ連絡を。",
    sm:"<b>韓国ブランド</b>。11番街ではID停止になる。スマートストアも韓国のモールなので<b>出さない</b>。"},
- {n:"LOGOS", ko:"", s:"no", t:"ask",
+ {n:"LOGOS", ko:"", s:"no", t:"no",
    sm:"<b>商品画像の著作権</b>でスマートストアから警告メールが来た。出品しない。",
-   tm:"元メモに11番街のことは書かれていない。<b>出す前に神岡さんに確認</b>。"},
+   tm:"スマートストアで<b>商品画像の著作権</b>の警告が来たブランド。11番街でも<b>出さない</b>。"},
  {n:"BUNKER RING", ko:"", s:"no", t:"no",
    sm:"<b>韓国で商標登録</b>されている。スマートストアで警告メールが来た。<b>販売中止ではダメで、完全に削除</b>すること。ツールでも取得しない設定にしてある。",
    tm:"<b>11番街からも完全に削除</b>すること（販売中止ではダメ）。ツールでも取得しない設定にしてある。"}
@@ -1778,10 +1778,12 @@ window.setBruTab=(t)=>{ bruTab=t; renderList(); };
 function renderList(){
   const head=document.getElementById("list-head"), body=document.getElementById("list-body");
   if(current==="coupang"){
-    head.innerHTML=`出品：クーパン <small>${coupangListTab==="cat"?"カテゴリー":"Attributes（出品時の参考・コピペ用）"}</small>`;
-    const toggle=`<div class="seg" style="margin-bottom:14px"><button class="segbtn ${coupangListTab==="attr"?"active":""}" onclick="setCoupangListTab('attr')">Attributes</button><button class="segbtn ${coupangListTab==="cat"?"active":""}" onclick="setCoupangListTab('cat')">カテゴリー</button></div>`;
+    const clbl=coupangListTab==="cat"?"カテゴリー":(coupangListTab==="brand"?"ブランド（韓国語・ブランドID・日本語）":"Attributes（出品時の参考・コピペ用）");
+    head.innerHTML=`出品：クーパン <small>${clbl}</small>`;
+    const toggle=`<div class="seg" style="margin-bottom:14px"><button class="segbtn ${coupangListTab==="attr"?"active":""}" onclick="setCoupangListTab('attr')">Attributes</button><button class="segbtn ${coupangListTab==="cat"?"active":""}" onclick="setCoupangListTab('cat')">カテゴリー</button><button class="segbtn ${coupangListTab==="brand"?"active":""}" onclick="setCoupangListTab('brand')">ブランド</button></div>`;
     body.innerHTML=toggle+`<div id="attr-host"></div>`;
     if(coupangListTab==="cat"){ renderCatDB(document.getElementById("attr-host")); }
+    else if(coupangListTab==="brand"){ attrStore=BRAND_KEY; renderBrand(document.getElementById("attr-host")); }
     else { attrStore=ATTR_KEY; renderAttr(document.getElementById("attr-host")); }
   } else if(current==="smart"){
     const lbl=smartListTab==="cat"?"カテゴリー":(smartListTab==="tebiki"?"手出品（販売済み＋任意商品を投稿）":(smartListTab==="shingan"?"真贋調査（正品販売確約書とメールの作成）":"ブラッシュアップ（販売済み商品を投稿）"));
@@ -2881,6 +2883,48 @@ window.attrImport=()=>{ const inp=document.createElement("input"); inp.type="fil
       for(let i=start;i<arr.length;i++){ const line=arr[i]||[]; const kr=String(line[ki]||"").trim(); if(!kr) continue; const jp=String(line[ji]||"").trim(), val=String(line[vi]||"").trim(); const n=normAttr(kr); const ex=idx[n];
         if(ex){ if(val!=="")ex.val=val; if(jp!=="")ex.jp=jp; up++; } else { const nr={id:uid(),kr:n,jp:jp||n,val:val}; rows.push(nr); idx[n]=nr; ad++; } }
       localStorage.setItem(ATTR_KEY, JSON.stringify(rows)); renderList(); alert(`取込完了：更新 ${up}件 / 追加 ${ad}件`);
+    }catch(err){ alert("取込エラー："+err.message); } }; rd.readAsArrayBuffer(f); };
+  inp.click(); };
+
+/* ===== 出品：ブランド（クーパン）=====
+   Attributes と同じ作り。左から ブランド（韓国語）／ブランドID／ブランド（日本語）。
+   中身は空。「＋ ブランドを追加」か「Excel/CSV取込」で後から入れる。 */
+const BRAND_KEY="kr_list_brand_coupang_v1";
+window.brandAdd=()=>{ const l=loadAttr(); const nid=uid(); l.push({id:nid,kr:"",bid:"",jp:""}); saveAttr(l); editingAttr.add(nid); renderList();
+  const el=document.querySelector(`#brandtbl tr[data-id="${nid}"] input.attr-in`); if(el) el.focus(); };
+function renderBrand(body){
+  const rows=loadAttr();
+  const head=`<div class="toolbar"><span class="lst-hint">各欄はそのまま直接編集できます（<b>📋</b> でコピー）。「Excel/CSV取込」で一括追加できます（列：ブランド（韓国語）／ブランドID／ブランド（日本語））。</span><div class="grow"></div><button class="btn-ghost btn-sm" onclick="brandImport()">📥 Excel/CSV取込</button><button class="btn-ghost btn-sm" onclick="brandAdd()">＋ ブランドを追加</button></div>`;
+  const th=`<thead><tr><th>ブランド（韓国語）</th><th>ブランドID</th><th>ブランド（日本語）</th><th>操作</th></tr></thead>`;
+  const tb=rows.map(r=>{ const id=esc(r.id);
+    return `<tr data-id="${id}">`+
+      `<td><input class="attr-in" value="${esc(r.kr)}" placeholder="韓国語" onchange="attrSet('${id}','kr',this.value)"><button class="cbtn" onclick="attrCopy('${id}','kr',this)" title="韓国語をコピー">📋</button></td>`+
+      `<td><input class="attr-in" value="${esc(r.bid||"")}" placeholder="ブランドID" onchange="attrSet('${id}','bid',this.value)"><button class="cbtn" onclick="attrCopy('${id}','bid',this)" title="ブランドIDをコピー">📋</button></td>`+
+      `<td><input class="attr-in" value="${esc(r.jp)}" placeholder="日本語" onchange="attrSet('${id}','jp',this.value)"><button class="cbtn" onclick="attrCopy('${id}','jp',this)" title="日本語をコピー">📋</button></td>`+
+      `<td class="rvop"><button class="rowbtn del btn-sm" onclick="attrDel('${id}')" title="このブランドを削除">削除</button></td>`+
+    `</tr>`;
+  }).join("");
+  const empty=`<div class="empty" style="margin:0"><b>まだ1件も入っていません</b>「＋ ブランドを追加」で1件ずつ、または「📥 Excel/CSV取込」でまとめて入れられます。<br>列の並びは <b>ブランド（韓国語）／ブランドID／ブランド（日本語）</b> です。</div>`;
+  body.innerHTML=head+`<div class="attrbox"><div class="attr-title">ブランド</div>`+
+    (rows.length?`<div class="tablewrap"><table id="brandtbl">${th}<tbody>${tb}</tbody></table></div>`:empty)+
+    `</div><div class="count">${rows.length}件</div>`;
+}
+/* ブランド：Excel/CSV取込（列＝ブランド（韓国語）／ブランドID／ブランド（日本語）。韓国語名で既存を一括更新） */
+window.brandImport=()=>{ const inp=document.createElement("input"); inp.type="file"; inp.accept=".xlsx,.xls,.csv";
+  inp.onchange=e=>{ const f=e.target.files[0]; if(!f) return; const rd=new FileReader();
+    rd.onload=ev=>{ try{ const wb=readWB(ev.target.result); const arr=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{header:1,raw:false,defval:""});
+      if(!arr.length){ alert("空のファイルです"); return; }
+      const first=(arr[0]||[]).map(x=>String(x||"").trim().toLowerCase());
+      const hasHead=first.some(h=>/ブランド|韓国語|한글|브랜드|日本語|id|아이디/.test(h));
+      let ki=0,bi=1,ji=2;
+      if(hasHead){ first.forEach((h,i)=>{ if(/id|아이디|번호/.test(h))bi=i; else if(/日本語|jp|japan/.test(h))ji=i; else if(/韓国語|한글|브랜드|ブランド|kr/.test(h))ki=i; }); }
+      const start=hasHead?1:0; let rows=[]; try{rows=JSON.parse(localStorage.getItem(BRAND_KEY))||[];}catch(e){}
+      const idx={}; rows.forEach(r=>idx[String(r.kr||"").trim()]=r); let up=0,ad=0;
+      for(let i=start;i<arr.length;i++){ const line=arr[i]||[]; const kr=String(line[ki]||"").trim(); if(!kr) continue;
+        const bid=String(line[bi]||"").trim(), jp=String(line[ji]||"").trim(); const ex=idx[kr];
+        if(ex){ if(bid!=="")ex.bid=bid; if(jp!=="")ex.jp=jp; up++; }
+        else { const nr={id:uid(),kr:kr,bid:bid,jp:jp}; rows.push(nr); idx[kr]=nr; ad++; } }
+      localStorage.setItem(BRAND_KEY, JSON.stringify(rows)); renderList(); alert(`取込完了：更新 ${up}件 / 追加 ${ad}件`);
     }catch(err){ alert("取込エラー："+err.message); } }; rd.readAsArrayBuffer(f); };
   inp.click(); };
 
