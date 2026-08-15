@@ -375,10 +375,92 @@ window.CAT_ATTR_JA={"색상": "色", "수량": "数量", "패션의류/잡화 �
  #view-cs .cs-ph1 > span small{ display:block; color:var(--muted); font-weight:600; font-size:10.5px; }
  #view-cs .cs-ph1 input{ flex:1; height:34px; border:1px solid var(--line); border-radius:8px; padding:0 10px; font-size:13px; font-family:inherit; outline:none; background:#fff; }
  #view-cs .cs-ph1 input:focus{ border-color:var(--accent); box-shadow:0 0 0 3px var(--ring); }
+
+  /* ===================== ここから下はスマホ専用 =====================
+     画面の横幅が 768px 以下（＝スマホ）のときだけ効きます。
+     パソコン（769px以上）ではこのブロックは1行も適用されないので、今までの見た目は一切変わりません。 */
+  #hdr-menu{ display:none; }    /* ☰ボタン：パソコンでは出さない */
+  #navmask{ display:none; }     /* メニューを開いた時の暗い幕：パソコンでは出さない */
+  @media (max-width:768px){
+    /* --- 共通の枠（ヘッダー・左メニュー・余白） --- */
+    header{ height:54px; padding:0 12px; gap:10px; }
+    .brand-txt{ display:none; }
+    .brand-badge{ width:30px; height:30px; font-size:14px; border-radius:9px; }
+    .userchip{ display:none; }
+    header .btn-sm{ padding:0 9px; }
+    #hdr-menu{ display:inline-flex; align-items:center; justify-content:center; flex:0 0 auto;
+      width:38px; height:38px; padding:0; font-size:17px; border-radius:9px;
+      background:var(--surface); border:1px solid var(--line); color:var(--txt); }
+
+    /* 左メニューは引き出し式（☰で開く／項目を選ぶと自動で閉じる） */
+    .side{ position:fixed; top:0; left:0; bottom:0; height:100%; min-height:0;
+      width:78vw; max-width:288px; z-index:60; overflow-y:auto; padding:14px 12px 30px;
+      box-shadow:var(--sh-lg); transform:translateX(-103%); transition:transform .22s ease; }
+    body.navopen .side{ transform:translateX(0); }
+    #navmask{ display:block; position:fixed; inset:0; background:rgba(20,28,50,.42); z-index:55;
+      opacity:0; pointer-events:none; transition:opacity .22s; }
+    body.navopen #navmask{ opacity:1; pointer-events:auto; }
+    body.navopen{ overflow:hidden; }
+    .main{ padding:14px 12px 36px; }
+    .crumb{ font-size:12px; margin-bottom:12px; }
+    .overlay{ padding:16px 10px; }
+    .modal{ border-radius:14px; }
+
+    /* --- ここから 顧客管理・売上管理 の中身だけ --- */
+    /* 入力欄は16px＝iPhoneでタップしても勝手に拡大されない大きさ */
+    #view-cust input, #view-cust select, #view-sales input, #view-sales select{ font-size:16px; }
+
+    /* 数字カード：5〜6枚を2列に */
+    #view-cust .stats, #view-sales .stats{ grid-template-columns:repeat(2,1fr); gap:9px; margin-bottom:13px; }
+    #view-cust .card, #view-sales .card{ padding:11px 12px; border-radius:12px; }
+    #view-cust .card:hover, #view-sales .card:hover{ transform:none; box-shadow:var(--sh-sm); }
+    #view-cust .card .label, #view-sales .card .label{ font-size:10.5px; line-height:1.45; }
+    #view-cust .card .num, #view-sales .card .num{ font-size:19px; margin-top:4px; }
+    #view-cust .card .num small, #view-sales .card .num small{ font-size:11px; }
+
+    /* 上の帯（レート・ウォン→円・翻訳）：1つずつ縦に並べる */
+    #view-cust .ctools{ padding:10px 12px; gap:9px 12px; }
+    #view-cust .ctool{ flex:1 1 100%; flex-wrap:wrap; gap:6px; }
+    #view-cust .ctool.grow{ min-width:0; }
+    #view-cust .ctool-div{ display:none; }
+    #view-cust .ctool-in{ height:34px; flex:1 1 120px; width:auto; min-width:0; }
+    #view-cust .ctool-in.wide{ min-width:0; }
+    #view-cust .ctool-out{ flex:1 1 100%; max-width:100%; }
+
+    /* 検索とボタンの列：検索は横いっぱい、ボタンは2つずつ */
+    #view-cust .toolbar, #view-sales .toolbar{ padding:12px; gap:8px; }
+    #view-cust .toolbar>.grow, #view-sales .toolbar>.grow{ display:none; }
+    #view-cust .toolbar input[type=text]{ flex:1 1 100%; width:100%; min-width:0; height:42px; }
+    #view-cust .toolbar button, #view-sales .toolbar button{ flex:1 1 calc(50% - 4px); height:40px; padding:0 8px; font-size:12px; }
+    #view-sales .seg{ display:flex; width:100%; }
+    #view-sales .segbtn{ flex:1 1 0; min-width:0; height:auto; min-height:38px; padding:5px 6px; font-size:11.5px; line-height:1.3; white-space:normal; }
+    #view-sales #ctl-search, #view-sales #ctl-month, #view-sales #ctl-year, #view-sales #ctl-rate{ flex:1 1 100%; margin-left:0 !important; }
+    #view-sales #sv-search{ flex:1; width:100%; min-width:0 !important; height:42px !important; font-size:16px !important; }
+    #view-sales #sv-month, #view-sales #sv-year{ flex:1; height:42px; }
+    #view-sales #sv-rate{ flex:1; width:auto !important; height:42px !important; }
+
+    /* 状態の絞り込み：折り返さず横に流す */
+    #view-cust .chips, #view-sales .chips{ flex-wrap:nowrap; overflow-x:auto; }
+    #view-cust .chip, #view-sales .chip{ flex:0 0 auto; height:30px; padding:0 11px; font-size:12px; }
+
+    /* 表：左右にスワイプして見る。左端の1列だけ固定して迷子にならないように */
+    #view-cust .tablewrap, #view-sales .tablewrap{ max-height:68vh; }
+    #view-cust table, #view-sales table{ font-size:12px; }
+    #view-cust th, #view-cust td, #view-sales th, #view-sales td{ padding:9px 10px; }
+    #view-cust th.s1, #view-cust td.s1, #view-sales th.s1, #view-sales td.s1{ min-width:104px; }
+    #view-cust th.s2, #view-cust td.s2, #view-cust th.s2c, #view-cust td.s2c,
+    #view-sales th.s2, #view-sales td.s2, #view-sales th.s2c, #view-sales td.s2c{ position:static; box-shadow:none; }
+    #view-cust .clip{ max-width:130px; }
+    #view-sales .srclink{ max-width:120px; }
+    #view-cust .count, #view-sales .count{ padding:11px 12px; }
+    #view-sales .page-head{ font-size:19px; margin-bottom:12px; }
+    #year-charts>div{ grid-template-columns:1fr !important; gap:10px !important; }
+  }
 </style>
 </head>
 <body>
 <header>
+  <button id="hdr-menu" title="メニュー" aria-label="メニュー">☰</button>
   <div class="brand"><span class="brand-badge">韓</span><span class="brand-txt">韓国輸出管理表</span></div>
   <button class="btn-ghost btn-sm" id="hdr-help" style="margin-left:auto">❓ 使い方</button>
   <button class="btn-ghost btn-sm" id="hdr-backup">💾 バックアップ</button>
@@ -474,6 +556,7 @@ window.CAT_ATTR_JA={"색상": "色", "수량": "数量", "패션의류/잡화 �
       </div>
     </div>
   </aside>
+  <div id="navmask"></div><!-- スマホでメニューを開いた時だけ出る幕 -->
 
   <main class="main">
   <div class="crumb" id="crumb">HOME / <b>顧客管理</b> / クーパン</div>
@@ -3230,6 +3313,15 @@ const PNAME={coupang:"クーパン",smart:"スマートストア",st11:"11番街
 document.querySelectorAll(".navhead").forEach(h=>h.addEventListener("click",()=>{
   h.parentElement.classList.toggle("open");
 }));
+/* スマホ：左メニューを☰で開け閉め（パソコンの幅では☰ボタン自体が出ないので、これまでと何も変わらない） */
+(function(){
+  const setNav=v=>document.body.classList.toggle("navopen", !!v);
+  const btn=document.getElementById("hdr-menu"), mask=document.getElementById("navmask"), side=document.getElementById("side");
+  if(btn)  btn.addEventListener("click",()=>setNav(!document.body.classList.contains("navopen")));
+  if(mask) mask.addEventListener("click",()=>setNav(false));
+  if(side) side.addEventListener("click",e=>{ if(window.innerWidth<=768 && e.target.closest(".navsub a")) setNav(false); });  /* 項目を選んだら閉じる */
+  window.addEventListener("resize",()=>{ if(window.innerWidth>768) setNav(false); });                                        /* 幅が広がったら必ず元に戻す */
+})();
 /* サイドバー：プラットフォーム選択（顧客管理グループのみ稼働） */
 document.querySelectorAll(".navsub a[data-p]").forEach(a=>a.addEventListener("click",()=>{
   section=a.dataset.sec||"cust"; current=a.dataset.p;
