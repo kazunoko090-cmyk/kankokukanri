@@ -376,7 +376,7 @@ window.CAT_ATTR_JA={"색상": "色", "수량": "数量", "패션의류/잡화 �
  #view-cs .cs-ph1 input{ flex:1; height:34px; border:1px solid var(--line); border-radius:8px; padding:0 10px; font-size:13px; font-family:inherit; outline:none; background:#fff; }
  #view-cs .cs-ph1 input:focus{ border-color:var(--accent); box-shadow:0 0 0 3px var(--ring); }
 
-  /* ===== AI検索：FAQ ===== */
+  /* ===== FAQ（よくある質問） ===== */
   .faq-bar{ gap:8px; }
   .faq-input{ flex:1 1 320px; min-width:0; height:44px; border:1px solid var(--line); border-radius:11px; padding:0 14px; font-size:14px; font-family:inherit; outline:none; background:#fff; color:var(--txt); transition:border .15s,box-shadow .15s; }
   .faq-input:focus{ border-color:var(--accent); box-shadow:0 0 0 3px var(--ring); }
@@ -552,9 +552,9 @@ window.CAT_ATTR_JA={"색상": "色", "수량": "数量", "패션의류/잡화 �
       </div>
     </div>
     <div class="navgroup" data-g="ai">
-      <div class="navhead">AI検索 <span class="arw">▶</span></div>
+      <div class="navhead">FAQ <span class="arw">▶</span></div>
       <div class="navsub">
-        <a id="nav-faq"><span class="dot"></span>FAQ（よくある質問）</a>
+        <a id="nav-faq"><span class="dot"></span>よくある質問</a>
       </div>
     </div>
     <div class="navgroup" data-g="tblman">
@@ -935,7 +935,7 @@ window.CAT_ATTR_JA={"색상": "色", "수량": "数量", "패션의류/잡화 �
       ・データは全員で自動共有。変更は<b>約10秒</b>で相手の画面にも反映されます<br>
       ・操作は不要です（同期ボタンはありません）。つながっていない時だけ画面上部に警告が出ます
       <p style="margin-bottom:6px"><b>わからないことは FAQ で探す</b></p>
-      ・左メニューの<b>「AI検索 → FAQ（よくある質問）」</b>に、関税・通関番号・出品エラー・リサーチ・価格帯などの答えをまとめてあります<br>
+      ・左メニューの<b>「FAQ → よくある質問」</b>に、関税・通関番号・出品エラー・リサーチ・価格帯などの答えをまとめてあります<br>
       ・一番上の検索窓に思いついた言葉を入れるだけで探せます（ひらがな・カタカナどちらでも大丈夫です）
     </div>
   </div>
@@ -1631,19 +1631,19 @@ window.csAddIds=()=>{
   if(m) m.textContent="注文番号・商品名の2行を入れました";
 };
 
-/* ===== AI検索：FAQ（NotebookLM「韓国輸出チャット」の中身をここに集約） =====
+/* ===== FAQ（よくある質問）＝旧「AI検索」。中身はここに集約 =====
    ・データは下の FAQ_ROWS だけ。追加・修正はこの配列を書き換える（画面からは編集しない）
    ・検索は 質問・答え・タグ・カテゴリー をまとめて見る。ひらがな/カタカナ・大文字小文字・全角半角の差は吸収する */
 const FAQ_CATS=["顧客対応","出品","リサーチ","価格・戦略"];
 const FAQ_ROWS=[
 /* ---------- 顧客対応 ---------- */
-{c:"顧客対応", q:"14万ウォン以下の商品を発送したとき、何を送る？",
- t:"発送 発送完了 レビュー 低額 14万ウォン はっそう れびゅー",
+{c:"顧客対応", q:"15万ウォン以下の商品を発送したとき、何を送る？",
+ t:"発送 発送完了 レビュー 低額 15万ウォン はっそう れびゅー",
  a:"発送完了の報告と、到着後のレビュー依頼を送ります。<br>「発送完了しました。無事に届いたらレビューをお願いします。」という内容です。<br><b>高額商品と違って関税の事前確認は不要</b>なので、1通で完結します。"},
 
-{c:"顧客対応", q:"14万ウォン以上（高額商品）はどう案内する？",
- t:"高額 14万ウォン 関税 受取拒否 キャンセル 3段階 事前説明 こうがく かんぜい うけとりきょひ きゃんせる",
- a:"14万ウォンを超える商品は<b>関税トラブル（受取拒否）のリスクが高い</b>ので、<b>最大3段階</b>で案内します。<ol><li><b>注文直後</b>：関税が発生する可能性を伝え、問題がないか確認する</li><li><b>返信がない場合</b>：「このまま発送しても大丈夫か」「関税の支払いは可能か」を再度確認する</li><li><b>発送後</b>：発送完了を伝えつつ、<b>「関税を理由としたキャンセルや受取拒否は不可」</b>であることを改めて通知する</li></ol>狙いは、発送後に「聞いていない」という理由でキャンセルされるのを防ぎ、<b>事前に説明済みであることを明確にする</b>ことです。"},
+{c:"顧客対応", q:"15万ウォン以上（高額商品）はどう案内する？",
+ t:"高額 15万ウォン 関税 受取拒否 キャンセル 3段階 事前説明 こうがく かんぜい うけとりきょひ きゃんせる",
+ a:"15万ウォンを超える商品は<b>関税トラブル（受取拒否）のリスクが高い</b>ので、<b>最大3段階</b>で案内します。<ol><li><b>注文直後</b>：関税が発生する可能性を伝え、問題がないか確認する</li><li><b>返信がない場合</b>：「このまま発送しても大丈夫か」「関税の支払いは可能か」を再度確認する</li><li><b>発送後</b>：発送完了を伝えつつ、<b>「関税を理由としたキャンセルや受取拒否は不可」</b>であることを改めて通知する</li></ol>狙いは、発送後に「聞いていない」という理由でキャンセルされるのを防ぎ、<b>事前に説明済みであることを明確にする</b>ことです。"},
 
 {c:"顧客対応", q:"関税・付加価値税（VAT）はどう説明する？韓国語の文面は？",
  t:"関税 VAT 付加価値税 10% 15000ウォン 計算機 ネイバー テンプレート 韓国語 かんぜい ふかかちぜい けいさんき かんこくご ぶんめん",
@@ -3546,7 +3546,7 @@ document.getElementById("nav-faq").addEventListener("click",()=>{
   section="faq";
   document.querySelectorAll(".navsub a").forEach(x=>x.classList.remove("active"));
   document.getElementById("nav-faq").classList.add("active");
-  document.getElementById("crumb").innerHTML=`HOME / <b>AI検索</b> / FAQ`;
+  document.getElementById("crumb").innerHTML=`HOME / <b>FAQ</b> / よくある質問`;
   render();
 });
 document.getElementById("nav-shipfee").addEventListener("click",()=>{
