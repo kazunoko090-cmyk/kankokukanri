@@ -376,6 +376,28 @@ window.CAT_ATTR_JA={"색상": "色", "수량": "数量", "패션의류/잡화 �
  #view-cs .cs-ph1 input{ flex:1; height:34px; border:1px solid var(--line); border-radius:8px; padding:0 10px; font-size:13px; font-family:inherit; outline:none; background:#fff; }
  #view-cs .cs-ph1 input:focus{ border-color:var(--accent); box-shadow:0 0 0 3px var(--ring); }
 
+  /* ===== AI検索：FAQ ===== */
+  .faq-bar{ gap:8px; }
+  .faq-input{ flex:1 1 320px; min-width:0; height:44px; border:1px solid var(--line); border-radius:11px; padding:0 14px; font-size:14px; font-family:inherit; outline:none; background:#fff; color:var(--txt); transition:border .15s,box-shadow .15s; }
+  .faq-input:focus{ border-color:var(--accent); box-shadow:0 0 0 3px var(--ring); }
+  .faq-chips{ display:flex; flex-wrap:wrap; gap:7px; padding:12px 18px 2px; }
+  .faq-list{ padding:10px 18px 4px; }
+  .faq-item{ border:1px solid var(--line); border-radius:12px; margin-bottom:9px; overflow:hidden; background:var(--surface); transition:border .15s,box-shadow .15s; }
+  .faq-item:hover{ border-color:#cdd6ff; }
+  .faq-item.open{ border-color:#cdd6ff; box-shadow:var(--sh-sm); }
+  .faq-q{ display:flex; align-items:flex-start; gap:10px; width:100%; height:auto; min-height:50px; padding:13px 15px; background:transparent; border:0; text-align:left; font-family:inherit; font-size:14px; font-weight:700; color:var(--txt); line-height:1.6; }
+  .faq-q:hover{ background:var(--line-2); }
+  .faq-arw{ color:var(--muted); font-size:11px; flex:0 0 auto; margin-top:4px; transition:transform .18s; }
+  .faq-item.open .faq-arw{ transform:rotate(90deg); color:var(--accent-d); }
+  .faq-cat{ flex:0 0 auto; font-size:10.5px; font-weight:800; color:var(--accent-d); background:#eef2ff; border:1px solid #dfe5ff; border-radius:7px; padding:2px 8px; margin-top:1px; white-space:nowrap; }
+  .faq-qt{ flex:1 1 auto; }
+  .faq-a{ padding:2px 16px 14px 44px; font-size:13.5px; line-height:2; color:var(--txt); border-top:1px solid var(--line-2); }
+  .faq-a ul,.faq-a ol{ margin:6px 0 6px 20px; }
+  .faq-a li{ margin:3px 0; }
+  .faq-a b{ color:var(--accent-d); }
+  .faq-ko{ background:#f4f7ff; border:1px solid #dbe3ff; border-radius:10px; padding:11px 13px; margin:8px 0; font-size:13px; line-height:1.95; color:#33406b; word-break:break-all; }
+  .faq-foot{ margin-top:10px; }
+
   /* ===================== ここから下はスマホ専用 =====================
      画面の横幅が 768px 以下（＝スマホ）のときだけ効きます。
      パソコン（769px以上）ではこのブロックは1行も適用されないので、今までの見た目は一切変わりません。 */
@@ -455,6 +477,19 @@ window.CAT_ATTR_JA={"색상": "色", "수량": "数量", "패션의류/잡화 �
     #view-cust .count, #view-sales .count{ padding:11px 12px; }
     #view-sales .page-head{ font-size:19px; margin-bottom:12px; }
     #year-charts>div{ grid-template-columns:1fr !important; gap:10px !important; }
+
+    /* FAQ もスマホで読めるように */
+    #view-faq .page-head{ font-size:19px; margin-bottom:12px; }
+    #view-faq .toolbar{ padding:12px; }
+    #view-faq .faq-input{ flex:1 1 100%; height:44px; font-size:16px; }
+    #view-faq .toolbar>.grow{ display:none; }
+    #view-faq .toolbar button{ flex:1 1 calc(50% - 4px); }
+    #view-faq .faq-chips{ padding:10px 12px 2px; flex-wrap:nowrap; overflow-x:auto; }
+    #view-faq .faq-chips .chip{ flex:0 0 auto; height:30px; padding:0 11px; font-size:12px; }
+    #view-faq .faq-list{ padding:10px 12px 4px; }
+    #view-faq .faq-q{ padding:12px 12px; font-size:13.5px; flex-wrap:wrap; gap:8px; }
+    #view-faq .faq-a{ padding:2px 12px 14px 12px; font-size:13px; line-height:1.95; }
+    #view-faq .faq-ko{ font-size:12.5px; }
   }
 </style>
 </head>
@@ -519,7 +554,7 @@ window.CAT_ATTR_JA={"색상": "色", "수량": "数量", "패션의류/잡화 �
     <div class="navgroup" data-g="ai">
       <div class="navhead">AI検索 <span class="arw">▶</span></div>
       <div class="navsub">
-        <a href="https://notebooklm.google.com/notebook/22450892-bec4-43b2-af2c-bf3be6afec18" target="_blank"><span class="dot"></span>顧客対応 <span class="ext">↗</span></a>
+        <a id="nav-faq"><span class="dot"></span>FAQ（よくある質問）</a>
       </div>
     </div>
     <div class="navgroup" data-g="tblman">
@@ -742,6 +777,8 @@ window.CAT_ATTR_JA={"색상": "色", "수량": "数量", "패션의류/잡화 �
     <div id="cs-body"></div>
   </div>
 
+  <div id="view-faq" style="display:none"></div>
+
   <div id="view-shipfee" style="display:none">
     <div class="page-head">配送料金 <small>HANIROLINE 重量別料金表</small></div>
     <div id="shipfee-body"></div>
@@ -897,9 +934,9 @@ window.CAT_ATTR_JA={"색상": "色", "수량": "数量", "패션의류/잡화 �
       <p><b>共有</b></p>
       ・データは全員で自動共有。変更は<b>約10秒</b>で相手の画面にも反映されます<br>
       ・操作は不要です（同期ボタンはありません）。つながっていない時だけ画面上部に警告が出ます
-      <p style="margin-bottom:6px"><b>わからないことは AI に質問</b></p>
-      <a class="btn-primary" href="https://notebooklm.google.com/notebook/22450892-bec4-43b2-af2c-bf3be6afec18" target="_blank" style="display:inline-block;text-decoration:none;line-height:38px">📓 NotebookLM（顧客対応）で質問する</a>
-      <span style="color:var(--muted);font-size:12px;margin-left:8px">自分のノートブックをブックマークしておくと便利です</span>
+      <p style="margin-bottom:6px"><b>わからないことは FAQ で探す</b></p>
+      ・左メニューの<b>「AI検索 → FAQ（よくある質問）」</b>に、関税・通関番号・出品エラー・リサーチ・価格帯などの答えをまとめてあります<br>
+      ・一番上の検索窓に思いついた言葉を入れるだけで探せます（ひらがな・カタカナどちらでも大丈夫です）
     </div>
   </div>
 </div>
@@ -1399,7 +1436,7 @@ function render(){
   const _locked = pwNeed();   /* 対象画面のみロック（ナビは操作可能・モール別の暗証番号） */
   document.getElementById("view-lock").style.display=_locked?"":"none";
   if(_locked){
-    ["view-home","view-cust","view-sales","view-research","view-list","view-banned","view-banlist","view-shortcut","view-blog","view-manual","view-tblman","view-cs","view-shipfee"].forEach(id=>{ const el=document.getElementById(id); if(el) el.style.display="none"; });
+    ["view-home","view-cust","view-sales","view-research","view-list","view-banned","view-banlist","view-shortcut","view-blog","view-manual","view-tblman","view-cs","view-faq","view-shipfee"].forEach(id=>{ const el=document.getElementById(id); if(el) el.style.display="none"; });
     const lm=document.getElementById("lockMsg"); if(lm) lm.textContent="「"+(PW_PLATNAMES[current]||"")+" "+(PW_NAMES[section]||"")+"」を開くには暗証番号を入力してください";
     const li=document.getElementById("lockInput"); if(li) setTimeout(()=>{ try{ li.focus(); }catch(e){} },40);
     return;
@@ -1407,8 +1444,9 @@ function render(){
   const home=section==="home";
   document.getElementById("view-home").style.display=home?"":"none";
   if(home){ const c=document.getElementById("crumb"); if(c) c.innerHTML="ホーム"; }
-  const sales=section==="sales", research=section==="research", list=section==="list", banned=section==="banned", banlist=section==="banlist", shortcut=section==="shortcut", blog=section==="blog", manual=section==="manual", tblman=section==="tblman", shipfee=section==="shipfee", cs=section==="cs";
-  document.getElementById("view-cust").style.display=(home||sales||research||list||banned||banlist||shortcut||blog||manual||tblman||shipfee||cs)?"none":"";
+  const sales=section==="sales", research=section==="research", list=section==="list", banned=section==="banned", banlist=section==="banlist", shortcut=section==="shortcut", blog=section==="blog", manual=section==="manual", tblman=section==="tblman", shipfee=section==="shipfee", cs=section==="cs", faq=section==="faq";
+  document.getElementById("view-cust").style.display=(home||sales||research||list||banned||banlist||shortcut||blog||manual||tblman||shipfee||cs||faq)?"none":"";
+  document.getElementById("view-faq").style.display=faq?"":"none";
   document.getElementById("view-sales").style.display=sales?"":"none";
   document.getElementById("view-research").style.display=research?"":"none";
   document.getElementById("view-list").style.display=list?"":"none";
@@ -1420,7 +1458,7 @@ function render(){
   document.getElementById("view-tblman").style.display=tblman?"":"none";
   document.getElementById("view-shipfee").style.display=shipfee?"":"none";
   document.getElementById("view-cs").style.display=cs?"":"none";
-  if(home){ /* ホームは何も描画しない */ } else if(cs) renderCs(); else if(shipfee) renderShipfee(); else if(tblman) renderTblMan(); else if(manual) renderManual(); else if(blog) renderBlog(); else if(shortcut) renderShortcut(); else if(banlist) renderBanlist(); else if(banned) renderBanned(); else if(list) renderList(); else if(research) renderResearch(); else if(sales) renderSales(); else renderCust();
+  if(home){ /* ホームは何も描画しない */ } else if(faq) renderFaq(); else if(cs) renderCs(); else if(shipfee) renderShipfee(); else if(tblman) renderTblMan(); else if(manual) renderManual(); else if(blog) renderBlog(); else if(shortcut) renderShortcut(); else if(banlist) renderBanlist(); else if(banned) renderBanned(); else if(list) renderList(); else if(research) renderResearch(); else if(sales) renderSales(); else renderCust();
 }
 /* ===== 管理表マニュアル（ブログマニュアルと同じフォーマット・モール別） ===== */
 const TBLMAN_SEED=[{title:"",url:""},{title:"",url:""},{title:"",url:""},{title:"",url:""}];
@@ -1593,6 +1631,161 @@ window.csAddIds=()=>{
   if(m) m.textContent="注文番号・商品名の2行を入れました";
 };
 
+/* ===== AI検索：FAQ（NotebookLM「韓国輸出チャット」の中身をここに集約） =====
+   ・データは下の FAQ_ROWS だけ。追加・修正はこの配列を書き換える（画面からは編集しない）
+   ・検索は 質問・答え・タグ・カテゴリー をまとめて見る。ひらがな/カタカナ・大文字小文字・全角半角の差は吸収する */
+const FAQ_CATS=["顧客対応","出品","リサーチ","価格・戦略"];
+const FAQ_ROWS=[
+/* ---------- 顧客対応 ---------- */
+{c:"顧客対応", q:"14万ウォン以下の商品を発送したとき、何を送る？",
+ t:"発送 発送完了 レビュー 低額 14万ウォン はっそう れびゅー",
+ a:"発送完了の報告と、到着後のレビュー依頼を送ります。<br>「発送完了しました。無事に届いたらレビューをお願いします。」という内容です。<br><b>高額商品と違って関税の事前確認は不要</b>なので、1通で完結します。"},
+
+{c:"顧客対応", q:"14万ウォン以上（高額商品）はどう案内する？",
+ t:"高額 14万ウォン 関税 受取拒否 キャンセル 3段階 事前説明 こうがく かんぜい うけとりきょひ きゃんせる",
+ a:"14万ウォンを超える商品は<b>関税トラブル（受取拒否）のリスクが高い</b>ので、<b>最大3段階</b>で案内します。<ol><li><b>注文直後</b>：関税が発生する可能性を伝え、問題がないか確認する</li><li><b>返信がない場合</b>：「このまま発送しても大丈夫か」「関税の支払いは可能か」を再度確認する</li><li><b>発送後</b>：発送完了を伝えつつ、<b>「関税を理由としたキャンセルや受取拒否は不可」</b>であることを改めて通知する</li></ol>狙いは、発送後に「聞いていない」という理由でキャンセルされるのを防ぎ、<b>事前に説明済みであることを明確にする</b>ことです。"},
+
+{c:"顧客対応", q:"関税・付加価値税（VAT）はどう説明する？韓国語の文面は？",
+ t:"関税 VAT 付加価値税 10% 15000ウォン 計算機 ネイバー テンプレート 韓国語 かんぜい ふかかちぜい けいさんき かんこくご ぶんめん",
+ a:"金額で2パターンあります。<br><br><b>■ 約15,000ウォン以上</b><br>VAT10%が基本的にかかり、基準を超えるとカテゴリーによって関税も発生します。<div class=\"faq-ko\">고객님,<br>약 15,000원 이상의 상품의 경우 기본적으로 부가가치세(VAT) 10%가 적용되어 추가 비용이 발생할 가능성이 있습니다.<br>또한 상품 금액이 기준을 초과하는 경우에는 상품 카테고리에 따라 관세가 추가로 발생할 수 있습니다.<br>정확한 예상 세액은 아래 관세 계산기를 통해 확인 부탁드립니다.<br>https://search.naver.com/search.naver?query=%EA%B4%80%EC%84%B8%EA%B3%84%EC%82%B0</div><br><b>■ 約15,000ウォン以下</b><br>関税はかからない可能性がありますが、VAT10%は別途かかります。<div class=\"faq-ko\">고객님,<br>약 15,000원 이하의 상품은 관세가 부과되지 않을 가능성이 있으니, 자세한 내용은 아래 링크를 통해 확인 부탁드립니다.<br>또한 부가가치세(VAT) 10%는 별도로 발생하는 점 양해 부탁드립니다.<br>https://search.naver.com/search.naver?query=%EA%B4%80%EC%84%B8%EA%B3%84%EC%82%B0</div><br><b>日本語訳（15,000ウォン以下）</b><br>お客様、約15,000ウォン以下の商品につきましては、関税が発生しない可能性がありますので、詳細は下記リンクよりご確認ください。また、付加価値税（VAT）10％は別途発生いたしますので、あらかじめご了承ください。"},
+
+{c:"顧客対応", q:"個人通関番号（PCCC）がもらえないときは？",
+ t:"個人通関番号 PCCC 통관 発送が止まる 督促 期限 在庫回転 こじんつうかんばんごう つうかん とっそく きげん",
+ a:"<b>発送が止まる一番の原因</b>です。督促は放置せず、<b>3通目で期限を切って</b>ください。期限を守らせることが在庫回転を守ることになります。<br>文面は「顧客対応 → 翻訳・定型文」の定型文から使えます。"},
+
+{c:"顧客対応", q:"在庫が1つしか買えないと言われた（複数買いたいお客様）",
+ t:"在庫 1つ 複数 購入制限 GoPro 公式ストア 修正 ざいこ ふくすう こうにゅうせいげん",
+ a:"「<b>複数在庫があります。修正しましたのでそのまま購入してください</b>」とお伝えください。<br>システム上の制限で1つしか買えない設定になっていた場合は、こちらで在庫設定を修正してから案内します。"},
+
+{c:"顧客対応", q:"クーパンで出品金額が分からず、利益計算ができない",
+ t:"クーパン 利益計算 価格 画像 相違 藤井 通話",
+ a:"<b>そのままの価格設定で販売を進めて問題ありません。</b><br>画像と値段に相違があるケースもありますが、改めて計算したところ現状のままでも利益が出る見込みです。詳細は通話で共有します（担当：藤井）。お客様を待たせないよう、在庫修正を伝えて購入を促すのが最優先です。"},
+
+{c:"顧客対応", q:"電化製品（変圧器）の案内は？",
+ t:"変圧器 電圧 電化製品 100V 220V 事前説明 へんあつき でんあつ でんかせいひん",
+ a:"電圧の違いは<b>発送後のトラブルになりやすい</b>ので、注文の段階で「変圧器が必要である」ことを伝えて合意を取ってください。<br>文面は「顧客対応 → 翻訳・定型文」の変圧器テンプレ①〜③にあります。"},
+
+/* ---------- 出品 ---------- */
+{c:"出品", q:"スマートストアで「出版日」などの入力を求められてエラーになる",
+ t:"スマートストア 出品 エラー 出版日 商品情報提供告示 상품정보제공고시 商品詳細参照 しゅっぴん しゅっぱんび えらー",
+ a:"おすすめは<b>「商品情報提供告示」の設定を変える</b>方法です。<ol><li>商品登録画面の<b>商品情報提供告示（상품정보제공고시）</b>で、<b>「商品詳細参照で完全入力（상품상세 참조로 전체 입력）」</b>にチェックを入れる</li><li>その下の項目も、すべて中央の「商品紹介を参照」にする</li></ol>これで出版日などを個別に入力しなくても、商品説明欄の内容を参照する形で出品できます。<br>まずは<b>「商品詳細参照で完全入力」にチェックが入っているか</b>を確認してください。"},
+
+{c:"出品", q:"カテゴリーはどこまで厳密に合わせるべき？",
+ t:"カテゴリー ズラす 雑貨 本 DVD 出版日 必須 かてごりー ざっか",
+ a:"<b>「かすっている程度」で問題ありません。</b>神経質になりすぎる必要はありません。<br>本やDVDなど、システム上どうしても出版日の入力が必須になるカテゴリーに当たった場合は、<b>類似のカテゴリーや「雑貨」系にズラして</b>登録してみてください。"},
+
+{c:"出品", q:"保存ボタンが反応しない／保存でエラーになる",
+ t:"保存 登録 エラー 反応しない 韓国語表示 日本語翻訳 ブラウザ翻訳 ほぞん とうろく はんのう ほんやく",
+ a:"<b>画面を日本語に翻訳したまま保存を押していませんか。</b><br>翻訳した状態だとエラーが起きたりボタンが反応しないことがあります。<b>最終的な保存（登録）は必ず韓国語表示に戻してから</b>行ってください。"},
+
+{c:"出品", q:"一括登録ツールでエラーが出た",
+ t:"一括登録 ツール エラー Excel 再アップロード セル",
+ a:"エラーの内容を翻訳して原因を特定してください。特定のセル（出版日など）が原因であれば、<b>ツールからダウンロードしたExcel側を修正して、再度アップロード</b>する必要があります。"},
+
+{c:"出品", q:"「売上を伸ばすための修正項目」が何十件も出ている。全部直すべき？",
+ t:"売上向上 修正項目 47件 放置 値下げ提案 削除 入れ替え うりあげ しゅうせい ほうち ねさげ さくじょ いれかえ",
+ a:"<b>いいえ、放置で大丈夫です。</b><br>これはシステムが「安くすれば売れる可能性がある」と自動で提案しているだけで、無理に直す必要はありません。対応しなくても、需要がある商品はそのままの状態で売れていきます。<br>削除操作も不要です。<b>いつもの入れ替え（商品の更新・差し替え）</b>をしていれば古いデータとして自然に消えます。画面に「修正が必要」と出ると焦りますが、実質は「おすすめ設定の提案」です。<b>ルーティン（商品の入れ替え）を優先</b>してください。"},
+
+/* ---------- リサーチ ---------- */
+{c:"リサーチ", q:"クーパンのリサーチはどうやる？（一番安全な手順）",
+ t:"クーパン リサーチ Not Item winner WING 競合セラー レビュー1以上 知的財産権 りさーち きょうごう ちてきざいさんけん",
+ a:"<b>「売れている実績の確認」と「知的財産権のリスク回避」を同時に満たす</b>のがコツです。一番安全なのは競合セラーリサーチです。<ol><li>管理画面（WING）の<b>「Not Item winner」</b>から、価格競争に負けている商品を確認する</li><li>そこから<b>ライバルセラーのショップ</b>へ飛ぶ</li><li>ショップ内で<b>「レビュー1以上」</b>に絞り込む</li></ol>ここに出てくる商品は「実際に売れている実績がある」かつ「通報されずに出品できている」可能性が高い商品です。"},
+
+{c:"リサーチ", q:"クーパンの管理画面で需要を調べる方法は？",
+ t:"Sales statistics 売上統計 検索回数 ブランド 型番 トレンド情報 エビオス",
+ a:"<b>Sales statistics（売上統計）</b>で検索回数が多いブランド名や型番をチェックすると需要が分かります。<br>あわせて、スクールから届く<b>「日本商品のトレンド情報（隔週100アイテム）」</b>も参考にして、エビオスなどの人気商品やその類似品をリサーチします。"},
+
+{c:"リサーチ", q:"Amazonを使ったニッチリサーチのやり方",
+ t:"Amazon ランキング 新着 ニッチ 中堅ブランド サンワサプライ ノーブランド アカウント停止 あまぞん のーぶらんど あかうんとていし",
+ a:"Amazonのランキング上位や新着から、<b>ソニーのような超有名ブランドではなく、あまり知られていない中堅・ニッチなブランド</b>（例：サンワサプライ など）を探し、そのブランドの商品一覧を取得します。<br>アカウント停止リスクを最小限にするため、<b>特に初期はノーブランド品を中心に攻めるのが鉄則</b>です。"},
+
+{c:"リサーチ", q:"スマートストアの「尋ねて答える（商品Q&A）」リサーチとは？",
+ t:"スマートストア 尋ねて答える 商品QA Q&A NAVER BEST100 顧客ニーズ",
+ a:"韓国の消費者が今なにを探しているかを知る方法です。<ol><li>競合セラーや、NAVERショッピングの<b>BEST 100</b>に入っている人気商品のページを開く</li><li>商品詳細ページの<b>「商品Q&A（注文前の問い合わせ）」</b>を見る</li></ol>たとえば「別の色やサイズはないか」「最新モデルはいつ入荷するか」「日本で売っている〇〇は扱っているか」といった質問は、<b>今まさに韓国で求められているのに供給が足りていない商品</b>のヒントです。<br>見つけたブランドや商品を、日本のAmazonや楽天で仕入れられるか確認します。"},
+
+{c:"リサーチ", q:"売れた商品をどう広げる？（横展開と差別化）",
+ t:"横展開 差別化 型番 セット出品 電圧 サイズ感 付属品 NAVERアナリティクス 流入キーワード",
+ a:"<b>横展開</b>：売れている商品に他の型番があれば、関連商品をセットで出品します。<br><b>差別化</b>：顧客が気にしているポイント（電圧、サイズ感、付属品など）を商品説明に盛り込み、画像をブラッシュアップします。<br><b>自店データの活用</b>：NAVERアナリティクスで「どのキーワードで来ているか」を見て、アクセスの多いキーワードに関連する商品を追加出品します。よく見られている商品の類似品・他の型番を横展開するのも効果的です。"},
+
+{c:"リサーチ", q:"リサーチの時に必ず外すものは？",
+ t:"韓国ブランド 除外 ID停止 アカウント停止 禁止ジャンル 知財警告 かんこくぶらんど じょがい ていし きんし",
+ a:"<b>韓国ブランド（本社が韓国にあるブランド）</b>です。出品するとID停止のリスクがあるため、リサーチの段階で必ず除外してください。<br>また、リサーチした商品が<b>「出品禁止ジャンルリスト」や「知財警告対象ブランド」</b>に該当しないか、出品前に必ず確認してください。クーパンはブランド規制が特に厳しいです。"},
+
+/* ---------- 価格・戦略 ---------- */
+{c:"価格・戦略", q:"スマートストアの価格帯の割合は？",
+ t:"スマートストア 価格帯 割合 松竹梅 中価格帯 高価格帯 低価格帯 1万品 利益設定 かかくたい わりあい しょうちくばい りえき",
+ a:"<b>松竹梅＝3:5:2</b>を意識します。<ul><li><b>中価格帯（2万〜8万円）：50%</b> 最もコンスタントに売れます。利益設定は低め（0円〜1,500円程度）にして積極的に販売</li><li><b>高価格帯（8万円以上）：30%</b> 注目を集めやすく、実店舗のようなお店作りに重要</li><li><b>低価格帯（2万円以下）：20%</b> 集客用。増やしすぎるとショップの競争力が落ちるので2割程度に抑える</li></ul>まずはこの比率で<b>1万品の出品枠</b>を埋め、反応を見ながら売れやすいジャンル・価格帯に寄せていくのが安定した売上を作るコツです。"},
+
+{c:"価格・戦略", q:"クーパンの価格帯の割合は？",
+ t:"クーパン 価格帯 割合 低価格帯 取引実績 アカウントを育てる 1万品 かかくたい わりあい とりひきじっせき",
+ a:"クーパンはスマートストアや11番街と違い、<b>低価格帯が非常に売れやすい</b>です。<ul><li><b>低価格帯（2万円以下）：50%</b> 利益を抑えて取引実績を積む</li><li><b>中価格帯（2万〜8万円）：40%</b></li><li><b>高価格帯（8万円以上）：10%</b> 売れにくいので1割程度に留める</li></ul>まずはこの比率で1万品の出品枠を埋め、<b>アカウントを育てること</b>に注力しましょう。"},
+
+{c:"価格・戦略", q:"クーパンで売れやすい仕入れ価格帯は？",
+ t:"クーパン 仕入れ 価格帯 5000円 80000円 中低価格帯 しいれ かかくたい",
+ a:"<b>仕入れ価格 5,000円〜80,000円程度</b>の中・低価格帯がよく売れる傾向にあります。"},
+];
+
+let faqQ="", faqCat="", faqOpen={};
+/* 検索用にならす：小文字・全角半角・カタカナ→ひらがな・記号と空白を落とす */
+function faqNorm(s){
+  s=String(s==null?"":s).normalize("NFKC").toLowerCase();
+  s=s.replace(/[ァ-ヶ]/g, c=>String.fromCharCode(c.charCodeAt(0)-0x60));
+  return s.replace(/[\s　・、。，．,.()（）「」『』:：;；!！?？"'`~〜\-ー_/\\|]/g,"");
+}
+function faqText(r){ return faqNorm(r.q+" "+r.a.replace(/<[^>]*>/g," ")+" "+r.t+" "+r.c); }
+window.faqSearch=v=>{ faqQ=v; faqRenderList(); };
+window.faqSetCat=c=>{ faqCat=(faqCat===c?"":c); renderFaq(); };
+window.faqToggle=i=>{ faqOpen[i]=!faqOpen[i]; faqRenderList(); };
+window.faqAll=on=>{ FAQ_ROWS.forEach((r,i)=>faqOpen[i]=!!on); faqRenderList(); };
+window.faqCopy=(i,b)=>{ const d=document.createElement("div"); d.innerHTML=FAQ_ROWS[i].a.replace(/<br\s*\/?>/gi,"\n").replace(/<\/(li|p|div|ol|ul)>/gi,"\n");
+  const t=(d.textContent||"").replace(/\n{3,}/g,"\n\n").trim();
+  navigator.clipboard.writeText(t).then(()=>{ const o=b.textContent; b.textContent="✓"; setTimeout(()=>b.textContent=o,900); }); };
+function faqHit(r){
+  if(faqCat && r.c!==faqCat) return false;
+  const q=faqNorm(faqQ); if(!q) return true;
+  const words=String(faqQ).trim().split(/[\s　]+/).map(faqNorm).filter(Boolean);
+  const hay=faqText(r);
+  return words.every(w=>hay.indexOf(w)>=0);
+}
+function faqRenderList(){
+  const host=document.getElementById("faq-list"); if(!host) return;
+  const hits=[]; FAQ_ROWS.forEach((r,i)=>{ if(faqHit(r)) hits.push(i); });
+  const cnt=document.getElementById("faq-count");
+  if(cnt) cnt.textContent = (faqQ||faqCat) ? `${FAQ_ROWS.length}件中 ${hits.length}件` : `${FAQ_ROWS.length}件`;
+  if(!hits.length){
+    host.innerHTML=`<div class="empty"><b>見つかりませんでした</b>言葉を短くするか、1語だけで探してみてください（例：関税／通関番号／出版日／価格帯）。</div>`;
+    return;
+  }
+  host.innerHTML=hits.map(i=>{
+    const r=FAQ_ROWS[i], op=!!faqOpen[i];
+    return `<div class="faq-item${op?" open":""}">`+
+      `<button class="faq-q" onclick="faqToggle(${i})"><span class="faq-arw">▸</span><span class="faq-cat">${esc(r.c)}</span><span class="faq-qt">${esc(r.q)}</span></button>`+
+      `<div class="faq-a" style="display:${op?"block":"none"}">${r.a}`+
+        `<div class="faq-foot"><button class="btn-ghost btn-sm" onclick="faqCopy(${i},this)" title="この答えを文字でコピー">📋 コピー</button></div>`+
+      `</div></div>`;
+  }).join("");
+}
+function renderFaq(){
+  const chips=FAQ_CATS.map(c=>{
+    const n=FAQ_ROWS.filter(r=>r.c===c).length;
+    return `<button class="chip${faqCat===c?" active":""}" onclick="faqSetCat('${c}')">${esc(c)}<span class="n">${n}</span></button>`;
+  }).join("");
+  document.getElementById("view-faq").innerHTML=
+    `<div class="page-head">FAQ <small>よくある質問。検索するか、下の分類から選んでください</small></div>`+
+    `<div class="panel">`+
+      `<div class="toolbar faq-bar">`+
+        `<input type="text" id="faq-q" class="faq-input" placeholder="🔍 何でも入れてください（関税／通関番号／出版日／リサーチ／価格帯 など）" oninput="faqSearch(this.value)">`+
+        `<div class="grow"></div>`+
+        `<button class="btn-ghost btn-sm" onclick="faqAll(true)">すべて開く</button>`+
+        `<button class="btn-ghost btn-sm" onclick="faqAll(false)">すべて閉じる</button>`+
+      `</div>`+
+      `<div class="faq-chips"><button class="chip all${faqCat?"":" active"}" onclick="faqSetCat('')">すべて<span class="n">${FAQ_ROWS.length}</span></button>${chips}</div>`+
+      `<div id="faq-list" class="faq-list"></div>`+
+      `<div class="count" id="faq-count"></div>`+
+    `</div>`;
+  const el=document.getElementById("faq-q"); if(el){ el.value=faqQ; }
+  faqRenderList();
+}
 /* ===== 配送料金（HANIROLINE 重量別料金表） ===== */
 function renderShipfee(){
   const rows=[]; for(let i=0;i<24;i++){ const w=((i+1)*0.5).toFixed(2); const pr=950+i*100; rows.push([w+" KG","¥"+pr.toLocaleString("ja-JP")]); }
@@ -3348,6 +3541,13 @@ document.getElementById("nav-cs").addEventListener("click",()=>{
   document.getElementById("nav-cs").classList.add("active");
   document.getElementById("crumb").innerHTML=`HOME / <b>顧客対応</b> / 翻訳・定型文`;
   document.getElementById("search").value=""; render();
+});
+document.getElementById("nav-faq").addEventListener("click",()=>{
+  section="faq";
+  document.querySelectorAll(".navsub a").forEach(x=>x.classList.remove("active"));
+  document.getElementById("nav-faq").classList.add("active");
+  document.getElementById("crumb").innerHTML=`HOME / <b>AI検索</b> / FAQ`;
+  render();
 });
 document.getElementById("nav-shipfee").addEventListener("click",()=>{
   section="shipfee";
