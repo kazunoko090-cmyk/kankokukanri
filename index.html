@@ -1994,7 +1994,28 @@ function loadMan(key, seed){ try{ const d=JSON.parse(localStorage.getItem(key));
   const s=(seed||[]).map(x=>({id:uid(),title:x.title||"",url:x.url||""})); localStorage.setItem(key,JSON.stringify(s)); return s; }
 function saveMan(key,l){ localStorage.setItem(key,JSON.stringify(l)); }
 window.manEdit=(key,id,field,val)=>{ const l=loadMan(key); const it=l.find(x=>x.id===id); if(it){ it[field]=String(val); saveMan(key,l); if(field==="url") render(); } };
-window.manDel=(key,id)=>{ if(!confirm("この項目を削除しますか？")) return; saveMan(key, loadMan(key).filter(x=>x.id!==id)); addTomb(key,id); render(); };
+/* ===== 削除の確認（共通） =====
+   勝手に消さないためのゲート。「何を・影響・戻せるか」を必ず見せてから消す。 */
+function delLabel(r,keys){
+  if(!r) return "";
+  const out=[]; (keys&&keys.length?keys:Object.keys(r)).forEach(k=>{
+    if(out.length>=3) return;
+    if(/^(id|plat|hist|posted|done)$/.test(k)) return;
+    const v=r[k]; if(typeof v==="string"&&v.trim()) out.push(v.trim().slice(0,40));
+    else if(typeof v==="number"&&v) out.push(String(v));
+  });
+  return out.join("　/　");
+}
+function askDel(what,detail,undo){
+  const d=String(detail||"").trim();
+  return confirm("この"+what+"を削除します。よろしいですか？\n\n"
+    +"【消すもの】"+(d||"（内容が空の行）")+"\n"
+    +"【影響】共有データです。外注さんを含む全員の画面からも消えます。\n"
+    +"【元に戻す】"+(undo||"元に戻せません。"));
+}
+const UNDO_NG="元に戻せません（削除の記録が残るので、他の端末からも復活しません）。必要なときは管理者にバックアップからの復元を依頼してください。";
+const UNDO_ORDER="元に戻せません。必要なときは管理者にバックアップからの復元を依頼してください。";
+window.manDel=(key,id)=>{ if(!askDel("マニュアル項目", delLabel(loadMan(key).find(x=>x.id===id),["title","url"]), UNDO_NG)) return; saveMan(key, loadMan(key).filter(x=>x.id!==id)); addTomb(key,id); render(); };
 window.manAdd=(key)=>{ const l=loadMan(key); l.push({id:uid(),title:"",url:""}); saveMan(key,l); render(); };
 function manCardHTML(it,i,key){ const emb=loomEmbed(it.url);
   const video= emb ? `<div class="man-video"><iframe src="${esc(emb)}" allowfullscreen></iframe></div>`
@@ -3017,7 +3038,7 @@ window.bruPostSold=(a)=>{ const o=bruSold(); if(!o[a])o[a]={date:""}; if(!o[a].d
 window.bruUnpostSold=(a)=>{ const o=bruSold(); if(o[a])o[a].posted=false; bruSoldSave(o); renderList(); };
 window.bruCustAdd=()=>{ const l=bruCustom(); l.push({id:uid(),title:"",url:"",posted:false,date:""}); bruCustomSave(l); renderList(); };
 window.bruCustEdit=(id,f,v)=>{ const l=bruCustom(); const it=l.find(x=>x.id===id); if(it){ it[f]=String(v); bruCustomSave(l); } };
-window.bruCustDel=(id)=>{ if(!confirm("この任意商品を削除しますか？"))return; bruCustomSave(bruCustom().filter(x=>x.id!==id)); addTomb(bruKey("custom"),id); renderList(); };
+window.bruCustDel=(id)=>{ if(!askDel("任意商品", delLabel(bruCustom().find(x=>x.id===id)), UNDO_NG))return; bruCustomSave(bruCustom().filter(x=>x.id!==id)); addTomb(bruKey("custom"),id); renderList(); };
 window.bruCustPost=(id)=>{ const l=bruCustom(); const it=l.find(x=>x.id===id); if(it){ if(!it.date)it.date=todayStr(); it.posted=true; bruCustomSave(l); } renderList(); };
 window.bruCustUnpost=(id)=>{ const l=bruCustom(); const it=l.find(x=>x.id===id); if(it)it.posted=false; bruCustomSave(l); renderList(); };
 function renderBrushup(body){
@@ -3067,7 +3088,7 @@ function saveTebiki(l){ localStorage.setItem(TEBIKI_KEY,JSON.stringify(l)); }
 function tebDateKey(d){ const m=String(d||"").match(/(\d{1,2})\D+(\d{1,2})/); return m?(+m[1])*100+(+m[2]):9999; }
 window.tebEdit=(id,f,v)=>{ const l=loadTebiki(); const it=l.find(x=>x.id===id); if(it){ it[f]=(f==="cost"||f==="qty")?num(v):String(v); if(f==="date" && !String(v).trim()) it.posted=false; saveTebiki(l); if(f==="cost"||f==="date") renderList(); } };
 window.tebToggle=(id)=>{ const l=loadTebiki(); const it=l.find(x=>x.id===id); if(it){ it.posted=!it.posted; saveTebiki(l); } renderList(); };
-window.tebDel=(id)=>{ if(!confirm("この出品を削除しますか？")) return; saveTebiki(loadTebiki().filter(x=>x.id!==id)); addTomb(TEBIKI_KEY,id); renderList(); };
+window.tebDel=(id)=>{ if(!askDel("出品", delLabel(loadTebiki().find(x=>x.id===id)), UNDO_NG)) return; saveTebiki(loadTebiki().filter(x=>x.id!==id)); addTomb(TEBIKI_KEY,id); renderList(); };
 window.tebAdd=()=>{ const l=loadTebiki(); l.push({id:"tb"+Date.now().toString(36),date:"",pnum:"",item:"",title:"",cond:"",cat:"",qty:1,cost:0,memo:"",posted:false}); saveTebiki(l); renderList(); };
 window.tebSearch=()=>{ const inp=document.getElementById("teb-search"); tebQuery=(inp?inp.value:"").trim(); renderList(); };
 function renderTebiki(host){
@@ -3112,7 +3133,7 @@ function saveSmartCat(l){ localStorage.setItem(SMARTCAT_KEY,JSON.stringify(l)); 
 function scScrollTo(id){ const el=document.getElementById("scrow-"+id); if(el) el.scrollIntoView({behavior:"smooth",block:"center"}); }
 window.scEdit=(id,f,v)=>{ const l=loadSmartCat(); const it=l.find(x=>x.id===id); if(it){ it[f]=String(v); saveSmartCat(l); } };
 window.scMove=(id,g)=>{ const l=loadSmartCat(); const it=l.find(x=>x.id===id); if(it){ it.group=g; saveSmartCat(l); } scHighlight=id; renderList(); setTimeout(()=>scScrollTo(id),60); };
-window.scDel=(id)=>{ if(!confirm("この項目を削除しますか？")) return; saveSmartCat(loadSmartCat().filter(x=>x.id!==id)); addTomb(SMARTCAT_KEY,id); renderList(); };
+window.scDel=(id)=>{ if(!askDel("カテゴリー項目", delLabel(loadSmartCat().find(x=>x.id===id),["kr","jp","val"]), UNDO_NG)) return; saveSmartCat(loadSmartCat().filter(x=>x.id!==id)); addTomb(SMARTCAT_KEY,id); renderList(); };
 window.scAdd=(g)=>{ const l=loadSmartCat(); const it={id:"sc"+Date.now().toString(36)+Math.floor(Math.random()*1000),code:"",name:"",memo:"",group:g}; l.push(it); saveSmartCat(l); scHighlight=it.id; renderList(); setTimeout(()=>scScrollTo(it.id),60); };
 window.scSearch=()=>{ const inp=document.getElementById("sc-search"); const q=(inp?inp.value:"").trim(); scQuery=q;
   if(!q){ scHighlight=""; scNotFound=""; renderList(); return; }
@@ -3190,7 +3211,7 @@ window.attrCopy=(id,field,btn)=>{ const r=loadAttr().find(x=>x.id===id); if(!r) 
 window.attrSet=(id,f,v)=>{ const l=loadAttr(); const r=l.find(x=>x.id===id); if(r){ r[f]=v; saveAttr(l); } };
 window.attrEdit=(id)=>{ editingAttr.add(id); renderList(); };
 window.attrEditDone=(id)=>{ editingAttr.delete(id); renderList(); };
-window.attrDel=(id)=>{ if(!confirm("この項目を削除しますか？")) return; saveAttr(loadAttr().filter(x=>x.id!==id)); addTomb(attrStore,id); editingAttr.delete(id); renderList(); };
+window.attrDel=(id)=>{ if(!askDel("項目", delLabel(loadAttr().find(x=>x.id===id),["kr","bid","jp","val"]), UNDO_NG)) return; saveAttr(loadAttr().filter(x=>x.id!==id)); addTomb(attrStore,id); editingAttr.delete(id); renderList(); };
 window.attrAdd=()=>{ const l=loadAttr(); const nid=uid(); l.push({id:nid,kr:"",jp:"",val:""}); saveAttr(l); editingAttr.add(nid); renderList();
   const el=document.querySelector(`#attrtbl tr[data-id="${nid}"] input.attr-in`); if(el) el.focus(); };
 /* 表の絞り込み。3つの欄（韓国語／日本語・ID／記入欄）のどれかに当たれば残す */
@@ -3606,7 +3627,8 @@ function renderCust(){
 
 window.setStatus=(id,val)=>{ const ok=platforms[current].orderKey; const rows=load(); const r=rows.find(x=>String(x[ok])===String(id)); if(r){ r._status=val; save(rows); syncSaleStatus(id,val); render(); } };
 window.setSaleMsg=(id,val)=>setSaleMsg(id,val);
-window.delRow=id=>{ if(confirm("この注文を削除しますか？（売上台帳からも削除されます）")){ const ok=platforms[current].orderKey; let rows=load().filter(x=>String(x[ok])!==String(id)); save(rows); removeSale(id); render(); } };
+window.delRow=id=>{ const _l=ledgerMap()[String(id)];
+  if(askDel("注文", "注文番号 "+id+(_l&&_l.title?("　/　"+String(_l.title).slice(0,40)):""), "売上台帳からも同時に消えます。"+UNDO_ORDER)){ const ok=platforms[current].orderKey; let rows=load().filter(x=>String(x[ok])!==String(id)); save(rows); removeSale(id); render(); } };
 
 const PNAME={coupang:"クーパン",smart:"スマートストア",st11:"11番街"};
 /* サイドバー：グループ開閉 */
@@ -3841,7 +3863,8 @@ window.editUrl=(id)=>{ const l=loadSales(); const s=l.find(x=>String(x.order)===
 window.setSaleStatus=(id,val)=>{ syncSaleStatus(id,val);
   updateCustField(id,"status",val);
   render(); };
-window.delSaleRow=(id)=>{ if(!confirm("この売上行を削除しますか？（元に戻せません）")) return; removeSale(id); render(); };
+window.delSaleRow=(id)=>{ const _s=loadSales().find(x=>String(x.order)===String(id));
+  if(!askDel("売上行", "注文番号 "+id+(_s?("　/　"+String(_s.date||"").slice(0,10)+"　/　"+(_s.title?String(_s.title).slice(0,30):"（商品名なし）")):""), UNDO_ORDER)) return; removeSale(id); render(); };
 
 /* 売上CSV出力（表示中のタブに応じて） */
 function dl(name,csv){ const blob=new Blob(["﻿"+csv],{type:"text/csv;charset=utf-8"}); const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download=name; a.click(); }
@@ -3924,7 +3947,7 @@ window.rvUrlEdit=(id,field)=>{ const key=id+":"+field; editingUrl.add(key); rvFo
 window.rvUrlDone=(id,field,v)=>{ const rows=catRows(researchTab); const r=rows.find(x=>x.id===id); if(r){ r[field]=v; setCatRows(researchTab,rows); cloudPushResearch([{cat:researchTab, ...r}]); } editingUrl.delete(id+":"+field); renderResearch(); };
 window.rvOpenUrl=(id,field)=>{ const r=catRows(researchTab).find(x=>x.id===id); if(!r) return; const us=splitUrls(r[field]);
   if(!us.length){ alert("URLが未入力です。"); return; } us.forEach(u=>window.open(u,"_blank")); };
-window.rvDel=(id)=>{ if(!confirm("この行を削除しますか？")) return; setCatRows(researchTab, catRows(researchTab).filter(x=>x.id!==id)); addTomb("research",id); cloudDeleteResearch(id); renderResearch(); };
+window.rvDel=(id)=>{ if(!askDel("リサーチ行", delLabel(catRows(researchTab).find(x=>x.id===id),["name","memo"]), UNDO_NG)) return; setCatRows(researchTab, catRows(researchTab).filter(x=>x.id!==id)); addTomb("research",id); cloudDeleteResearch(id); renderResearch(); };
 /* 別カテゴリへ移動（プルダウン選択で即実行） */
 window.rvMove=(id,target)=>{ if(!target) return; const from=researchTab; if(target===from) return;
   const rows=catRows(from); const idx=rows.findIndex(x=>x.id===id); if(idx<0) return;
