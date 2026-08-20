@@ -410,6 +410,30 @@ window.CAT_ATTR_JA={"색상": "色", "수량": "数量", "패션의류/잡화 �
   .faq-note > b:first-child{ display:block; font-size:11px; font-weight:800; letter-spacing:.04em; margin-bottom:2px; }
   .faq-foot{ margin-top:10px; }
 
+  /* ===== 左メニューの折りたたみ（ミニサイドバー＝アイコンだけの細い状態） ===== */
+  .navhead .nav-ico{ flex:0 0 20px; width:20px; text-align:center; font-size:15px; line-height:1; }
+  .navhead .nav-txt{ flex:1; margin-left:9px; }
+  #side-toggle{ position:absolute; top:12px; right:-13px; width:26px; height:26px; padding:0; border-radius:50%;
+    border:1px solid var(--line); background:#fff; color:var(--muted); font-size:11px; line-height:1; font-family:inherit;
+    display:flex; align-items:center; justify-content:center; cursor:pointer; box-shadow:var(--sh-sm); z-index:50;
+    transition:color .15s, border-color .15s; }
+  #side-toggle:hover{ color:var(--accent-d); border-color:var(--accent); }
+  .brand{ cursor:pointer; }
+  @media (min-width:769px){
+    body.sidemini .side{ width:66px; flex:0 0 66px; padding:52px 9px 16px; z-index:19; }   /* 上の余白は◀▶ボタンの場所 */
+    body.sidemini .navhead{ justify-content:center; padding:11px 0; }
+    body.sidemini .navhead .nav-txt, body.sidemini .navhead .arw{ display:none; }
+    body.sidemini .navhead .nav-ico{ font-size:18px; }
+    body.sidemini .navgroup{ position:relative; }
+    body.sidemini .navgroup .navsub{ display:none; }   /* 開いたままのグループも一旦しまう */
+    /* アイコンに触れている間だけ、その中身を右側に出す（フライアウト） */
+    body.sidemini .navgroup:hover > .navsub{ display:block !important; position:absolute; left:calc(100% + 9px); top:-6px;
+      min-width:198px; padding:9px 10px 9px 15px; background:var(--surface); border:1px solid var(--line);
+      border-radius:12px; box-shadow:var(--sh-lg); z-index:45; }
+    body.sidemini .navgroup:hover > .navsub::before{ content:attr(data-label); display:block;
+      font-size:11px; font-weight:800; color:var(--muted); letter-spacing:.04em; padding:1px 3px 7px; }
+  }
+
   /* ===================== ここから下はスマホ専用 =====================
      画面の横幅が 768px 以下（＝スマホ）のときだけ効きます。
      パソコン（769px以上）ではこのブロックは1行も適用されないので、今までの見た目は一切変わりません。 */
@@ -422,6 +446,7 @@ window.CAT_ATTR_JA={"색상": "色", "수량": "数量", "패션의류/잡화 �
     .brand-badge{ width:30px; height:30px; font-size:14px; border-radius:9px; }
     .userchip{ display:none; }
     header .btn-sm{ padding:0 9px; }
+    #side-toggle{ display:none; }
     #hdr-menu{ display:inline-flex; align-items:center; justify-content:center; flex:0 0 auto;
       width:38px; height:38px; padding:0; font-size:17px; border-radius:9px;
       background:var(--surface); border:1px solid var(--line); color:var(--txt); }
@@ -512,7 +537,7 @@ window.CAT_ATTR_JA={"색상": "色", "수량": "数量", "패션의류/잡화 �
 <body>
 <header>
   <button id="hdr-menu" title="メニュー" aria-label="メニュー">☰</button>
-  <div class="brand"><span class="brand-badge">韓</span><span class="brand-txt">韓国輸出管理表</span></div>
+  <div class="brand" title="トップページへ戻る"><span class="brand-badge">韓</span><span class="brand-txt">韓国輸出管理表</span></div>
   <button class="btn-ghost btn-sm" id="hdr-help" style="margin-left:auto">❓ 使い方</button>
   <button class="btn-ghost btn-sm" id="hdr-backup">💾 バックアップ</button>
   <div class="userchip"><span>外注ユーザー</span><span class="dot">U</span></div>
@@ -521,88 +546,89 @@ window.CAT_ATTR_JA={"색상": "色", "수량": "数量", "패션의류/잡화 �
 
 <div class="layout">
   <aside class="side" id="side">
+    <button id="side-toggle" type="button" title="メニューをアイコンだけにする" aria-label="メニューをアイコンだけにする">◀</button>
     <div class="navgroup open" data-g="cust">
-      <div class="navhead">顧客管理 <span class="arw">▶</span></div>
-      <div class="navsub">
+      <div class="navhead" title="顧客管理"><span class="nav-ico">👥</span><span class="nav-txt">顧客管理</span><span class="arw">▶</span></div>
+      <div class="navsub" data-label="顧客管理">
         <a data-sec="cust" data-p="coupang"><span class="dot"></span>クーパン</a>
         <a data-sec="cust" data-p="smart"><span class="dot"></span>スマートストア</a>
         <a data-sec="cust" data-p="st11"><span class="dot"></span>11番街 <span class="soon">準備中</span></a>
       </div>
     </div>
     <div class="navgroup" data-g="sales">
-      <div class="navhead">売上管理 <span class="arw">▶</span></div>
-      <div class="navsub">
+      <div class="navhead" title="売上管理"><span class="nav-ico">💰</span><span class="nav-txt">売上管理</span><span class="arw">▶</span></div>
+      <div class="navsub" data-label="売上管理">
         <a data-sec="sales" data-p="coupang"><span class="dot"></span>クーパン</a>
         <a data-sec="sales" data-p="smart"><span class="dot"></span>スマートストア</a>
         <a class="soon-item"><span class="dot"></span>11番街 <span class="soon">準備中</span></a>
       </div>
     </div>
     <div class="navgroup" data-g="cs">
-      <div class="navhead">顧客対応 <span class="arw">▶</span></div>
-      <div class="navsub">
+      <div class="navhead" title="顧客対応"><span class="nav-ico">💬</span><span class="nav-txt">顧客対応</span><span class="arw">▶</span></div>
+      <div class="navsub" data-label="顧客対応">
         <a id="nav-cs"><span class="dot"></span>翻訳・定型文</a>
       </div>
     </div>
     <div class="navgroup" data-g="research">
-      <div class="navhead">リサーチ <span class="arw">▶</span></div>
-      <div class="navsub">
+      <div class="navhead" title="リサーチ"><span class="nav-ico">🔍</span><span class="nav-txt">リサーチ</span><span class="arw">▶</span></div>
+      <div class="navsub" data-label="リサーチ">
         <a data-sec="research" data-p="coupang"><span class="dot"></span>クーパン</a>
         <a data-sec="research" data-p="smart"><span class="dot"></span>スマートストア</a>
         <a class="soon-item"><span class="dot"></span>11番街 <span class="soon">準備中</span></a>
       </div>
     </div>
     <div class="navgroup" data-g="list">
-      <div class="navhead">出品 <span class="arw">▶</span></div>
-      <div class="navsub">
+      <div class="navhead" title="出品"><span class="nav-ico">📦</span><span class="nav-txt">出品</span><span class="arw">▶</span></div>
+      <div class="navsub" data-label="出品">
         <a data-sec="list" data-p="coupang"><span class="dot"></span>クーパン</a>
         <a data-sec="list" data-p="smart"><span class="dot"></span>スマートストア</a>
         <a data-sec="list" data-p="st11"><span class="dot"></span>11番街</a>
       </div>
     </div>
     <div class="navgroup" data-g="blog">
-      <div class="navhead">ブログ <span class="arw">▶</span></div>
-      <div class="navsub">
+      <div class="navhead" title="ブログ"><span class="nav-ico">✍️</span><span class="nav-txt">ブログ</span><span class="arw">▶</span></div>
+      <div class="navsub" data-label="ブログ">
         <a data-sec="blog" data-p="coupang"><span class="dot"></span>クーパン</a>
         <a data-sec="blog" data-p="smart"><span class="dot"></span>スマートストア</a>
         <a id="nav-manual"><span class="dot"></span>マニュアル</a>
       </div>
     </div>
     <div class="navgroup" data-g="ai">
-      <div class="navhead">FAQ <span class="arw">▶</span></div>
-      <div class="navsub">
+      <div class="navhead" title="FAQ"><span class="nav-ico">❓</span><span class="nav-txt">FAQ</span><span class="arw">▶</span></div>
+      <div class="navsub" data-label="FAQ">
         <a id="nav-faq"><span class="dot"></span>よくある質問</a>
       </div>
     </div>
     <div class="navgroup" data-g="tblman">
-      <div class="navhead">管理表マニュアル <span class="arw">▶</span></div>
-      <div class="navsub">
+      <div class="navhead" title="管理表マニュアル"><span class="nav-ico">📘</span><span class="nav-txt">管理表マニュアル</span><span class="arw">▶</span></div>
+      <div class="navsub" data-label="管理表マニュアル">
         <a data-sec="tblman" data-p="coupang"><span class="dot"></span>クーパン</a>
         <a data-sec="tblman" data-p="smart"><span class="dot"></span>スマートストア</a>
         <a data-sec="tblman" data-p="st11"><span class="dot"></span>11番街</a>
       </div>
     </div>
     <div class="navgroup" data-g="banned">
-      <div class="navhead">禁止ブランド <span class="arw">▶</span></div>
-      <div class="navsub">
+      <div class="navhead" title="禁止ブランド"><span class="nav-ico">🚫</span><span class="nav-txt">禁止ブランド</span><span class="arw">▶</span></div>
+      <div class="navsub" data-label="禁止ブランド">
         <a data-sec="banned" data-p="smart"><span class="dot"></span>スマートストア</a>
         <a data-sec="banned" data-p="st11"><span class="dot"></span>11番街</a>
       </div>
     </div>
     <div class="navgroup" data-g="banlist">
-      <div class="navhead">出品禁止 <span class="arw">▶</span></div>
-      <div class="navsub">
+      <div class="navhead" title="出品禁止"><span class="nav-ico">⛔</span><span class="nav-txt">出品禁止</span><span class="arw">▶</span></div>
+      <div class="navsub" data-label="出品禁止">
         <a id="nav-banlist"><span class="dot"></span>NGカテゴリー一覧</a>
       </div>
     </div>
     <div class="navgroup" data-g="shortcut">
-      <div class="navhead">ショートカット <span class="arw">▶</span></div>
-      <div class="navsub">
+      <div class="navhead" title="ショートカット"><span class="nav-ico">⌨️</span><span class="nav-txt">ショートカット</span><span class="arw">▶</span></div>
+      <div class="navsub" data-label="ショートカット">
         <a id="nav-shortcut"><span class="dot"></span>ショートカット50 一覧</a>
       </div>
     </div>
     <div class="navgroup" data-g="shipfee">
-      <div class="navhead">配送料金 <span class="arw">▶</span></div>
-      <div class="navsub">
+      <div class="navhead" title="配送料金"><span class="nav-ico">🚚</span><span class="nav-txt">配送料金</span><span class="arw">▶</span></div>
+      <div class="navsub" data-label="配送料金">
         <a id="nav-shipfee"><span class="dot"></span>HANIROLINE 料金表</a>
       </div>
     </div>
@@ -3643,6 +3669,34 @@ document.querySelectorAll(".navhead").forEach(h=>h.addEventListener("click",()=>
   if(mask) mask.addEventListener("click",()=>setNav(false));
   if(side) side.addEventListener("click",e=>{ if(window.innerWidth<=768 && e.target.closest(".navsub a")) setNav(false); });  /* 項目を選んだら閉じる */
   window.addEventListener("resize",()=>{ if(window.innerWidth>768) setNav(false); });                                        /* 幅が広がったら必ず元に戻す */
+})();
+/* 左メニューの折りたたみ（ミニサイドバー）。◀で細く＝アイコンだけ、▶で元に戻す。設定はこの端末だけに残る */
+(function(){
+  const K="kr_sidemini_v1", btn=document.getElementById("side-toggle");
+  const paint=()=>{ if(!btn) return; const on=document.body.classList.contains("sidemini");
+    btn.textContent=on?"▶":"◀";
+    btn.title=on?"メニューを元に戻す":"メニューをアイコンだけにする";
+    btn.setAttribute("aria-label",btn.title); };
+  try{ if(localStorage.getItem(K)==="1") document.body.classList.add("sidemini"); }catch(e){}
+  paint();
+  if(btn) btn.addEventListener("click",()=>{
+    const on=!document.body.classList.contains("sidemini");
+    document.body.classList.toggle("sidemini",on);
+    try{ localStorage.setItem(K,on?"1":"0"); }catch(e){}
+    paint();
+  });
+})();
+/* 左上のロゴ「韓国輸出管理表」を押したらトップページ（顧客管理／クーパン）へ戻る */
+(function(){
+  const b=document.querySelector(".brand"); if(!b) return;
+  b.addEventListener("click",()=>{
+    section="home";                                   /* 起動直後と同じ画面（パスワード不要） */
+    document.querySelectorAll(".navsub a").forEach(x=>x.classList.remove("active"));
+    document.body.classList.remove("navopen");        /* スマホで開いていた引き出しは閉じる */
+    const sb=document.getElementById("search"); if(sb) sb.value="";
+    render();
+    window.scrollTo(0,0);
+  });
 })();
 /* サイドバー：プラットフォーム選択（顧客管理グループのみ稼働） */
 document.querySelectorAll(".navsub a[data-p]").forEach(a=>a.addEventListener("click",()=>{
