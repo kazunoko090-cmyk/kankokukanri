@@ -260,6 +260,7 @@ window.CAT_ATTR_JA={"색상": "色", "수량": "数量", "패션의류/잡화 �
   .clip{ display:inline-block; max-width:170px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; vertical-align:middle; cursor:pointer; }
   .clip.open{ max-width:520px; white-space:normal; word-break:break-word; }
   .clip-brand{ max-width:120px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-weight:600; }
+ #rvbody .clip-brand{ max-width:none; }   /* ランキングはブランド名を省略しない */
   /* ステータス フィルタチップ */
   .chips{ display:flex; flex-wrap:wrap; gap:7px; margin:0 0 14px; align-items:center; }
   .chip{ height:31px; padding:0 13px; border-radius:16px; border:1px solid var(--line); background:var(--surface); color:var(--txt); font-weight:700; font-size:12.5px; cursor:pointer; display:inline-flex; align-items:center; gap:6px; transition:all .12s; }
@@ -385,6 +386,7 @@ window.CAT_ATTR_JA={"색상": "色", "수량": "数量", "패션의류/잡화 �
  #view-cs .cs-phtog small{ font-weight:600; color:#a98a5a; font-size:11px; }
  #view-cs .cs-add{ margin-left:0; }
  #view-cs .cs-phbody{ margin-top:10px; }
+ .rk-src{ color:var(--muted); font-weight:600; font-size:10.5px; margin-left:7px; }   /* ランキング：変換前のハングル */
 
   /* ===== FAQ（よくある質問） ===== */
   .faq-bar{ gap:8px; }
@@ -4068,18 +4070,101 @@ function brandTitleOf(s){ const t=String(s.title||"").trim(); if(t) return t;
   if(m){ try{ const seg=decodeURIComponent(m[1]).replace(/[-_+]+/g," ").trim();
     if(seg && !/^(dp|gp|sp|s|b|hz|ref|product|exec)$/i.test(seg)) return seg; }catch(e){} }
   return ""; }
-/* スマート用：先頭の[ブランド]表記を優先、無ければ先頭語 */
-function smartBrand(title){ const t=String(title||"").trim(); if(!t) return "";
-  const m=t.match(/^\s*[\[［]([^\]］]+)[\]］]/); if(m) return m[1].trim();
-  return t.split(/[\s　]+/)[0]; }
+/* ===== スマート用：韓国語の商品名からブランドを取り出して、読める表記に直す =====
+   商品名がハングルなので、素直に先頭語を取ると「반다이」「엠포리오 아르마니」のまま出てしまう。
+   ①出品→ブランドの表（ハングル→表記）で引く ②商品名の中の英字表記を使う（반다이(BANDAI)→BANDAI）
+   ③内蔵の対訳表で引く ④どれも当たらなければローマ字にして読める形にする（집계のキーもそろう）
+   ※内蔵表に無いブランドは「出品→ブランド」に1行足せば、次から正しい表記で出ます */
+const KR_BRAND_DIC={
+ "엠포리오아르마니":"EMPORIO ARMANI","조르지오아르마니":"GIORGIO ARMANI","아르마니":"ARMANI",
+ "카시오":"CASIO","지샥":"G-SHOCK","세이코":"SEIKO","시티즌":"CITIZEN","오리엔트":"ORIENT",
+ "반다이":"BANDAI","타미야":"TAMIYA","코토부키야":"KOTOBUKIYA","굿스마일컴퍼니":"GOOD SMILE COMPANY",
+ "굿스마일":"GOOD SMILE","갓핸드":"GodHand","하세가와":"HASEGAWA","아오시마":"AOSHIMA",
+ "바이스슈발츠":"ヴァイスシュヴァルツ","유니온아레나":"UNION ARENA","포켓몬":"Pokemon","유희왕":"遊戯王",
+ "뉴에라":"NEW ERA","나이키":"NIKE","아디다스":"adidas","뉴발란스":"New Balance","아식스":"ASICS",
+ "미즈노":"MIZUNO","푸마":"PUMA","리복":"Reebok","반스":"VANS","컨버스":"CONVERSE",
+ "구찌":"GUCCI","프라다":"PRADA","버버리":"BURBERRY","코치":"COACH","마크제이콥스":"MARC JACOBS",
+ "구글":"Google","소니":"SONY","파나소닉":"Panasonic","캐논":"Canon","니콘":"Nikon",
+ "후지필름":"FUJIFILM","올림푸스":"OLYMPUS","펜탁스":"PENTAX","시그마":"SIGMA","탐론":"TAMRON",
+ "켄코":"Kenko","고독스":"GODOX","맨프로토":"Manfrotto","리코":"RICOH","오디오테크니카":"audio-technica",
+ "화웨이":"HUAWEI","샤오미":"Xiaomi","애플":"Apple","앤커":"Anker","앵커":"Anker","킹스톤":"Kingston",
+ "다이슨":"Dyson","필립스":"PHILIPS","보스":"BOSE","젠하이저":"Sennheiser","스탠리":"STANLEY",
+ "로지텍":"Logicool","엘레컴":"ELECOM","버팔로":"BUFFALO","유그린":"UGREEN","벨킨":"Belkin",
+ "샤프":"SHARP","도시바":"TOSHIBA","히타치":"HITACHI","조지루시":"象印","발뮤다":"BALMUDA",
+ "아이리스오야마":"アイリスオーヤマ","티팔":"T-fal","테팔":"T-fal","르크루제":"Le Creuset",
+ "야마하":"YAMAHA","롤랜드":"Roland","코르그":"KORG","시마노":"SHIMANO","다이와":"DAIWA",
+ "마키타":"makita","스노우피크":"snow peak","몽벨":"mont-bell","콜맨":"Coleman","로고스":"LOGOS",
+ "마무트":"MAMMUT","소토":"SOTO","칼리타":"Kalita","유니클로":"UNIQLO","무인양품":"無印良品",
+ "자브라":"Jabra","프리웰":"FREEWELL","코로스":"COROS"
+};
+/* 商品名によく混ざる「ブランドではない」語。ここに載っている語はブランド候補から外す */
+const KR_NOISE=/^(병행\s*수입품?|병행수입|정품|국내\s*정품|해외\s*직구|일본\s*직구|무료\s*배송|당일\s*발송|신품|중고|세트|단품|정식\s*수입|수입품|박스|국내발송|당일출고)$/i;
+const KR_CHO=["g","kk","n","d","tt","r","m","b","pp","s","ss","","j","jj","ch","k","t","p","h"];
+const KR_JUNG=["a","ae","ya","yae","eo","e","yeo","ye","o","wa","wae","oe","yo","u","wo","we","wi","yu","eu","ui","i"];
+const KR_JONG=["","k","k","k","n","n","n","t","l","l","l","l","l","l","l","l","m","p","p","t","t","ng","t","t","k","t","p","t"];
+/* ハングル→ローマ字。外来語の読みに寄せたいので「ㅡ」は落とす（스→s、트→t、르→r） */
+function krRoman(s){ let out="";
+  for(const ch of String(s||"")){ const c=ch.charCodeAt(0)-0xAC00;
+    if(c<0||c>11171){ out+=ch; continue; }
+    const cho=Math.floor(c/588), jung=Math.floor((c%588)/28), jong=c%28;
+    let v=KR_JUNG[jung]; if(jung===18 && jong===0 && KR_CHO[cho]) v="";
+    out+=KR_CHO[cho]+v+KR_JONG[jong]; }
+  return out; }
+function hasKr(s){ return /[가-힣]/.test(String(s||"")); }
+function reEsc(s){ return String(s).replace(/[.*+?^${}()|[\]\\]/g,"\\$&"); }
+/* 出品→ブランドの表。ハングル・表記のどちらかが入っている行だけ使う */
+function brandTableList(){ try{ const l=JSON.parse(localStorage.getItem(BRAND_KEY))||[];
+    return l.map(x=>({kr:String((x&&x.kr)||"").trim(), jp:String((x&&x.jp)||"").trim()})).filter(x=>x.kr||x.jp);
+  }catch(e){ return []; } }
+function brandFromTable(t){ const low=t.toLowerCase();
+  for(const b of brandTableList()){
+    if(b.kr.length>=2 && t.indexOf(b.kr)>=0) return b.jp||b.kr;
+    if(b.jp.length>=4 && new RegExp("(^|[^0-9a-z])"+reEsc(b.jp.toLowerCase())+"([^0-9a-z]|$)").test(low)) return b.jp; }
+  return ""; }
+function krDic(raw){ const k=String(raw||"").replace(/\s+/g,""); if(!k) return "";
+  const keys=Object.keys(KR_BRAND_DIC).sort((a,b)=>b.length-a.length);
+  for(const key of keys) if(k===key) return KR_BRAND_DIC[key];
+  for(const key of keys) if(key.length>=3 && k.indexOf(key)===0) return KR_BRAND_DIC[key];
+  return ""; }
+function krIsModel(x){ return /\d/.test(x) && (/[-_]/.test(x) || (x.match(/\d/g)||[]).length>=2); }
+/* 商品名から「ブランドらしい語」を取り出す */
+function smartBrandRaw(t){
+  const head=String(t||"").slice(0,90);
+  let m=head.match(/^\s*[（(\[［]\s*([A-Za-z][A-Za-z0-9&.'’\- ]{1,28})\s*[)）\]］]/);   /* 先頭が (BANDAI) */
+  if(m && !KR_NOISE.test(m[1].trim())) return m[1].trim();
+  m=head.match(/[가-힣][가-힣\s]{0,14}?\s*[（(\[［]\s*([A-Za-z][A-Za-z0-9&.'’\- ]{1,28})\s*[)）\]］]/);  /* 반다이(BANDAI)・켄코(Kenko) */
+  if(m && !KR_NOISE.test(m[1].trim())) return m[1].trim();
+  m=head.match(/^\s*[（(\[［]\s*([^）)\]］]{1,28})\s*[)）\]］]/);                            /* 先頭が [엠포리오 아르마니] */
+  if(m && !KR_NOISE.test(m[1].trim())) return m[1].trim();
+  const s=head.replace(/[（(\[［][^）)\]］]*[)）\]］]/g," ");                                 /* 括弧の中は捨てて先頭語 */
+  for(const w of s.split(/[\s　,、/]+/)){
+    const x=w.replace(/^[^0-9A-Za-z가-힣ぁ-ヶ一-鿿]+|[^0-9A-Za-z가-힣ぁ-ヶ一-鿿]+$/g,"");
+    if(x.length<2 || KR_NOISE.test(x) || krIsModel(x)) continue;
+    return x; }
+  return ""; }
+/* 変換後の名前と、元の表記の両方を返す（元がハングルの時だけ画面に小さく出して確認できるように） */
+function smartBrandInfo(title){
+  const t=String(title||"").trim(); if(!t) return {name:"",src:""};
+  const raw=smartBrandRaw(t);
+  const u=brandFromTable(t); if(u) return {name:u.trim(), src:raw};        /* ①自分で登録したブランド表 */
+  if(!raw) return {name:"",src:""};
+  if(!hasKr(raw)) return {name:raw, src:raw};                              /* ②英字ならそのまま */
+  const d=krDic(raw); if(d) return {name:d, src:raw};                      /* ③内蔵の対訳表 */
+  const h=krDic(t.replace(/^[\s（(\[［]+/,"").slice(0,20));                 /* ④先頭から対訳表 */
+  if(h) return {name:h, src:raw};
+  return {name:(krRoman(raw).replace(/\s+/g," ").trim()||raw), src:raw}; } /* ⑤ローマ字化 */
+function smartBrand(title){ return smartBrandInfo(title).name; }
 /* ランキング：売上台帳から、商品タイトル（無ければURL由来の商品名）のブランド名ごとに販売個数を集計 */
 function renderBrandRank(cat){
   const l=loadSales(platforms[current].salesKey);
   const q=(document.getElementById("rv-search").value||"").trim().toLowerCase();
   const KB=knownBrands();
   const g={};
-  l.forEach(s=>{ if(s.status==="キャンセル"||s.status==="返品") return; const b=(current==="smart"?smartBrand(brandTitleOf(s)):brandOf(brandTitleOf(s),KB)); if(!b) return;
-    if(!g[b]) g[b]={brand:b, qty:0, lastT:0, last:""};
+  l.forEach(s=>{ if(s.status==="キャンセル"||s.status==="返品") return;
+    const info=(current==="smart"?smartBrandInfo(brandTitleOf(s)):{name:brandOf(brandTitleOf(s),KB),src:""});
+    const b=info.name; if(!b) return;
+    if(!g[b]) g[b]={brand:b, qty:0, lastT:0, last:"", src:""};
+    if(!g[b].src && info.src && info.src!==b && hasKr(info.src)) g[b].src=info.src;
     g[b].qty += num(s.qty)||1;
     const p=parseDate(s.date), t=p?p.getTime():0; if(t>g[b].lastT){ g[b].lastT=t; g[b].last=s.date; } });
   let arr=Object.values(g);
@@ -4090,7 +4175,8 @@ function renderBrandRank(cat){
   document.getElementById("rvhead").innerHTML="<tr><th class='rvc'>順位</th><th>ブランド名</th><th class='right'>販売個数</th><th>最終販売日</th></tr>";
   document.getElementById("rvbody").innerHTML = arr.length ? arr.map((x,i)=>{
     const rk=i===0?"🥇":i===1?"🥈":i===2?"🥉":(i+1);
-    return `<tr><td class="rvc mono"><b>${rk}</b></td><td class="clip-brand" title="${esc(x.brand)}">${esc(x.brand)}</td><td class="right mono"><b>${x.qty}</b> 個</td><td>${esc(fmtd(x.last))}</td></tr>`;
+    const src=x.src?`<small class="rk-src" title="商品名にあった元の表記">${esc(x.src)}</small>`:"";
+    return `<tr><td class="rvc mono"><b>${rk}</b></td><td class="clip-brand" title="${esc(x.brand)}${x.src?"　←　"+esc(x.src):""}">${esc(x.brand)}${src}</td><td class="right mono"><b>${x.qty}</b> 個</td><td>${esc(fmtd(x.last))}</td></tr>`;
   }).join("") : `<tr><td class="empty" colspan="4"><b>まだ販売データがありません</b>売上管理にデータが入ると、商品タイトルのブランド名ごとに販売個数を集計してここへランキング表示します。</td></tr>`;
   document.getElementById("rv-head").innerHTML=`${esc(cat.label)} <small>${arr.length}ブランド</small>`;
   document.getElementById("rvcount").textContent=`${cat.label} ・ ${arr.length}ブランド ・ 販売個数の多い順`;
