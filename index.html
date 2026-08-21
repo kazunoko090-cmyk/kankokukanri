@@ -4181,13 +4181,18 @@ function renderBrandRank(cat){
   document.getElementById("rv-head").innerHTML=`${esc(cat.label)} <small>${arr.length}ブランド</small>`;
   document.getElementById("rvcount").textContent=`${cat.label} ・ ${arr.length}ブランド ・ 販売個数の多い順`;
 }
-/* ===== 競合リサーチ：初めて売れたブランドを自動で Sold B へ移す =====
+/* ===== 初めて売れたブランドを自動で移す（クーパン＝競合リサーチ→Sold B／スマート＝ブランド→ランクA） =====
    判定：売上台帳（キャンセル/返品を除く）の商品名に、そのブランド名が出てくれば「売れた」。
    ・商品名が取れない注文（タイトル空＋Amazon以外のURL）は判定材料にならない＝そのブランドは動かさない。
    ・すでに Sold A / Sold B に同じ名前がある＝「初めて」ではないので動かさない。
    ・誤爆防止：英数字は単語単位で照合し、2文字以下の語（"Le Creuset" の "Le" 等）では照合しない。 */
-let rvAutoMoved=[];                       /* 自動移動した名前（画面の案内用。閉じるまで残す） */
-window.rvAutoClose=()=>{ rvAutoMoved=[]; renderResearch(); };
+/* モールごとに「どこから・どこへ」移すか。クーパンとスマートは完全に別々に動かす */
+const AUTO_MOVE={
+  coupang:{ from:"compe",  to:"soldB",  known:["soldA","soldB"],   label:"Sold B" },
+  smart:  { from:"sbrand", to:"srankA", known:["srankA","srankB"], label:"ランクA" }
+};
+let rvAutoMoved=[], rvAutoPlat="";        /* 自動移動した名前と、それがどのモールの話か（混ざらないように） */
+window.rvAutoClose=()=>{ rvAutoMoved=[]; rvAutoPlat=""; renderResearch(); };
 function rvNorm(s){ return String(s||"").replace(/[\s　]+/g," ").trim().toLowerCase(); }
 function rvBrandInTitle(cand,lowTitle){
   if(!cand) return false;
@@ -4199,40 +4204,53 @@ function rvBrandInTitle(cand,lowTitle){
   return lowTitle.indexOf(cand)>=0;                                  /* 日本語などは部分一致 */
 }
 function autoMoveSoldBrands(){
-  if(current!=="coupang") return;
-  const d=loadResearch(); const compe=Array.isArray(d.compe)?d.compe:[];
-  if(!compe.length) return;
+  const cfg=AUTO_MOVE[current]; if(!cfg) return;                     /* 11番街など対象外のモールは何もしない */
+  const d=loadResearch(); const pool=Array.isArray(d[cfg.from])?d[cfg.from]:[];
+  if(!pool.length) return;
   const titles=[];
-  loadSales(platforms.coupang.salesKey).forEach(s=>{
+  loadSales(platforms[current].salesKey).forEach(s=>{               /* 見るのは「そのモールの」売上台帳だけ */
     if(s.status==="キャンセル"||s.status==="返品") return;
-    const t=brandTitleOf(s); if(t) titles.push(t.toLowerCase()); });
+    const t=brandTitleOf(s); if(!t) return;
+    titles.push(t.toLowerCase());
+    /* スマートの商品名は韓国語なので、変換後のブランド名でも照合する（반다이 → BANDAI） */
+    if(current==="smart"){ const b=smartBrandInfo(t).name; if(b) titles.push(b.toLowerCase()); }
+  });
   if(!titles.length) return;                                         /* 台帳が未取得なら何もしない */
   const known=new Set();
-  ["soldA","soldB"].forEach(k=>{ (Array.isArray(d[k])?d[k]:[]).forEach(r=>known.add(rvNorm(r.name))); });
+  cfg.known.forEach(k=>{ (Array.isArray(d[k])?d[k]:[]).forEach(r=>known.add(rvNorm(r.name))); });
+  /* スマートは「NEW ERA」に対して「NEW ERA バッグ」が既にある＝もう登録済みとみなして動かさない */
+  const isKnown=n=>{ if(known.has(n)) return true;
+    if(current!=="smart") return false;
+    for(const k of known){ if(k.indexOf(n+" ")===0) return true; }
+    return false; };
   const stay=[], moved=[];
-  compe.forEach(r=>{
+  pool.forEach(r=>{
     const n=rvNorm(r.name);
-    if(!n || known.has(n)){ stay.push(r); return; }
+    if(!n || isKnown(n)){ stay.push(r); return; }
     const cands=[n]; const head=n.split(" ")[0]; if(head!==n) cands.push(head);
     if(!cands.some(c=>titles.some(t=>rvBrandInTitle(c,t)))){ stay.push(r); return; }
     const memo=String(r.memo||"").trim();
-    moved.push({ id:r.id, name:String(r.name||"").trim(), amazon:r.amazon||"", rakuten:r.rakuten||"",
-      coupang:r.coupang||"", date:r.date||todayStr(),
-      memo: memo.indexOf("初販売→Sold B")>=0 ? memo : (memo?memo+" ｜":"")+"初販売→Sold B "+todayStr() });
+    const mv={...r}; delete mv.cat;                                  /* 列を落とさないよう元の行ごと持っていく */
+    mv.name=String(r.name||"").trim(); mv.date=r.date||todayStr();
+    mv.memo = memo.indexOf("初販売→")>=0 ? memo : (memo?memo+" ｜":"")+"初販売→"+cfg.label+" "+todayStr();
+    moved.push(mv);
   });
   if(!moved.length) return;
-  d.compe=stay; d.soldB=(Array.isArray(d.soldB)?d.soldB:[]).concat(moved);
+  d[cfg.from]=stay; d[cfg.to]=(Array.isArray(d[cfg.to])?d[cfg.to]:[]).concat(moved);
   saveResearch(d);
-  cloudPushResearch(moved.map(m=>({cat:"soldB", ...m})));
-  moved.forEach(m=>rvAutoMoved.push(m.name));                     /* 件数＝移動した行数（同名も1件ずつ数える） */
+  cloudPushResearch(moved.map(m=>({cat:cfg.to, ...m})));
+  if(rvAutoPlat!==current){ rvAutoMoved=[]; rvAutoPlat=current; }    /* 案内は今のモールの分だけ */
+  moved.forEach(m=>rvAutoMoved.push(m.name));                        /* 件数＝移動した行数（同名も1件ずつ数える） */
 }
 
 function renderResearch(){
   if(window.rvComposing){ window.rvRenderPending=true; return; }   /* 変換中は再描画しない（文字化け防止） */
-  autoMoveSoldBrands();                                            /* 初めて売れた競合ブランドを Sold B へ */
+  if(rvAutoPlat && rvAutoPlat!==current){ rvAutoMoved=[]; rvAutoPlat=""; }  /* モールを切り替えたら前の案内は消す */
+  autoMoveSoldBrands();                                            /* 初めて売れたブランドを移す（行き先はモールごと） */
   const rvAutoEl=document.getElementById("rv-auto");
-  if(rvAutoEl){ if(rvAutoMoved.length){ rvAutoEl.style.display="";
-      rvAutoEl.innerHTML=`<b>✅ 初めて売れたブランドを Sold B へ移動しました（${rvAutoMoved.length}件）</b><br>${esc([...new Set(rvAutoMoved)].join(" / "))}<button class="mini" style="margin-left:8px" onclick="rvAutoClose()">閉じる</button>`; }
+  if(rvAutoEl){ if(rvAutoMoved.length && rvAutoPlat===current){ rvAutoEl.style.display="";
+      const dest=(AUTO_MOVE[current]||{}).label||"";
+      rvAutoEl.innerHTML=`<b>✅ 初めて売れたブランドを ${esc(dest)} へ移動しました（${rvAutoMoved.length}件）</b><br>${esc([...new Set(rvAutoMoved)].join(" / "))}<button class="mini" style="margin-left:8px" onclick="rvAutoClose()">閉じる</button>`; }
     else { rvAutoEl.style.display="none"; rvAutoEl.innerHTML=""; } }
   const cats=researchCats();
   if(!cats.some(c=>c.id===researchTab)) researchTab=cats[0].id;   /* 現在のモールに合うタブへ切替 */
