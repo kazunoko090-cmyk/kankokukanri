@@ -387,23 +387,6 @@ window.CAT_ATTR_JA={"색상": "色", "수량": "数量", "패션의류/잡화 �
  #view-cs .cs-add{ margin-left:0; }
  #view-cs .cs-phbody{ margin-top:10px; }
  .rk-src{ color:var(--muted); font-weight:600; font-size:10.5px; margin-left:7px; }   /* ランキング：変換前のハングル */
- /* ===== ブログ記事メーカー ===== */
- .art-grid{ display:grid; grid-template-columns:330px 1fr; gap:18px; padding:16px 24px 24px; }
- .art-f{ display:flex; flex-direction:column; gap:5px; margin-bottom:9px; }
- .art-f > span{ font-size:11.5px; font-weight:800; color:var(--muted); }
- .art-f > span small{ font-weight:600; color:#aab2c5; }
- .art-f input, .art-f textarea{ border:1px solid var(--line); border-radius:8px; padding:7px 10px;
-   font-size:13px; font-family:inherit; background:#fff; outline:none; width:100%; }
- .art-f input:focus, .art-f textarea:focus{ border-color:var(--accent); box-shadow:0 0 0 3px var(--ring); }
- .art-f textarea{ min-height:62px; resize:vertical; line-height:1.65; }
- .art-col{ max-height:60vh; overflow:auto; padding-right:4px; }
- .art-out{ display:flex; flex-direction:column; min-width:0; }
- .art-tabs{ display:flex; gap:8px; margin-bottom:9px; align-items:center; }
- .art-pre{ background:#0f1524; color:#dde5ff; border-radius:12px; padding:14px 16px; font-size:11.5px;
-   line-height:1.8; white-space:pre-wrap; word-break:break-word; overflow:auto; height:60vh;
-   font-family:ui-monospace,SFMono-Regular,Menlo,monospace; }
- .art-note{ font-size:11.5px; color:var(--muted); margin-top:9px; line-height:1.75; }
- @media (max-width:900px){ .art-grid{ grid-template-columns:1fr; } .art-col{ max-height:none; } .art-pre{ height:44vh; } }
 
   /* ===== FAQ（よくある質問） ===== */
   .faq-bar{ gap:8px; }
@@ -889,41 +872,101 @@ window.CAT_ATTR_JA={"색상": "色", "수량": "数量", "패션의류/잡화 �
       <div id="manual-videos"></div>
       <div class="man-prompt">
         <div class="man-ph">クロードプロンプト（NAVERブログ記事用） <button class="mini" onclick="copyPrompt(this)" title="全文コピー">📋 コピー</button></div>
-        <pre id="claude-prompt" class="man-pre"></pre>
+        <pre id="claude-prompt" class="man-pre">■ URLについて（投稿者が直接入力）
+・定型文のURL欄は「URL」という文字だけを置く。実際のリンクは投稿者が後で差し込む。AIは勝手にURLを作らない。
+═══════════════════════════════
+あなたはNAVERブログに韓国語で商品紹介記事を書く専門ライターです。
+以下の【絶対ルール】【入力】【出力フォーマット】【本文構成】【文体】をすべて守ってください。
+═══════════════════════════════
+【絶対ルール（最優先・例外なし）】
+① 事実厳守：スペック・特徴・対応機種などは、渡された「商品URLのページ」「Amazon商品タイトル」「箇条書き情報」だけを根拠にする。不明な項目は推測せず「확인 필요」と書くか質問する。実物と違う情報は絶対に書かない。
+② 定型文①②③は一字一句そのまま出力（URL欄は「URL」の文字のまま）。
+③ 画像は差し込み位置のマーカー【📷 商品画像①〜③挿入】を3か所置くだけにする。マーカー以外に画像の推奨・提案の注記は書かない。
+④ 本文はすべて韓国語（ブランド名・型番などの固有名詞を除く）。
+═══════════════════════════════
+【毎回わたす入力】
+・商品URL（必須／まずこのページを開いて内容を確認する）
+・Amazon商品タイトル（コピペ）
+・分かっている仕様（色・対応機種・付属品・状態など／任意）
+・クロスプロモ用カテゴリ（任意）
+※タイトルは丸写しせず、ブランド・型番・要点を抽出して韓国語SEO向けに再構成する。
+═══════════════════════════════
+【出力フォーマット（毎回この順・この形）】
+(1) 一番上に「타이틀 案」を出す（본명1つ＋예비2つ／主要キーワードを前方に）。コードブロックの外に書く。
+(2) その下に「본문」を1つのコードブロック（코드 펜스で囲む）にまとめて出力し、ワンクリックでコピーできるようにする。コードブロックの中には説明・注釈・チェックリストを入れない。本文だけを入れる。
+    本文の中身の順番：定型文① → パート1 → パート2 → パート3 → パート4 → 定型文② → 定型文③ → ハッシュタグ。
+═══════════════════════════════
+【本文構成】
+■ 記事冒頭（定型文①）
+◇──────────────────────◇
+안녕하세요!
+일본 직구 전문 **Tokyo Mart**입니다 🇯🇵
+▶ 스마트스토어：URL
+▶ 네이버 톡톡：URL
+▶ 카카오톡 ID：japansellartokyo
+📦 발송 안내
+주문 확인 후 **5일 이내 일본에서 발송**해 드립니다.
+도착까지 약 **5~7일** 정도 소요됩니다.
+◇──────────────────────◇
+■ パート1：商品導入
+・挨拶＋今日紹介する商品の簡単な導入（2〜3文、短く）
+■ パート2：商品詳細（メイン）
+## [브랜드] 상품 타이틀（韓国語SEO最適化：主要キーワードを先頭に）
+【📷 商品画像①挿入】【📷 商品画像②挿入】【📷 商品画像③挿入】
+※ページで確認できた内容だけ説明。マーカーの無い位置に推奨注記は書かない。
+■ パート3：商品スペック表
+### 📋 상품 상세 스펙 (Product Spec)
+| 항목 | 상세 정보 |
+| --- | --- |
+| **브랜드** | （ブランド名） |
+| **상품명** | （商品名） |
+| **특징** | （特徴） |
+| **색상** | （カラー） |
+| **호환성** | （対応機種など） |
+| **상태** | 미개봉 새상품 |
+※不明な項目は「확인 필요」（推測で埋めない）。
+■ パート4：ブランドクロスプロモーション
+### 💡 브랜드 크로스 프로모션
+・同ブランドの他商品も扱っていることをアピール
+・関連カテゴリ（入力があれば反映）
+■ 記事末尾（定型文②）
+◇──────────────────────◇
+💬 문의는 언제든 편하게 연락주세요!
+▶ 네이버 톡톡：URL
+▶ 카카오톡 ID：japansellartokyo
+▶ 스마트스토어：URL
+◇──────────────────────◇
+■ 記事末尾（定型文③：購買代行案内）
+◇──────────────────────◇
+### 🛒 구매대행 서비스 안내
+일본에서만 판매되는 상품, 찾기 어려운 상품도
+**Tokyo Mart**가 대신 찾아서 보내드립니다!
+**📌 이용 방법**
+1️⃣ 원하시는 상품의 URL 또는 사진을 보내주세요
+2️⃣ 견적을 확인 후 안내해 드립니다
+3️⃣ 결제 완료 후 일본에서 바로 발송!
+다른 색상과 사이즈를 원하시면 편하게 문의하세요.
+**대량 주문도 가능합니다.**
+이 상품 외에 필요한 상품이 있다면,
+찾아보겠으니, 언제라도 연락을 주세요.
+가격 협의도 가능합니다.▼▼
+여기서 소개한 제품외에도 다양한 제품이 준비되어있습니다.
+◇──────────────────────◇
+■ ハッシュタグ（本文コードブロックの末尾に入れる）
+・韓国語 25〜30個、重複なし。ブランド系／カテゴリ系／ロングテール系／固定タグ。
+・固定タグ：#일본직구 #구매대행 #도쿄마트 #TokyoMart #일본구매대행
+═══════════════════════════════
+【文体・トーン】
+・해요체、親しみやすく丁寧。絵文字は適度に。短い段落。SEOを意識した見出し。
+═══════════════════════════════
+【運用のコツ】
+・記事1本ごとに新しいチャットを開く。
+・投稿前にURL2種とスペック表の「확인 필요」を人が最終確認。
+═══════════════════════════════</pre>
       </div>
     </div>
   </div>
   </main>
-</div>
-
-<div class="overlay" id="artOverlay">
-  <div class="modal" style="width:1060px">
-    <h3>📝 ブログ記事メーカー <small style="font-weight:600;color:var(--muted);margin-left:10px;font-size:12px">左を埋めると、右がそのまま使える形になります</small><span class="x" id="artClose">✕</span></h3>
-    <div class="art-grid">
-      <div class="art-col">
-        <label class="art-f"><span>商品URL <small>AIにこのページを読ませます</small></span><input id="art-url" placeholder="https://www.amazon.co.jp/dp/..."></label>
-        <div style="margin:-4px 0 12px"><button class="btn-ghost btn-sm" id="art-get">⬇ Amazonから取り込む</button>
-          <span id="art-getmsg" class="art-note" style="margin:0 0 0 8px"></span></div>
-        <label class="art-f"><span>Amazon商品タイトル</span><textarea id="art-title" placeholder="商品ページのタイトルをそのまま貼る"></textarea></label>
-        <label class="art-f"><span>ブランド</span><input id="art-brand" placeholder="例：SONY"></label>
-        <label class="art-f"><span>商品名（短く）</span><input id="art-pname" placeholder="例：워크맨 NW-A306"></label>
-        <label class="art-f"><span>特徴 <small>1行に1つ。空なら 확인 필요</small></span><textarea id="art-feat" placeholder="ハイレゾ対応&#10;バッテリー36時間"></textarea></label>
-        <label class="art-f"><span>カラー</span><input id="art-color" placeholder="例：블랙"></label>
-        <label class="art-f"><span>対応機種・互換性</span><input id="art-compat"></label>
-        <label class="art-f"><span>状態</span><input id="art-state" value="미개봉 새상품"></label>
-        <label class="art-f"><span>クロスプロモ用カテゴリ <small>韓国語・空白区切り</small></span><input id="art-cat" placeholder="例：이어폰 오디오"></label>
-      </div>
-      <div class="art-out">
-        <div class="art-tabs">
-          <div class="seg"><button class="segbtn active" data-at="prompt">AIに渡すプロンプト</button><button class="segbtn" data-at="body">本文の型</button></div>
-          <div class="grow"></div>
-          <button class="btn-primary btn-sm" id="art-copy">📋 コピー</button>
-        </div>
-        <pre class="art-pre" id="art-pre"></pre>
-        <div class="art-note" id="art-note"></div>
-      </div>
-    </div>
-  </div>
 </div>
 
 <div class="overlay" id="helpOverlay">
@@ -1968,269 +2011,18 @@ function renderBlog(){
     document.getElementById("bloghead").innerHTML="<tr><th>ASIN</th><th>商品タイトル</th><th>投稿日</th><th>操作</th></tr>";
     document.getElementById("blogbody").innerHTML = list.length? list.map(x=>{ const a=esc(x.asin), d=(blog[x.asin]||{}).date||"";
       return `<tr><td>${amz(x.asin)}</td>${titleCell(x.title)}<td class="mono">${esc(d)}</td>`+
-        `<td><button class="btn-ghost btn-sm" onclick="blogMake('${a}')">📝 記事</button> <button class="rowbtn btn-sm" onclick="blogUnpost('${a}')">未投稿に戻す</button></td></tr>`; }).join("")
+        `<td><button class="rowbtn btn-sm" onclick="blogUnpost('${a}')">未投稿に戻す</button></td></tr>`; }).join("")
       : `<tr><td class="empty" colspan="4"><b>投稿済みはまだありません</b>「未投稿」で投稿日を選び「投稿する」を押すと、ここへ移動します。</td></tr>`;
   } else {
     document.getElementById("bloghead").innerHTML="<tr><th>ASIN</th><th>商品タイトル</th><th>投稿日</th><th>操作</th></tr>";
     document.getElementById("blogbody").innerHTML = list.length? list.map(x=>{ const a=esc(x.asin), d=(blog[x.asin]||{}).date||"";
       return `<tr><td>${amz(x.asin)}</td>${titleCell(x.title)}`+
         `<td><input class="rvdate" type="date" value="${esc(d)}" onchange="blogSetDate('${a}',this.value)"></td>`+
-        `<td><button class="btn-ghost btn-sm" onclick="blogMake('${a}')">📝 記事</button> <button class="btn-primary btn-sm" onclick="blogPost('${a}')">投稿する</button></td></tr>`; }).join("")
+        `<td><button class="btn-primary btn-sm" onclick="blogPost('${a}')">投稿する</button></td></tr>`; }).join("")
       : `<tr><td class="empty" colspan="4"><b>未投稿のASINがありません</b>売上管理に販売データが入ると、ここへASINが並びます。</td></tr>`;
   }
   document.getElementById("blogcount").textContent=`${PNAME[p]} ・ 未投稿 ${todoCount}件 ／ 投稿済み ${doneCount}件`;
 }
-/* ===== ブログ記事メーカー（AIは動かさない＝費用ゼロ。プロンプトと本文の型を組み立てるだけ） =====
-   ・商品URLをAIに読ませる形（画像添付ではない）
-   ・定型文①②③とルール文は ART_* が正。マニュアル画面の表示もここから出している */
-const ART_L="◇──────────────────────◇";
-const ART_F1=`안녕하세요!
-일본 직구 전문 **Tokyo Mart**입니다 🇯🇵
-▶ 스마트스토어：URL
-▶ 네이버 톡톡：URL
-▶ 카카오톡 ID：japansellartokyo
-📦 발송 안내
-주문 확인 후 **5일 이내 일본에서 발송**해 드립니다.
-도착까지 약 **5~7일** 정도 소요됩니다.`;
-const ART_F2=`💬 문의는 언제든 편하게 연락주세요!
-▶ 네이버 톡톡：URL
-▶ 카카오톡 ID：japansellartokyo
-▶ 스마트스토어：URL`;
-const ART_F3=`### 🛒 구매대행 서비스 안내
-일본에서만 판매되는 상품, 찾기 어려운 상품도
-**Tokyo Mart**가 대신 찾아서 보내드립니다!
-**📌 이용 방법**
-1️⃣ 원하시는 상품의 URL 또는 사진을 보내주세요
-2️⃣ 견적을 확인 후 안내해 드립니다
-3️⃣ 결제 완료 후 일본에서 바로 발송!
-다른 색상과 사이즈를 원하시면 편하게 문의하세요.
-**대량 주문도 가능합니다.**
-이 상품 외에 필요한 상품이 있다면,
-찾아보겠으니, 언제라도 연락을 주세요.
-가격 협의도 가능합니다.▼▼
-여기서 소개한 제품외에도 다양한 제품이 준비되어있습니다.`;
-const ART_RULES=`■ URLについて（投稿者が直接入力）
-・定型文のURL欄は「URL」という文字だけを置く。実際のリンクは投稿者が後で差し込む。AIは勝手にURLを作らない。
-═══════════════════════════════
-あなたはNAVERブログに韓国語で商品紹介記事を書く専門ライターです。
-以下の【絶対ルール】【入力】【出力フォーマット】【本文構成】【文体】をすべて守ってください。
-═══════════════════════════════
-【絶対ルール（最優先・例外なし）】
-① 事実厳守：スペック・特徴・対応機種などは、渡された「商品URLのページ」「Amazon商品タイトル」「箇条書き情報」だけを根拠にする。不明な項目は推測せず「확인 필요」と書くか質問する。実物と違う情報は絶対に書かない。
-② 定型文①②③は一字一句そのまま出力（URL欄は「URL」の文字のまま）。
-③ 画像は差し込み位置のマーカー【📷 商品画像①〜③挿入】を3か所置くだけにする。マーカー以外に画像の推奨・提案の注記は書かない。
-④ 本文はすべて韓国語（ブランド名・型番などの固有名詞を除く）。
-═══════════════════════════════
-【毎回わたす入力】
-・商品URL（必須／まずこのページを開いて内容を確認する）
-・Amazon商品タイトル（コピペ）
-・分かっている仕様（色・対応機種・付属品・状態など／任意）
-・クロスプロモ用カテゴリ（任意）
-※タイトルは丸写しせず、ブランド・型番・要点を抽出して韓国語SEO向けに再構成する。
-═══════════════════════════════
-【出力フォーマット（毎回この順・この形）】
-(1) 一番上に「타이틀 案」を出す（본명1つ＋예비2つ／主要キーワードを前方に）。コードブロックの外に書く。
-(2) その下に「본문」を1つのコードブロック（코드 펜스で囲む）にまとめて出力し、ワンクリックでコピーできるようにする。コードブロックの中には説明・注釈・チェックリストを入れない。本文だけを入れる。
-    本文の中身の順番：定型文① → パート1 → パート2 → パート3 → パート4 → 定型文② → 定型文③ → ハッシュタグ。
-═══════════════════════════════
-【本文構成】
-■ 記事冒頭（定型文①）
-◇──────────────────────◇
-안녕하세요!
-일본 직구 전문 **Tokyo Mart**입니다 🇯🇵
-▶ 스마트스토어：URL
-▶ 네이버 톡톡：URL
-▶ 카카오톡 ID：japansellartokyo
-📦 발송 안내
-주문 확인 후 **5일 이내 일본에서 발송**해 드립니다.
-도착까지 약 **5~7일** 정도 소요됩니다.
-◇──────────────────────◇
-■ パート1：商品導入
-・挨拶＋今日紹介する商品の簡単な導入（2〜3文、短く）
-■ パート2：商品詳細（メイン）
-## [브랜드] 상품 타이틀（韓国語SEO最適化：主要キーワードを先頭に）
-【📷 商品画像①挿入】【📷 商品画像②挿入】【📷 商品画像③挿入】
-※ページで確認できた内容だけ説明。マーカーの無い位置に推奨注記は書かない。
-■ パート3：商品スペック表
-### 📋 상품 상세 스펙 (Product Spec)
-| 항목 | 상세 정보 |
-| --- | --- |
-| **브랜드** | （ブランド名） |
-| **상품명** | （商品名） |
-| **특징** | （特徴） |
-| **색상** | （カラー） |
-| **호환성** | （対応機種など） |
-| **상태** | 미개봉 새상품 |
-※不明な項目は「확인 필요」（推測で埋めない）。
-■ パート4：ブランドクロスプロモーション
-### 💡 브랜드 크로스 프로모션
-・同ブランドの他商品も扱っていることをアピール
-・関連カテゴリ（入力があれば反映）
-■ 記事末尾（定型文②）
-◇──────────────────────◇
-💬 문의는 언제든 편하게 연락주세요!
-▶ 네이버 톡톡：URL
-▶ 카카오톡 ID：japansellartokyo
-▶ 스마트스토어：URL
-◇──────────────────────◇
-■ 記事末尾（定型文③：購買代行案内）
-◇──────────────────────◇
-### 🛒 구매대행 서비스 안내
-일본에서만 판매되는 상품, 찾기 어려운 상품도
-**Tokyo Mart**가 대신 찾아서 보내드립니다!
-**📌 이용 방법**
-1️⃣ 원하시는 상품의 URL 또는 사진을 보내주세요
-2️⃣ 견적을 확인 후 안내해 드립니다
-3️⃣ 결제 완료 후 일본에서 바로 발송!
-다른 색상과 사이즈를 원하시면 편하게 문의하세요.
-**대량 주문도 가능합니다.**
-이 상품 외에 필요한 상품이 있다면,
-찾아보겠으니, 언제라도 연락을 주세요.
-가격 협의도 가능합니다.▼▼
-여기서 소개한 제품외에도 다양한 제품이 준비되어있습니다.
-◇──────────────────────◇
-■ ハッシュタグ（本文コードブロックの末尾に入れる）
-・韓国語 25〜30個、重複なし。ブランド系／カテゴリ系／ロングテール系／固定タグ。
-・固定タグ：#일본직구 #구매대행 #도쿄마트 #TokyoMart #일본구매대행
-═══════════════════════════════
-【文体・トーン】
-・해요체、親しみやすく丁寧。絵文字は適度に。短い段落。SEOを意識した見出し。
-═══════════════════════════════
-【運用のコツ】
-・記事1本ごとに新しいチャットを開く。
-・投稿前にURL2種とスペック表の「확인 필요」を人が最終確認。
-═══════════════════════════════`;
-
-let artAsin="", artTab="prompt";
-const ART_IDS=["url","title","brand","pname","feat","color","compat","state","cat"];
-function artKey(){ return "kr_blog_art_"+current; }                 /* kr_blog_ で始まるので共有データに乗る */
-function artLoad(){ try{ const d=JSON.parse(localStorage.getItem(artKey())); if(d&&typeof d==="object"&&!Array.isArray(d)) return d; }catch(e){} return {}; }
-function artEl(k){ return document.getElementById("art-"+k); }
-function artRead(){ const o={}; ART_IDS.forEach(k=>{ const e=artEl(k); o[k]=e?e.value:""; }); return o; }
-function artOr(v){ v=String(v==null?"":v).trim(); return v||"확인 필요"; }
-/* ハッシュタグ：固定＋ブランド派生＋カテゴリ派生＋ロングテールで25〜30個 */
-function artTags(brand,cat){
-  const out=[], seen=new Set();
-  const add=x=>{ x=String(x==null?"":x).replace(/[#\s　]+/g,""); if(!x||seen.has(x)||out.length>=30) return; seen.add(x); out.push("#"+x); };
-  const b=String(brand||"").trim().replace(/\s+/g,"");
-  ["일본직구","구매대행","도쿄마트","TokyoMart","일본구매대행"].forEach(add);      /* 固定タグ（必須） */
-  if(b){ [b, b+"직구", b+"구매대행", b+"일본", b+"정품", b+"일본직구"].forEach(add); }
-  String(cat||"").split(/[,、\/\s　]+/).filter(Boolean).forEach(c=>{
-    add(c); add("일본"+c); add(c+"추천"); if(b) add(b+c); });
-  ["일본직구추천","일본쇼핑","해외직구","일본정품","직구추천","일본배송대행","도쿄직구","일본상품",
-   "직구사이트","일본직구사이트","구매대행추천","일본구매","정품보장","일본에서직구","믿을수있는직구",
-   "일본직구대행","해외구매대행","일본신상","직구정보","일본직구후기"].forEach(add);   /* ブランド・カテゴリが空でも25個を切らない数 */
-  return out;
-}
-function artBody(){
-  const v=artRead();
-  const feat=String(v.feat||"").split("\n").map(x=>x.trim()).filter(Boolean).join(" / ");
-  const L=[ART_L, ART_F1, ART_L, "", "［パート1：導入 ─ AIが韓国語で2〜3文］", "",
-    "## ["+artOr(v.brand)+"] "+artOr(v.pname)];
-  ["①","②","③"].forEach(m=>L.push("【📷 商品画像"+m+"挿入】"));   /* 差し込み位置の目印。使う枚数は投稿時に決める */
-  L.push("", "［パート2：商品説明 ─ AIが韓国語で。ページで確認できた内容だけ］", "",
-    "### 📋 상품 상세 스펙 (Product Spec)", "| 항목 | 상세 정보 |", "| --- | --- |",
-    "| **브랜드** | "+artOr(v.brand)+" |",
-    "| **상품명** | "+artOr(v.pname)+" |",
-    "| **특징** | "+artOr(feat)+" |",
-    "| **색상** | "+artOr(v.color)+" |",
-    "| **호환성** | "+artOr(v.compat)+" |",
-    "| **상태** | "+artOr(v.state)+" |", "",
-    "### 💡 브랜드 크로스 프로모션", "［パート4：同ブランドの他商品の案内 ─ AIが韓国語で］", "",
-    ART_L, ART_F2, ART_L, "", ART_L, ART_F3, ART_L, "",
-    artTags(v.brand,v.cat).join(" "));
-  return L.join("\n");
-}
-function artPrompt(){
-  const v=artRead();
-  const feat=String(v.feat||"").split("\n").map(x=>x.trim()).filter(Boolean);
-  return [ART_RULES, "", "═══════════════════════════════", "【今回の商品】",
-    "・商品URL："+(String(v.url||"").trim()||"（未入力）"),
-    "・Amazon商品タイトル："+(String(v.title||"").trim()||"（未入力）"),
-    "・ブランド："+artOr(v.brand),
-    "・商品名："+artOr(v.pname),
-    "・分かっている特徴："+(feat.length?feat.join(" / "):"（なし＝ページから確認）"),
-    "・カラー："+artOr(v.color),
-    "・対応機種／互換性："+artOr(v.compat),
-    "・状態："+artOr(v.state),
-    "・クロスプロモ用カテゴリ："+(String(v.cat||"").trim()||"（なし）"),
-    "═══════════════════════════════"].join("\n");
-}
-function artPaint(){
-  const pre=document.getElementById("art-pre"); if(!pre) return;
-  pre.textContent = artTab==="body" ? artBody() : artPrompt();
-  document.querySelectorAll("#artOverlay .segbtn").forEach(b=>b.classList.toggle("active",b.dataset.at===artTab));
-  const note=document.getElementById("art-note");
-  if(note) note.innerHTML = artTab==="body"
-    ? "定型文①②③・スペック表・ハッシュタグは<b>そのまま使える形</b>です。［　］の3か所だけAIに書かせて差し替えてください。"
-    : "これをコピーして、そのままAIに貼ってください。AIが商品URLのページを読んで記事を書きます。<b>URL欄は「URL」の文字のまま</b>出るので、投稿前にご自分のリンクへ差し替えてください。";
-}
-function artPersist(){ if(!artAsin) return; const all=artLoad(); all[artAsin]=artRead();
-  localStorage.setItem(artKey(), JSON.stringify(all)); }
-window.blogMake=(asin)=>{
-  artAsin=String(asin||"");
-  const saved=(artLoad()[artAsin])||{};
-  const row=blogData(current).find(x=>x.asin===artAsin)||{};
-  const init={ url:saved.url||resolveUrl(artAsin), title:saved.title||row.title||"", brand:saved.brand||"",
-    pname:saved.pname||"", feat:saved.feat||"", color:saved.color||"", compat:saved.compat||"",
-    state:saved.state||"미개봉 새상품", cat:saved.cat||"", imgs:saved.imgs||"3" };
-  ART_IDS.forEach(k=>{ const e=artEl(k); if(e) e.value=init[k]||""; });
-  artTab="prompt"; artPaint();
-  document.getElementById("artOverlay").classList.add("show");
-};
-(function(){
-  const ov=document.getElementById("artOverlay"); if(!ov) return;
-  const close=()=>{ artPersist(); ov.classList.remove("show"); };
-  document.getElementById("artClose").addEventListener("click",close);
-  ov.addEventListener("click",e=>{ if(e.target===ov) close(); });
-  document.addEventListener("keydown",e=>{ if(e.key==="Escape" && ov.classList.contains("show")) close(); });
-  ov.querySelectorAll(".segbtn").forEach(b=>b.addEventListener("click",()=>{ artTab=b.dataset.at; artPaint(); }));
-  ART_IDS.forEach(k=>{ const e=artEl(k); if(e) e.addEventListener("input",()=>{ artPaint(); artPersist(); }); });
-  document.getElementById("art-copy").addEventListener("click",function(){
-    copyText(artTab==="body"?artBody():artPrompt()); flashBtn(this); });
-  const gb=document.getElementById("art-get"); if(gb) gb.addEventListener("click",()=>artFetch(gb));
-})();
-/* Amazonのカタログから欄を埋める。Worker経由（鍵はCloudflare側にあり、この画面には出てこない）。
-   取れるのは タイトル/ブランド/カラー/型番/特徴/画像枚数/カテゴリ の7項目だけ。価格は扱わない。 */
-function artAsinNow(){
-  const u=String((artEl("url")||{}).value||"");
-  const m=u.match(/\/(?:dp|gp\/product|d|product)\/([A-Z0-9]{10})/i);
-  return (m?m[1]:artAsin||"").toUpperCase();
-}
-window.artFetch=async(btn)=>{
-  const msg=document.getElementById("art-getmsg");
-  const say=(t,bad)=>{ if(msg){ msg.textContent=t; msg.style.color=bad?"#a12727":"var(--muted)"; } };
-  const asin=artAsinNow();
-  if(!/^[A-Z0-9]{10}$/.test(asin)){ say("ASINが読み取れません。商品URLを確認してください。",1); return; }
-  const base=cloudURL();
-  if(!base){ say("共有データに接続されていません。管理者から届いた専用リンクで開き直してください。",1); return; }
-  /* 入力済みの内容を上書きするので、消える前に必ず確認する */
-  const filled=["title","brand","color","feat","cat"].filter(k=>String((artEl(k)||{}).value||"").trim());
-  if(filled.length && !confirm("Amazonから取り込んだ内容で、入力済みの欄を置きかえます。\n\n"+
-      "【置きかわる欄】"+filled.join("・")+"\n"+
-      "【元に戻す】戻せません。取り込み後に手で直してください。\n"+
-      "【やめる】キャンセルを押すと、今の入力のままにします。")) return;
-  if(btn) btn.disabled=true; say("取り込み中…");
-  try{
-    const r=await fetch(base+"&item="+encodeURIComponent(asin));
-    const j=await r.json().catch(()=>null);
-    if(!j||!j.ok){
-      const e=(j&&j.error)||("HTTP "+r.status);
-      say(r.status===503?"Amazonとの接続がまだ設定されていません（管理者に連絡してください）"
-        :(/not found|404/i.test(e)?"この商品はAmazonのカタログに見つかりませんでした（"+asin+"）"
-        :"取り込めませんでした："+e),1);
-      return;
-    }
-    const it=j.item||{};
-    const set=(k,v)=>{ const e=artEl(k); if(e && String(v||"").trim()) e.value=String(v).trim(); };
-    set("title",it.title); set("brand",it.brand); set("color",it.color); set("cat",it.category);
-    if(Array.isArray(it.features)&&it.features.length) set("feat",it.features.join("\n"));
-    if(!String((artEl("pname")||{}).value||"").trim()) set("pname",it.model||"");
-    artPaint(); artPersist();
-    say("取り込みました"+(j.cached?"（前回の取得内容を再利用）":"")+"：特徴"+((it.features||[]).length)+"件");
-  }catch(e){ say("通信できませんでした："+String((e&&e.message)||e),1); }
-  finally{ if(btn) btn.disabled=false; }
-};
 /* ===== ブログ マニュアル（動画リスト＋クロードプロンプト） ===== */
 const MANUAL_SEED=[
  {title:"はじめに", url:"https://www.loom.com/share/c190c96636fa4d8ba508b18a9f7f370d"},
@@ -2291,8 +2083,7 @@ function renderManInto(containerId,key,seed){ const l=loadMan(key,seed);
 /* 旧ブログマニュアル（title→url）から新形式へ一度だけ移行 */
 function blogManualSeed(){ let ov={}; try{ ov=JSON.parse(localStorage.getItem("kr_manual_urls"))||{}; }catch(e){}
   return MANUAL_SEED.map(x=>({title:x.title, url:(ov[x.title]!==undefined?ov[x.title]:x.url)})); }
-function renderManual(){ renderManInto("manual-videos","kr_manual_v2", blogManualSeed());
-  const pe=document.getElementById("claude-prompt"); if(pe) pe.textContent=ART_RULES; }   /* 文面の正は ART_RULES（記事メーカーと共通） */
+function renderManual(){ renderManInto("manual-videos","kr_manual_v2", blogManualSeed()); }
 /* ===== 禁止ブランド（枠のみ・中身はこれから） ===== */
 /* ===== 禁止ブランド（スマートストア／11番街）=====
    「スマートストアノート - 禁止ブランド」の内容を、モール別・危険度別に整理したもの。
