@@ -158,14 +158,20 @@ window.CAT_ATTR_JA={"색상": "色", "수량": "数量", "패션의류/잡화 �
   .rowbtn.del{ color:var(--red); border-color:#fbd3ce; }
   .rowbtn.del:hover{ background:#fff5f4; }
 
-  /* 配送プルダウン：H＝薄いオレンジ、D＝黄色 */
+  /* 配送プルダウン：▼を消した文字だけのチップ。色はステータスに合わせる（下の data-st） */
   .dvsel{ height:29px; width:38px; border:1px solid var(--line); border-radius:8px; font-size:12.5px; font-weight:800; padding:0; background:var(--surface); cursor:pointer; transition:box-shadow .15s, border-color .15s; font-family:inherit;
     -webkit-appearance:none; -moz-appearance:none; appearance:none; text-align:center; text-align-last:center; }   /* ▼を消して文字だけにする */
   .dvsel::-ms-expand{ display:none; }
   .dvsel:hover{ filter:brightness(.97); }
   .dvsel:focus{ outline:none; box-shadow:0 0 0 3px var(--ring); }
-  .dvsel[data-v="H"]{ color:#a8600d; background:#fff3e4; border-color:#f2d6b6; }
-  .dvsel[data-v="D"]{ color:#867009; background:#fffae1; border-color:#ecdf9e; }
+  /* 色はステータスと同じにする（.stsel と同じ値。片方だけ直すと色がズレるので必ず両方直す） */
+  .dvsel[data-st="入金済み"]{ color:#8a640f; background:#fffaf0; border-color:#f0e2b8; }
+  .dvsel[data-st="仕入れ済み"]{ color:var(--accent-d); background:#eef2ff; border-color:#cdd6ff; }
+  .dvsel[data-st="発送手配済み"]{ color:#0e7ec9; background:#eef7fc; border-color:#c2e0f2; }
+  .dvsel[data-st="発送済み"]{ color:#12a866; background:#e9fbf2; border-color:#bfead2; }
+  .dvsel[data-st="キャンセル"]{ color:#e5453c; background:#fdeeec; border-color:#f6cdc8; }
+  .dvsel[data-st="返品"]{ color:#9b51e0; background:#f6effc; border-color:#e2d0f4; }
+  .dvsel[data-st="トラブル"]{ color:#fff; background:#e5453c; border-color:#d0342c; }
 
   .stsel{ height:31px; border:1px solid var(--line); border-radius:8px; font-size:12px; font-weight:700; padding:0 7px; background:var(--surface); cursor:pointer; transition:box-shadow .15s; }
   .stsel:focus{ outline:none; box-shadow:0 0 0 3px var(--ring); }
@@ -1243,7 +1249,7 @@ function removeSale(id){ saveSales(loadSales().filter(x=>String(x.order)!==Strin
 /* ---- 配送（H / D）：台帳を正とし、顧客管理・売上管理の両方に同じ値を出す。取込時の既定はH ---- */
 const DELIVS=["H","D"];
 function delivOf(s){ return (s&&String(s.deliv||"").toUpperCase()==="D")?"D":"H"; }   /* 未設定＝H（過去に取り込んだ分もHで表示） */
-function delivSel(id,v){ return `<select class="dvsel" data-v="${v}" onchange="setDeliv('${id}',this.value)" title="配送（H / D）">`+DELIVS.map(x=>`<option ${x===v?"selected":""}>${x}</option>`).join("")+`</select>`; }
+function delivSel(id,v,st){ return `<select class="dvsel" data-v="${v}" data-st="${esc(st||"")}" onchange="setDeliv('${id}',this.value)" title="配送（H / D）">`+DELIVS.map(x=>`<option ${x===v?"selected":""}>${x}</option>`).join("")+`</select>`; }   /* 色はステータス（data-st）で決まる */
 function histTip(s){ if(!s||!s.hist||!s.hist.length) return ""; return "ステータス変更履歴\n"+s.hist.slice(-8).map(h=>(h.t||"").slice(0,16).replace("T"," ")+" → "+h.s).join("\n"); }
 /* 顧客データ→売上台帳へ不足分を追加（削除しない=履歴保持／手入力欄は保持） */
 function syncLedger(rows){ const spec=platforms[current], m=spec.map; const l=loadSales(); const map={}; l.forEach(x=>map[String(x.order)]=x); const added=[];
@@ -3612,7 +3618,7 @@ function renderSalesDetail(){
     const cls=[base, hi.has(String(s.order))?"hi":""].filter(Boolean).join(" ");
     const checked=hi.has(String(s.order))?"checked":"";
     return `<tr${cls?` class="${cls}"`:""}>`+
-      `<td class="s0">${delivSel(id,delivOf(s))}</td>`+
+      `<td class="s0">${delivSel(id,delivOf(s),s.status)}</td>`+
       `<td class="s1">${sel}</td>`+
       `<td class="s2c"><input type="checkbox" class="rowchk" ${checked} onclick="setHi(this,'${id}')" title="チェックで色付け"></td>`+
       `<td ondblclick="editAsin('${id}')">${asinCell}</td>`+
@@ -3713,7 +3719,7 @@ function renderCust(){
     const base=r._status==="トラブル"?"trouble":(r._status==="返品"?"returned":(r._status==="キャンセル"?"cancelled":(r._status==="仕入れ済み"?"stocked":"")));
     const cls=[base, hi.has(String(r[okey]))?"hi":""].filter(Boolean).join(" ");
     const note=led?(led.note||""):"";
-    return `<tr${cls?` class="${cls}"`:""}><td class="s0">${delivSel(id,delivOf(led))}</td><td class="s1">${sel}</td>${chk}${cells}<td><input class="notein" value="${esc(note)}" placeholder="備考…" onchange="setNote('${id}',this.value)"></td><td><button class="rowbtn del btn-sm" onclick="delRow('${id}')" title="この行を削除">削除</button></td></tr>`;
+    return `<tr${cls?` class="${cls}"`:""}><td class="s0">${delivSel(id,delivOf(led),r._status)}</td><td class="s1">${sel}</td>${chk}${cells}<td><input class="notein" value="${esc(note)}" placeholder="備考…" onchange="setNote('${id}',this.value)"></td><td><button class="rowbtn del btn-sm" onclick="delRow('${id}')" title="この行を削除">削除</button></td></tr>`;
   }).join("") : `<tr><td class="empty" colspan="99"><b>データがありません</b>右上の「📥 Excelを取り込む」から${spec.name}のExcel(.xlsx)を読み込んでください。</td></tr>`;
 
   document.getElementById("count").textContent=`全 ${rows.length} 件中 ${view2.length} 件を表示`;
