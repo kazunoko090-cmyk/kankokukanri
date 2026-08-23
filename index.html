@@ -133,14 +133,16 @@ window.CAT_ATTR_JA={"색상": "色", "수량": "数量", "패션의류/잡화 �
   th,td{ padding:11px 13px; text-align:left; border-bottom:1px solid var(--line); }
   th{ background:#fbfcfe; color:var(--muted); font-weight:700; font-size:11px; letter-spacing:.03em; text-transform:uppercase; position:sticky; top:0; cursor:help; z-index:1; }
   th small{ display:block; color:#aab2c2; font-weight:500; font-size:10px; margin-top:3px; text-transform:none; letter-spacing:0; }
-  th.s1,td.s1{ position:sticky; left:0; background:var(--surface); z-index:2; min-width:132px; }
-  th.s2,td.s2{ position:sticky; left:132px; background:var(--surface); z-index:2; min-width:116px; box-shadow:6px 0 12px -8px rgba(20,28,50,.25); }
-  th.s1,th.s2{ background:#fbfcfe; z-index:3; }
+  /* 配送列（H/D）：いちばん左に固定 */
+  th.s0,td.s0{ position:sticky; left:0; background:var(--surface); z-index:2; min-width:74px; width:74px; padding-left:9px; padding-right:9px; }
+  th.s1,td.s1{ position:sticky; left:74px; background:var(--surface); z-index:2; min-width:132px; }
+  th.s2,td.s2{ position:sticky; left:206px; background:var(--surface); z-index:2; min-width:116px; box-shadow:6px 0 12px -8px rgba(20,28,50,.25); }
+  th.s0,th.s1,th.s2{ background:#fbfcfe; z-index:3; }
   tbody tr{ transition:background .12s; }
   tbody tr:hover td{ background:#f6f8ff; }
-  tbody tr:hover td.s1, tbody tr:hover td.s2{ background:#eef2ff; }
+  tbody tr:hover td.s0, tbody tr:hover td.s1, tbody tr:hover td.s2{ background:#eef2ff; }
   tr.stocked td{ background:#eef4ff; }
-  tr.stocked td.s1, tr.stocked td.s2{ background:#e4edff; }
+  tr.stocked td.s0, tr.stocked td.s1, tr.stocked td.s2{ background:#e4edff; }
   tbody tr.stocked:hover td{ background:#e2ecff; }
   td.money{ text-align:right; font-variant-numeric:tabular-nums; }
   .dl-today{ color:var(--red); font-weight:800; }
@@ -156,6 +158,12 @@ window.CAT_ATTR_JA={"색상": "色", "수량": "数量", "패션의류/잡화 �
   .rowbtn.del{ color:var(--red); border-color:#fbd3ce; }
   .rowbtn.del:hover{ background:#fff5f4; }
 
+  /* 配送プルダウン：H＝薄いオレンジ、D＝黄色 */
+  .dvsel{ height:31px; width:56px; border:1px solid var(--line); border-radius:8px; font-size:12px; font-weight:800; padding:0 6px; background:var(--surface); cursor:pointer; transition:box-shadow .15s; font-family:inherit; }
+  .dvsel:focus{ outline:none; box-shadow:0 0 0 3px var(--ring); }
+  .dvsel[data-v="H"]{ color:#b0620c; background:#ffefdc; border-color:#f6d2a8; }
+  .dvsel[data-v="D"]{ color:#8a6a00; background:#fff5b8; border-color:#f0dc80; }
+
   .stsel{ height:31px; border:1px solid var(--line); border-radius:8px; font-size:12px; font-weight:700; padding:0 7px; background:var(--surface); cursor:pointer; transition:box-shadow .15s; }
   .stsel:focus{ outline:none; box-shadow:0 0 0 3px var(--ring); }
   .stsel[data-v="入金済み"]{ color:#8a640f; background:#fffaf0; border-color:#f0e2b8; }
@@ -166,17 +174,18 @@ window.CAT_ATTR_JA={"색상": "色", "수량": "数量", "패션의류/잡화 �
   .stsel[data-v="返品"]{ color:#9b51e0; background:#f6effc; border-color:#e2d0f4; }
   .stsel[data-v="トラブル"]{ color:#fff; background:#e5453c; border-color:#d0342c; font-weight:800; }
   tr.returned td{ background:#faf4fe; }
-  tr.returned td.s1, tr.returned td.s2{ background:#f4e9fc; }
+  tr.returned td.s0, tr.returned td.s1, tr.returned td.s2{ background:#f4e9fc; }
   tbody tr.returned:hover td{ background:#f2e6fb; }
   tr.cancelled td{ background:#f5f6f8; color:#a3abba; }
-  tr.cancelled td.s1, tr.cancelled td.s2{ background:#eef0f4; }
+  tr.cancelled td.s0, tr.cancelled td.s1, tr.cancelled td.s2{ background:#eef0f4; }
   tbody tr.cancelled:hover td{ background:#eceef2; }
   /* トラブル行 */
   tr.trouble td{ background:#fff0ef; }
-  tr.trouble td.s1{ background:#ffe3e0; box-shadow:inset 3px 0 0 #e5453c; }
+  tr.trouble td.s0, tr.trouble td.s1{ background:#ffe3e0; }
+  tr.trouble td.s0{ box-shadow:inset 3px 0 0 #e5453c; }
   tbody tr.trouble:hover td{ background:#ffe7e5; }
   /* チェックボックス列（ステータス右隣・固定表示） */
-  th.s2c,td.s2c{ position:sticky; left:132px; background:var(--surface); z-index:2; min-width:32px; width:32px; padding-left:4px; padding-right:4px; text-align:center; box-shadow:6px 0 12px -8px rgba(20,28,50,.25); }
+  th.s2c,td.s2c{ position:sticky; left:206px; background:var(--surface); z-index:2; min-width:32px; width:32px; padding-left:4px; padding-right:4px; text-align:center; box-shadow:6px 0 12px -8px rgba(20,28,50,.25); }
   th.s2c{ background:#fbfcfe; z-index:3; }
   tbody tr:hover td.s2c{ background:#eef2ff; }
   .rowchk{ width:15px; height:15px; cursor:pointer; accent-color:#f4c000; margin:0; }
@@ -184,8 +193,8 @@ window.CAT_ATTR_JA={"색상": "色", "수량": "数量", "패션의류/잡화 �
   .notein:focus{ outline:none; border-color:var(--accent); box-shadow:0 0 0 3px var(--ring); }
   /* 配送指示チェック：チェックで黄色ハイライト */
   tr.hi td{ background:#fff4c2 !important; color:var(--txt) !important; }
-  tr.hi td.s1{ background:#ffeda3 !important; box-shadow:inset 3px 0 0 #f4c000; }
-  tr.hi td.s2c{ background:#ffeda3 !important; }
+  tr.hi td.s0, tr.hi td.s1, tr.hi td.s2c{ background:#ffeda3 !important; }
+  tr.hi td.s0{ box-shadow:inset 3px 0 0 #f4c000; }
   tbody tr.hi:hover td{ background:#ffefb0 !important; }
   /* トラブル中フィルタ ボタンON */
   #btn-trouble.on{ background:#fdeeec; color:#d0342c; border-color:#f6cdc8; }
@@ -518,7 +527,8 @@ window.CAT_ATTR_JA={"색상": "色", "수량": "数量", "패션의류/잡화 �
     #view-cust .tablewrap, #view-sales .tablewrap{ max-height:68vh; }
     #view-cust table, #view-sales table{ font-size:12px; }
     #view-cust th, #view-cust td, #view-sales th, #view-sales td{ padding:9px 10px; }
-    #view-cust th.s1, #view-cust td.s1, #view-sales th.s1, #view-sales td.s1{ min-width:104px; }
+    #view-cust th.s0, #view-cust td.s0, #view-sales th.s0, #view-sales td.s0{ position:static; min-width:54px; width:auto; }
+    #view-cust th.s1, #view-cust td.s1, #view-sales th.s1, #view-sales td.s1{ min-width:104px; left:0; }
     #view-cust th.s2, #view-cust td.s2, #view-cust th.s2c, #view-cust td.s2c,
     #view-sales th.s2, #view-sales td.s2, #view-sales th.s2c, #view-sales td.s2c{ position:static; box-shadow:none; }
     #view-cust .clip{ max-width:130px; }
@@ -559,7 +569,7 @@ window.CAT_ATTR_JA={"색상": "色", "수량": "数量", "패션의류/잡화 �
 <div class="layout">
   <aside class="side" id="side">
     <button id="side-toggle" type="button" title="メニューをアイコンだけにする" aria-label="メニューをアイコンだけにする">◀</button>
-    <div class="navgroup open" data-g="cust">
+    <div class="navgroup" data-g="cust">
       <div class="navhead" title="顧客管理"><span class="nav-ico">👥</span><span class="nav-txt">顧客管理</span><span class="arw">▶</span></div>
       <div class="navsub" data-label="顧客管理">
         <a data-sec="cust" data-p="coupang"><span class="dot"></span>クーパン</a>
@@ -1227,6 +1237,10 @@ function syncSaleStatus(id,val){ const l=loadSales(); const s=l.find(x=>String(x
     s.status=val; saveSales(l); pushLedger([s]); } }
 function setSaleMsg(id,val){ const l=loadSales(); const s=l.find(x=>String(x.order)===String(id)); if(s){ s.msg=val; saveSales(l); pushLedger([s]); render(); } }
 function removeSale(id){ saveSales(loadSales().filter(x=>String(x.order)!==String(id))); delLedger(id); }
+/* ---- 配送（H / D）：台帳を正とし、顧客管理・売上管理の両方に同じ値を出す。取込時の既定はH ---- */
+const DELIVS=["H","D"];
+function delivOf(s){ return (s&&String(s.deliv||"").toUpperCase()==="D")?"D":"H"; }   /* 未設定＝H（過去に取り込んだ分もHで表示） */
+function delivSel(id,v){ return `<select class="dvsel" data-v="${v}" onchange="setDeliv('${id}',this.value)" title="配送（H / D）">`+DELIVS.map(x=>`<option ${x===v?"selected":""}>${x}</option>`).join("")+`</select>`; }
 function histTip(s){ if(!s||!s.hist||!s.hist.length) return ""; return "ステータス変更履歴\n"+s.hist.slice(-8).map(h=>(h.t||"").slice(0,16).replace("T"," ")+" → "+h.s).join("\n"); }
 /* 顧客データ→売上台帳へ不足分を追加（削除しない=履歴保持／手入力欄は保持） */
 function syncLedger(rows){ const spec=platforms[current], m=spec.map; const l=loadSales(); const map={}; l.forEach(x=>map[String(x.order)]=x); const added=[];
@@ -1239,7 +1253,7 @@ function syncLedger(rows){ const spec=platforms[current], m=spec.map; const l=lo
           date:r[m.date]||"", deadline:r[m.deadline]||"", asin:r[m.asin]||"", title,
           won, qty:num(r[m.qty])||1, status:r._status||DEFAULT_STATUS, msg:autoMsg(won),
           rate:cr, track:"", cost:0, fee:feeAuto, ship:0, expense:0,   /* 取込時点のライブレートを固定記録（以後は変更しない） */
-          discount:(m.discount?num(r[m.discount]):0), plat:current, url:"", note:"", hist:[] };
+          discount:(m.discount?num(r[m.discount]):0), plat:current, url:"", note:"", deliv:"H", hist:[] };   /* 配送の既定はH */
       l.push(s); map[id]=s; added.push(s);
     } else {
       let ch=false;
@@ -3563,10 +3577,10 @@ function renderSalesDetail(){
   if(q){ rows=l.filter(s=>[s.order,s.dorder,s.title,s.track,s.asin,s.url,s.status].some(v=>String(v||"").toLowerCase().includes(q))); scope="検索「"+q+"」"; }
   else { rows=l.filter(s=>monthKey(s.date)===svMonth); scope=svMonth; }
   rows=rows.sort((a,b)=>{const x=parseDate(a.date),y=parseDate(b.date);return (y?y.getTime():0)-(x?x.getTime():0);});  /* 新しい順（上から） */
-  const H=["ステータス","✓","ASIN","注文番号","商品タイトル","販売日","発送期日","追跡番号","仕入れ値","仕入れ数量","仕入れ額","売値(ウォン)","売上数","売値合計","発送料金","経費","手数料","発送料+手数料","純利益","備考","操作"];
+  const H=["配送","ステータス","✓","ASIN","注文番号","商品タイトル","販売日","発送期日","追跡番号","仕入れ値","仕入れ数量","仕入れ額","売値(ウォン)","売上数","売値合計","発送料金","経費","手数料","発送料+手数料","純利益","備考","操作"];
   if(hasDisc){ H.splice(H.indexOf("売値合計")+1,0,"割引(₩)"); }
   const COL=H.length;
-  document.getElementById("sthead").innerHTML="<tr>"+H.map((h,i)=>`<th${i===0?' class="s1"':(i===1?' class="s2c"':'')}>${h}</th>`).join("")+"</tr>";
+  document.getElementById("sthead").innerHTML="<tr>"+H.map((h,i)=>`<th${i===0?' class="s0"':(i===1?' class="s1"':(i===2?' class="s2c"':''))}>${h}</th>`).join("")+"</tr>";
 
   /* ステータス絞り込みチップ（件数は当月/検索の集合が基準） */
   const cc={__all:rows.length}; STATUSES.forEach(st=>cc[st]=rows.filter(x=>x.status===st).length);
@@ -3595,6 +3609,7 @@ function renderSalesDetail(){
     const cls=[base, hi.has(String(s.order))?"hi":""].filter(Boolean).join(" ");
     const checked=hi.has(String(s.order))?"checked":"";
     return `<tr${cls?` class="${cls}"`:""}>`+
+      `<td class="s0">${delivSel(id,delivOf(s))}</td>`+
       `<td class="s1">${sel}</td>`+
       `<td class="s2c"><input type="checkbox" class="rowchk" ${checked} onclick="setHi(this,'${id}')" title="チェックで色付け"></td>`+
       `<td ondblclick="editAsin('${id}')">${asinCell}</td>`+
@@ -3665,6 +3680,7 @@ function renderCust(){
   if(custStatusFilter) view2=view2.filter(r=>r._status===custStatusFilter);
 
   thead.innerHTML="<tr>"+
+    `<th class="s0">配送<small>H / D</small></th>`+
     `<th class="s1">ステータス<small>状態を選択</small></th>`+
     `<th class="s2c">✓</th>`+
     view.map(c=>`<th>${esc(c.jp)}</th>`).join("")+
@@ -3694,7 +3710,7 @@ function renderCust(){
     const base=r._status==="トラブル"?"trouble":(r._status==="返品"?"returned":(r._status==="キャンセル"?"cancelled":(r._status==="仕入れ済み"?"stocked":"")));
     const cls=[base, hi.has(String(r[okey]))?"hi":""].filter(Boolean).join(" ");
     const note=led?(led.note||""):"";
-    return `<tr${cls?` class="${cls}"`:""}><td class="s1">${sel}</td>${chk}${cells}<td><input class="notein" value="${esc(note)}" placeholder="備考…" onchange="setNote('${id}',this.value)"></td><td><button class="rowbtn del btn-sm" onclick="delRow('${id}')" title="この行を削除">削除</button></td></tr>`;
+    return `<tr${cls?` class="${cls}"`:""}><td class="s0">${delivSel(id,delivOf(led))}</td><td class="s1">${sel}</td>${chk}${cells}<td><input class="notein" value="${esc(note)}" placeholder="備考…" onchange="setNote('${id}',this.value)"></td><td><button class="rowbtn del btn-sm" onclick="delRow('${id}')" title="この行を削除">削除</button></td></tr>`;
   }).join("") : `<tr><td class="empty" colspan="99"><b>データがありません</b>右上の「📥 Excelを取り込む」から${spec.name}のExcel(.xlsx)を読み込んでください。</td></tr>`;
 
   document.getElementById("count").textContent=`全 ${rows.length} 件中 ${view2.length} 件を表示`;
@@ -3746,6 +3762,7 @@ document.querySelectorAll(".navhead").forEach(h=>h.addEventListener("click",()=>
   const b=document.querySelector(".brand"); if(!b) return;
   b.addEventListener("click",()=>{
     section="home";                                   /* 起動直後と同じ画面（パスワード不要） */
+    document.querySelectorAll(".navgroup.open").forEach(g=>g.classList.remove("open"));   /* 開いていたメニューは全部たたむ */
     document.querySelectorAll(".navsub a").forEach(x=>x.classList.remove("active"));
     document.body.classList.remove("navopen");        /* スマホで開いていた引き出しは閉じる */
     const sb=document.getElementById("search"); if(sb) sb.value="";
@@ -3975,6 +3992,8 @@ window.editAsin=(id)=>{ const l=loadSales(); const s=l.find(x=>String(x.order)==
 window.editUrl=(id)=>{ const l=loadSales(); const s=l.find(x=>String(x.order)===String(id)); if(!s) return;
   const v=prompt("仕入れ元URLを入力してください（楽天 / ヤフショ / Amazon / メルカリ等）\n※貼り付けたURLは表内の📎からワンクリックで開けます。\n※ASIN欄とは別枠なので、ランキングの集計には影響しません。", s.url||"");
   if(v===null) return; s.url=v.trim(); saveSales(l); pushLedger([s]); render(); };
+window.setDeliv=(id,val)=>{ const l=loadSales(); const s=l.find(x=>String(x.order)===String(id)); if(!s) return;
+  s.deliv=(String(val).toUpperCase()==="D")?"D":"H"; saveSales(l); pushLedger([s]); render(); };
 window.setSaleStatus=(id,val)=>{ syncSaleStatus(id,val);
   updateCustField(id,"status",val);
   render(); };
@@ -4226,7 +4245,7 @@ const AUTO_MOVE={
   smart:  { from:"sbrand", to:"srankA", known:["srankA","srankB"], label:"ランクA" }
 };
 let rvAutoMoved=[], rvAutoPlat="";        /* 自動移動した名前と、それがどのモールの話か（混ざらないように） */
-window.rvAutoClose=()=>{ rvAutoMoved=[]; rvAutoPlat=""; renderResearch(); };
+window.rvAutoClose=()=>{ rvAutoMoved=[]; rvAutoPlat=""; rvPromoted=[]; rvPromoPlat=""; renderResearch(); };
 function rvNorm(s){ return String(s||"").replace(/[\s　]+/g," ").trim().toLowerCase(); }
 function rvBrandInTitle(cand,lowTitle){
   if(!cand) return false;
@@ -4277,14 +4296,61 @@ function autoMoveSoldBrands(){
   moved.forEach(m=>rvAutoMoved.push(m.name));                        /* 件数＝移動した行数（同名も1件ずつ数える） */
 }
 
+/* ===== 売れ筋になったブランドを1つ上のランクへ上げる（クーパン：Sold B → Sold A） =====
+   判定：売上台帳（キャンセル/返品を除く）で、そのブランド名を含む商品の販売個数の合計が min 個以上。
+   ・照合の仕方は「初めて売れた」の移動と同じ（英数字は単語単位・3文字以下は見ない）。
+   ・行き先に同じ名前が既にあれば動かさない（重複を作らない）。 */
+const PROMOTE={
+  coupang:{ from:"soldB", to:"soldA", min:4, label:"Sold A" }
+};
+let rvPromoted=[], rvPromoPlat="";
+function promoteSoldBrands(){
+  const cfg=PROMOTE[current]; if(!cfg) return;                       /* スマート・11番街は対象外 */
+  const d=loadResearch(); const pool=Array.isArray(d[cfg.from])?d[cfg.from]:[];
+  if(!pool.length) return;
+  const sold=[];                                                     /* {t:小文字の商品名, q:個数} */
+  loadSales(platforms[current].salesKey).forEach(s=>{
+    if(s.status==="キャンセル"||s.status==="返品") return;
+    const t=brandTitleOf(s); if(!t) return;
+    sold.push({t:t.toLowerCase(), q:num(s.qty)||1});
+  });
+  if(!sold.length) return;                                           /* 台帳が未取得なら何もしない */
+  const already=new Set(); (Array.isArray(d[cfg.to])?d[cfg.to]:[]).forEach(r=>already.add(rvNorm(r.name)));
+  const stay=[], moved=[];
+  pool.forEach(r=>{
+    const n=rvNorm(r.name);
+    if(!n || already.has(n)){ stay.push(r); return; }
+    const cands=[n]; const head=n.split(" ")[0]; if(head!==n) cands.push(head);
+    let qty=0; sold.forEach(x=>{ if(cands.some(c=>rvBrandInTitle(c,x.t))) qty+=x.q; });
+    if(qty<cfg.min){ stay.push(r); return; }
+    const memo=String(r.memo||"").trim();
+    const mv={...r}; delete mv.cat;                                  /* 列を落とさないよう元の行ごと持っていく */
+    mv.name=String(r.name||"").trim(); mv.date=r.date||todayStr();
+    mv.memo = memo.indexOf("→"+cfg.label)>=0 ? memo : (memo?memo+" ｜":"")+qty+"個販売→"+cfg.label+" "+todayStr();
+    moved.push({row:mv, qty});
+  });
+  if(!moved.length) return;
+  d[cfg.from]=stay; d[cfg.to]=(Array.isArray(d[cfg.to])?d[cfg.to]:[]).concat(moved.map(m=>m.row));
+  saveResearch(d);
+  cloudPushResearch(moved.map(m=>({cat:cfg.to, ...m.row})));
+  if(rvPromoPlat!==current){ rvPromoted=[]; rvPromoPlat=current; }
+  moved.forEach(m=>rvPromoted.push(m.row.name+"（"+m.qty+"個）"));
+}
+
 function renderResearch(){
   if(window.rvComposing){ window.rvRenderPending=true; return; }   /* 変換中は再描画しない（文字化け防止） */
   if(rvAutoPlat && rvAutoPlat!==current){ rvAutoMoved=[]; rvAutoPlat=""; }  /* モールを切り替えたら前の案内は消す */
+  if(rvPromoPlat && rvPromoPlat!==current){ rvPromoted=[]; rvPromoPlat=""; }
   autoMoveSoldBrands();                                            /* 初めて売れたブランドを移す（行き先はモールごと） */
+  promoteSoldBrands();                                             /* 4個以上売れたブランドを1つ上のランクへ（クーパンのみ） */
   const rvAutoEl=document.getElementById("rv-auto");
-  if(rvAutoEl){ if(rvAutoMoved.length && rvAutoPlat===current){ rvAutoEl.style.display="";
-      const dest=(AUTO_MOVE[current]||{}).label||"";
-      rvAutoEl.innerHTML=`<b>✅ 初めて売れたブランドを ${esc(dest)} へ移動しました（${rvAutoMoved.length}件）</b><br>${esc([...new Set(rvAutoMoved)].join(" / "))}<button class="mini" style="margin-left:8px" onclick="rvAutoClose()">閉じる</button>`; }
+  if(rvAutoEl){ const msgs=[];
+    if(rvAutoMoved.length && rvAutoPlat===current){ const dest=(AUTO_MOVE[current]||{}).label||"";
+      msgs.push(`<b>✅ 初めて売れたブランドを ${esc(dest)} へ移動しました（${rvAutoMoved.length}件）</b><br>${esc([...new Set(rvAutoMoved)].join(" / "))}`); }
+    if(rvPromoted.length && rvPromoPlat===current){ const pc=PROMOTE[current]||{};
+      msgs.push(`<b>🏆 ${pc.min||4}個以上売れたブランドを ${esc(pc.label||"")} へ移動しました（${rvPromoted.length}件）</b><br>${esc([...new Set(rvPromoted)].join(" / "))}`); }
+    if(msgs.length){ rvAutoEl.style.display="";
+      rvAutoEl.innerHTML=msgs.join(`<div style="height:1px;background:#bfe6cf;margin:9px 0"></div>`)+`<button class="mini" style="margin-left:8px" onclick="rvAutoClose()">閉じる</button>`; }
     else { rvAutoEl.style.display="none"; rvAutoEl.innerHTML=""; } }
   const cats=researchCats();
   if(!cats.some(c=>c.id===researchTab)) researchTab=cats[0].id;   /* 現在のモールに合うタブへ切替 */
