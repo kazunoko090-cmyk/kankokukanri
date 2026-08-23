@@ -1042,6 +1042,36 @@ function readWB(buf){
   if(bin) return XLSX.read(buf,{type:"array"});
   return XLSX.read(decodeSheetText(u8),{type:"string"});
 }
+/* LibreOffice（外注さんのPC）で開いて保存し直したExcelは、数値のセルに日付書式が付くことがある。
+   実例：수량（購入数）の 2 が "1900/01/02 00:00" になり、購入数が 190001020000 になった。
+   セルの「表示文字」ではなく「元の値」を使えば直るので、数値であるべき列だけ元の値に戻す。
+   ※日付の列は表示文字が正しい（元の値は 46252.94… というシリアル値）ので、触らない。 */
+const NUM_COLS = new Set([
+  "수량","옵션가격","상품가격","최종 상품별 할인액","최초 상품별 할인액","판매자 부담 할인액",
+  "최종 상품별 총 주문금액","최초 상품별 총 주문금액","배송비 합계","제주/도서 추가배송비","배송비 할인액",
+  "네이버페이 주문관리 수수료","매출연동 수수료","정산예정금액",
+  "구매수(수량)","결제액","배송비","도서산간 추가배송비","옵션가격(판매단가)",   /* クーパン（見出しは韓国語のまま届く） */
+  "Purchased qty","paid amount","Shipping fee","Option price (unit sales price)"
+]);
+let numFixCount=0;                                   /* 直した個数（取込後の案内に出す） */
+function fixNumericCells(arr, arrRaw){
+  numFixCount=0;
+  if(!Array.isArray(arr)||!Array.isArray(arrRaw)) return arr;
+  let hr=-1;                                         /* 説明行があるので見出し行を探す */
+  for(let i=0;i<Math.min(6,arr.length);i++){
+    const cells=(arr[i]||[]).map(x=>String(x||"").trim());
+    if(cells.some(c=>NUM_COLS.has(c))){ hr=i; break; } }
+  if(hr<0) return arr;
+  const cols=[];
+  (arr[hr]||[]).forEach((h,j)=>{ if(NUM_COLS.has(String(h||"").trim())) cols.push(j); });
+  if(!cols.length) return arr;
+  for(let i=hr+1;i<arr.length;i++){
+    const t=arr[i], r=arrRaw[i]; if(!t||!r) continue;
+    cols.forEach(j=>{ const v=r[j];
+      if(typeof v==="number" && isFinite(v) && num(t[j])!==v){ t[j]=v; numFixCount++; } });
+  }
+  return arr;
+}
 /* ===== クーパン配送リスト 全40列（原文=韓国語 / 日本語解説） ===== */
 const COUPANG_COLS = [
   {en:"Number", kr:"번호", jp:"通し番号（連番）"},
@@ -3838,7 +3868,9 @@ document.getElementById("file").addEventListener("change",e=>{
   const f=e.target.files[0]; if(!f) return; const rd=new FileReader();
   rd.onload=ev=>{ try{
     const wb=readWB(ev.target.result);
-    const arr=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{header:1,raw:false,defval:""});
+    const sh=wb.Sheets[wb.SheetNames[0]];
+    const arr=XLSX.utils.sheet_to_json(sh,{header:1,raw:false,defval:""});
+    fixNumericCells(arr, XLSX.utils.sheet_to_json(sh,{header:1,raw:true,defval:""}));   /* LibreOffice対策 */
     if(!arr.length){alert("空のファイルです");return;}
     if(current==="coupang"){
       const raw=arr[0].map(h=>String(h||"").trim());
@@ -3854,7 +3886,7 @@ document.getElementById("file").addEventListener("change",e=>{
         if(on && existing.has(on)){ dup++; continue; }   // 同じ注文番号は取り込まない（重複スキップ）
         rows.push(rec); if(on) existing.add(on); added++; }
       save(rows); syncLedger(rows); render();   /* 取込は全件保存（purgeで消さない・表示だけ後で60日に絞る） */
-      alert(`取込完了（配送リスト）：${added}件を追加しました。\n重複（同じ注文番号）スキップ：${dup}件\n※購入日の新しい順に自動整列。データは全件保存（サーバーにも蓄積）し、画面表示のみ60日以内に絞ります`);
+      alert(`取込完了（配送リスト）：${added}件を追加しました。\n重複（同じ注文番号）スキップ：${dup}件\n※購入日の新しい順に自動整列。データは全件保存（サーバーにも蓄積）し、画面表示のみ60日以内に絞ります`+numFixNote());
     } else {
       importPlatform(arr, platforms[current]); e.target.value=""; return;
     }
@@ -3878,8 +3910,12 @@ function importPlatform(arr, spec){
     if(existing.has(on)){ dup++; continue; }   // 商品注文番号ごとに重複スキップ（明細は落とさない）
     rows.push(rec); existing.add(on); added++; }
   save(rows); syncLedger(rows); render();   /* 取込は全件保存（purgeで消さない・表示だけ後で60日に絞る） */
-  alert(`取込完了（${spec.name}）：${added}件を追加しました。\n重複スキップ：${dup}件\n※手数料・割引は自動で反映されます（1行目の説明行は自動でスキップ）`);
+  alert(`取込完了（${spec.name}）：${added}件を追加しました。\n重複スキップ：${dup}件\n※手数料・割引は自動で反映されます（1行目の説明行は自動でスキップ）`+numFixNote());
 }
+/* LibreOfficeで保存されたファイルを直した時だけ、その旨を添える */
+function numFixNote(){ return numFixCount
+  ? `\n\n⚠ このファイルは Excel 以外（LibreOffice など）で保存されたようで、数量などの数値に日付の書式が付いていました。\n　 ${numFixCount}個を元の数値に直して取り込みました（購入数が「1900/01/02」のようにならないようにするため）。`
+  : ""; }
 
 /* 精算明細（MSF）→ 注文番号(Order ID)ごとに手数料(Sales commission=N列)を合算し、台帳に自動入力 */
 function importFees(arr,raw){
