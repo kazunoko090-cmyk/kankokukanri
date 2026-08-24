@@ -586,7 +586,7 @@ window.CAT_ATTR_JA={"색상": "色", "수량": "数量", "패션의류/잡화 �
       <div class="navsub" data-label="顧客管理">
         <a data-sec="cust" data-p="coupang"><span class="dot"></span>クーパン</a>
         <a data-sec="cust" data-p="smart"><span class="dot"></span>スマートストア</a>
-        <a data-sec="cust" data-p="st11"><span class="dot"></span>11番街 <span class="soon">準備中</span></a>
+        <a data-sec="cust" data-p="st11"><span class="dot"></span>11番街</a>
       </div>
     </div>
     <div class="navgroup" data-g="sales">
@@ -594,6 +594,7 @@ window.CAT_ATTR_JA={"색상": "色", "수량": "数量", "패션의류/잡화 �
       <div class="navsub" data-label="売上管理">
         <a data-sec="sales" data-p="coupang"><span class="dot"></span>クーパン</a>
         <a data-sec="sales" data-p="smart"><span class="dot"></span>スマートストア</a>
+        <a data-sec="sales" data-p="st11"><span class="dot"></span>11番街</a>
         <a class="soon-item"><span class="dot"></span>11番街 <span class="soon">準備中</span></a>
       </div>
     </div>
@@ -608,6 +609,7 @@ window.CAT_ATTR_JA={"색상": "色", "수량": "数量", "패션의류/잡화 �
       <div class="navsub" data-label="リサーチ">
         <a data-sec="research" data-p="coupang"><span class="dot"></span>クーパン</a>
         <a data-sec="research" data-p="smart"><span class="dot"></span>スマートストア</a>
+        <a data-sec="research" data-p="st11"><span class="dot"></span>11番街</a>
         <a class="soon-item"><span class="dot"></span>11番街 <span class="soon">準備中</span></a>
       </div>
     </div>
@@ -1196,6 +1198,22 @@ const MSGS = ["不要","必要","済"];
 function autoMsg(won){ return num(won)>=150000?"必要":"不要"; }   // 15万ウォン以上=必要
 function msgOf(s){ return (s&&s.msg)?s.msg:autoMsg(s?s.won:0); }
 
+/* ===== 11番街（注文確認ファイル）表示列。key=Excelの韓国語見出しをそのまま使用 ===== */
+const ST11_VIEW = [
+  {key:"주문번호", jp:"注文番号", copy:true},
+  {track:true, jp:"追跡番号"},
+  {key:"주문일시", jp:"購入日"},
+  {key:"발송마감일", jp:"発送期日", deadline:true},
+  {key:"상품명", jp:"商品タイトル", clip:true},
+  {key:"판매자 상품코드", jp:"ASIN", asin:true},
+  {key:"주문금액", jp:"販売価格(1個)", money:true, copy:true, unit:true},
+  {key:"수량", jp:"購入数", qty:true},
+  {key:"우편번호", jp:"郵便番号", copy:true},
+  {key:"주소", jp:"住所", copy:true},
+  {key:"수취인", jp:"名前", copy:true},                    /* 通関番号の左隣に配置 */
+  {key:"세관신고정보", jp:"個人通関番号", copy:true},
+  {key:"휴대폰번호", jp:"電話番号", copy:true}
+];
 const platforms = {
   coupang:{ name:"クーパン", key:"kr_cust_coupang_v4", salesKey:"kr_sales_coupang_v3", ready:true, cloud:true,
             orderKey:"Order number", view:VIEW,
@@ -1206,7 +1224,15 @@ const platforms = {
           map:{ order:"상품주문번호", date:"주문일시", deadline:"발송기한", asin:"판매자 상품코드",
                 title:"상품명", won:"최종 상품별 총 주문금액", qty:"수량", discount:"최종 상품별 할인액",
                 feeA:"네이버페이 주문관리 수수료", feeB:"매출연동 수수료" } },
-  st11:{ name:"11番街", key:"kr_cust_11st_v4", salesKey:"kr_sales_11st_v3", ready:false, cloud:false }
+  st11:{ name:"11番街", key:"kr_cust_11st_v4", salesKey:"kr_sales_11st_v3", ready:true, cloud:true,
+         orderKey:"注文キー", displayOrder:"주문번호", feeInline:true, view:ST11_VIEW,
+         /* 11番街は1注文が「주문번호＋주문순번」で1明細。単独で一意になる列が無いので取込時に作る。
+            控除合計＝サービス利用料＋販売者の割引2種。주문금액からこれを引くと정산예정금액に一致する（実測で確認）。 */
+         prep:r=>{ r["注文キー"]=String(r["주문번호"]||"").trim()+"-"+String(r["주문순번"]||"1").trim();
+                   r["控除合計"]=num(r["서비스이용료"])+num(r["판매자기본할인금액"])+num(r["판매자 추가할인금액"]); },
+         map:{ order:"注文キー", date:"주문일시", deadline:"발송마감일", asin:"판매자 상품코드",
+               title:"상품명", won:"주문금액", qty:"수량",
+               feeA:"控除合計", feeB:"（未使用）" } }
 };
 let current="coupang";
 let section="home";                       // home（起動時・パスワード不要） | cust | sales …
@@ -2313,6 +2339,10 @@ function renderList(){
     if(smartListTab==="shingan"){ renderShingan(host); }
     else if(smartListTab==="cat"){ renderSmartCat(host); }
     else if(smartListTab==="tebiki"){ renderTebiki(host); } else { bruMode="brushup"; renderBrushup(host); }
+  } else if(current==="st11"){
+    head.innerHTML=`出品：11番街 <small>ブラッシュアップ（販売済み商品を投稿）</small>`;
+    body.innerHTML=`<div id="st11-list-host"></div>`;
+    bruMode="brushup"; renderBrushup(document.getElementById("st11-list-host"));
   } else {
     head.innerHTML=`出品：${PNAME[current]||current} <small>準備中</small>`;
     body.innerHTML=`<div class="empty"><b>出品（${PNAME[current]||current}）はこれから作ります</b>必要な項目を教えてください。</div>`;
@@ -3138,11 +3168,12 @@ Amazon・楽天・ヤフショなどで、次のどれかに当てはまるセ�
 
 /* ===== ブラッシュアップ（出品/スマートストア：販売済み＋任意商品を投稿管理） ===== */
 const BRU_DONE_SEED=[{asin:"B0GF2XRKNN",url:"https://smartstore.naver.com/tokyomart7585/products/13385714237"},{asin:"B0D59WRLY6",url:"https://smartstore.naver.com/tokyomart7585/products/13345303767"},{asin:"B0FHZZ42RN",url:"https://smartstore.naver.com/tokyomart7585/products/13434002894"},{asin:"B0FBG5ZMFV",url:"https://smartstore.naver.com/tokyomart7585/products/13364149771"},{asin:"B0CSZ48232",url:"https://smartstore.naver.com/tokyomart7585/products/13364686698"},{asin:"B0DKS7H2QR",url:"https://smartstore.naver.com/tokyomart7585/products/13419288734"},{asin:"B0C5X3RY3G",url:"https://smartstore.naver.com/tokyomart7585/products/13345303765"},{asin:"B0GLP4366B",url:"https://www.amazon.co.jp/dp/B0GLP4366B"},{asin:"B08ZHR9SSM",url:"https://www.amazon.co.jp/dp/B08ZHR9SSM"},{asin:"B076Q49HNZ",url:"https://www.amazon.co.jp/dp/B076Q49HNZ"}];   /* ブラッシュアップ済み（投稿済み）ASIN+URLの初期埋め込み */
-function bruKey(base){ return "kr_bru_smart_"+base+(bruMode==="tebiki"?"_te":""); }   /* 手出品は別データ（_te） */
+function bruPlat(){ return current==="st11" ? "st11" : "smart"; }   /* ブラッシュアップはモールごとに別データ */
+function bruKey(base){ return "kr_bru_"+bruPlat()+"_"+base+(bruMode==="tebiki"?"_te":""); }   /* 手出品は別データ（_te） */
 function bruSold(){ try{ return JSON.parse(localStorage.getItem(bruKey("sold")))||{}; }catch(e){ return {}; } }
 function bruSoldSave(o){ localStorage.setItem(bruKey("sold"),JSON.stringify(o)); }
 function bruCustom(){ const raw=localStorage.getItem(bruKey("custom")); if(raw){ try{ const d=JSON.parse(raw); if(Array.isArray(d)) return d; }catch(e){} }
-  if(bruMode==="brushup"){ const s=BRU_DONE_SEED.map(x=>({id:"bd"+Math.random().toString(36).slice(2,9),title:x.asin,url:x.url,asin:x.asin,posted:true,date:""})); localStorage.setItem(bruKey("custom"),JSON.stringify(s)); return s; }
+  if(bruMode==="brushup" && bruPlat()==="smart"){ const s=BRU_DONE_SEED.map(x=>({id:"bd"+Math.random().toString(36).slice(2,9),title:x.asin,url:x.url,asin:x.asin,posted:true,date:""})); localStorage.setItem(bruKey("custom"),JSON.stringify(s)); return s; }
   return []; }
 function bruCustomSave(l){ localStorage.setItem(bruKey("custom"),JSON.stringify(l)); }
 window.bruDateSold=(a,v)=>{ const o=bruSold(); if(!o[a])o[a]={posted:false,date:""}; o[a].date=v; bruSoldSave(o); };
@@ -3154,7 +3185,7 @@ window.bruCustDel=(id)=>{ if(!askDel("任意商品", delLabel(bruCustom().find(x
 window.bruCustPost=(id)=>{ const l=bruCustom(); const it=l.find(x=>x.id===id); if(it){ if(!it.date)it.date=todayStr(); it.posted=true; bruCustomSave(l); } renderList(); };
 window.bruCustUnpost=(id)=>{ const l=bruCustom(); const it=l.find(x=>x.id===id); if(it)it.posted=false; bruCustomSave(l); renderList(); };
 function renderBrushup(body){
-  const soldMap=bruSold(), custom=bruCustom(), soldAll=blogData("smart");
+  const soldMap=bruSold(), custom=bruCustom(), soldAll=blogData(bruPlat());   /* 販売済みは今のモールの売上台帳から */
   const soldDone=a=>!!(soldMap[a]&&soldMap[a].posted);
   const z=n=>('0'+n).slice(-2), fmtd=ds=>{const pp=parseDate(ds);return pp?pp.getFullYear()+"-"+z(pp.getMonth()+1)+"-"+z(pp.getDate()):"";};
   const amz=a=>`<a class="srclink" href="${esc(resolveUrl(a))}" target="_blank" title="${esc(resolveUrl(a))}">${esc(urlLabel(a))}</a>`;
@@ -3166,7 +3197,7 @@ function renderBrushup(body){
     const list=soldAll.filter(x=>!soldDone(x.asin) && !postedAsins.has(String(x.asin))).sort((a,b)=>b.lastT-a.lastT);
     const rows=list.length?list.map(x=>{ const a=esc(x.asin), d=(soldMap[x.asin]||{}).date||"";
       return `<tr><td>${amz(x.asin)}</td><td>${clip(x.title)}</td><td><input class="rvdate" type="date" value="${esc(d)}" onchange="bruDateSold('${a}',this.value)"></td><td><button class="btn-primary btn-sm" onclick="bruPostSold('${a}')">投稿する</button></td></tr>`;
-    }).join(""):`<tr><td class="empty" colspan="4"><b>未投稿の販売済み商品がありません</b>スマートストアの売上データが入ると、ここへASINが並びます。</td></tr>`;
+    }).join(""):`<tr><td class="empty" colspan="4"><b>未投稿の販売済み商品がありません</b>${esc(PNAME[current]||"")}の売上データが入ると、ここへASINが並びます。</td></tr>`;
     inner=`<table><thead><tr><th>ASIN</th><th>商品タイトル</th><th>投稿日</th><th>操作</th></tr></thead><tbody>${rows}</tbody></table>`;
   } else if(bruTab==="custom"){
     const list=custom.filter(x=>!x.posted);
@@ -3188,7 +3219,7 @@ function renderBrushup(body){
     }).join(""):`<tr><td class="empty" colspan="4"><b>投稿済みはまだありません</b>「販売済み」「任意商品」で投稿日を選び「投稿する」を押すと、ここへ移動します。</td></tr>`;
     inner=`<table><thead><tr><th>区分</th><th>内容</th><th>投稿日</th><th>操作</th></tr></thead><tbody>${rows}</tbody></table>`;
   }
-  body.innerHTML=`<div class="toolbar" style="border:0;padding-bottom:6px">${tabs}</div><div class="retnote" style="background:#fafbff;color:var(--muted)">スマートストアの販売済み商品（ASIN）と、手入力の任意商品を投稿管理します。投稿日を選んで「投稿する」で「投稿済み」に移動（投稿済みASINは再取込しません）。</div><div class="tablewrap">${inner}</div>`;
+  body.innerHTML=`<div class="toolbar" style="border:0;padding-bottom:6px">${tabs}</div><div class="retnote" style="background:#fafbff;color:var(--muted)">${esc(PNAME[current]||"")}の販売済み商品（ASIN）と、手入力の任意商品を投稿管理します。投稿日を選んで「投稿する」で「投稿済み」に移動（投稿済みASINは再取込しません）。</div><div class="tablewrap">${inner}</div>`;
 }
 
 /* ===== スマート出品：手出品（出品管理表・1ページ／未投稿を上・古い順／販売価格は仕入れ値×1.1＋送料1100を現在レートでウォン換算） ===== */
@@ -3947,10 +3978,11 @@ function importPlatform(arr, spec){
     if(cells.includes(spec.orderKey)||cells.includes(spec.displayOrder)){ hr=i; break; } }
   if(hr<0){ alert(`${spec.name}の見出し（${spec.orderKey}）が見つかりませんでした。\nダウンロードした発注発送管理ファイルをそのまま選んでください。`); return; }
   const header=(arr[hr]||[]).map(x=>String(x||"").trim());
-  if(!header.includes(spec.orderKey)){ alert("対応していない形式です。"); return; }
+  if(!header.includes(spec.orderKey) && !header.includes(spec.displayOrder)){ alert("対応していない形式です。"); return; }   /* 11番街は注文キーが取込時生成なので注文番号で判定 */
   let rows=load(); const existing=new Set(rows.map(r=>String(r[spec.orderKey]))); let added=0,dup=0;
   for(let i=hr+1;i<arr.length;i++){ const line=arr[i]; if(!line||line.every(v=>String(v).trim()==="")) continue;
     const rec={_status:DEFAULT_STATUS}; header.forEach((h,j)=>{ if(h) rec[h]=line[j]??""; });
+    if(spec.prep) spec.prep(rec);                        /* 11番街：注文キーと控除合計をここで作る */
     const on=String(rec[spec.orderKey]||""); if(!on) continue;
     if(existing.has(on)){ dup++; continue; }   // 商品注文番号ごとに重複スキップ（明細は落とさない）
     rows.push(rec); existing.add(on); added++; }
@@ -4069,7 +4101,13 @@ const RCATS=[
   {id:"sbrand", label:"ブランド", short:"ブランド", type:"brand", plat:"smart"},
   {id:"srival", label:"ライバルセラー", short:"ライバルセラー", type:"seller", plat:"smart"},
   {id:"sngexp", label:"輸出不可（クーパン/11番街/スマートストア）", short:"輸出不可", type:"ngmulti", plat:"smart"},
-  {id:"sbrandrank", label:"ランキング（ブランド販売数）", short:"ランキング", type:"rank", plat:"smart"}
+  {id:"sbrandrank", label:"ランキング（ブランド販売数）", short:"ランキング", type:"rank", plat:"smart"},
+  {id:"trankA", label:"ランクA（ブランド）", short:"ランクA", type:"brand", plat:"st11"},
+  {id:"trankB", label:"ランクB（ブランド）", short:"ランクB", type:"brand", plat:"st11"},
+  {id:"tbrand", label:"ブランド", short:"ブランド", type:"brand", plat:"st11"},
+  {id:"trival", label:"ライバルセラー", short:"ライバルセラー", type:"seller", plat:"st11"},
+  {id:"tngexp", label:"輸出不可（クーパン/11番街/スマートストア）", short:"輸出不可", type:"ngmulti", plat:"st11"},
+  {id:"tbrandrank", label:"ランキング（ブランド販売数）", short:"ランキング", type:"rank", plat:"st11"}
 ];
 let researchTab="soldA";
 function rcat(id){ return RCATS.find(c=>c.id===id)||RCATS[0]; }
@@ -4242,7 +4280,7 @@ function renderBrandRank(cat){
   const KB=knownBrands();
   const g={};
   l.forEach(s=>{ if(s.status==="キャンセル"||s.status==="返品") return;
-    const info=(current==="smart"?smartBrandInfo(brandTitleOf(s)):{name:brandOf(brandTitleOf(s),KB),src:""});
+    const info=(current==="coupang"?{name:brandOf(brandTitleOf(s),KB),src:""}:smartBrandInfo(brandTitleOf(s)));   /* スマート・11番街は韓国語なのでハングル変換を通す */
     const b=info.name; if(!b) return;
     if(!g[b]) g[b]={brand:b, qty:0, lastT:0, last:"", src:""};
     if(!g[b].src && info.src && info.src!==b && hasKr(info.src)) g[b].src=info.src;
@@ -4270,7 +4308,8 @@ function renderBrandRank(cat){
 /* モールごとに「どこから・どこへ」移すか。クーパンとスマートは完全に別々に動かす */
 const AUTO_MOVE={
   coupang:{ from:"compe",  to:"soldB",  known:["soldA","soldB"],   label:"Sold B" },
-  smart:  { from:"sbrand", to:"srankA", known:["srankA","srankB"], label:"ランクA" }
+  smart:  { from:"sbrand", to:"srankA", known:["srankA","srankB"], label:"ランクA" },
+  st11:   { from:"tbrand", to:"trankA", known:["trankA","trankB"], label:"ランクA" }
 };
 let rvAutoMoved=[], rvAutoPlat="";        /* 自動移動した名前と、それがどのモールの話か（混ざらないように） */
 window.rvAutoClose=()=>{ rvAutoMoved=[]; rvAutoPlat=""; rvPromoted=[]; rvPromoPlat=""; renderResearch(); };
@@ -4294,14 +4333,14 @@ function autoMoveSoldBrands(){
     const t=brandTitleOf(s); if(!t) return;
     titles.push(t.toLowerCase());
     /* スマートの商品名は韓国語なので、変換後のブランド名でも照合する（반다이 → BANDAI） */
-    if(current==="smart"){ const b=smartBrandInfo(t).name; if(b) titles.push(b.toLowerCase()); }
+    if(current!=="coupang"){ const b=smartBrandInfo(t).name; if(b) titles.push(b.toLowerCase()); }
   });
   if(!titles.length) return;                                         /* 台帳が未取得なら何もしない */
   const known=new Set();
   cfg.known.forEach(k=>{ (Array.isArray(d[k])?d[k]:[]).forEach(r=>known.add(rvNorm(r.name))); });
   /* スマートは「NEW ERA」に対して「NEW ERA バッグ」が既にある＝もう登録済みとみなして動かさない */
   const isKnown=n=>{ if(known.has(n)) return true;
-    if(current!=="smart") return false;
+    if(current==="coupang") return false;
     for(const k of known){ if(k.indexOf(n+" ")===0) return true; }
     return false; };
   const stay=[], moved=[];
@@ -4389,8 +4428,8 @@ function renderResearch(){
   const hint=document.getElementById("rv-hint"); if(hint) hint.style.display= rank?"none":"";
   if(rank){ renderBrandRank(cat); return; }
   const rows=filteredResearchRows();
-  const selUrlLbl = current==="smart" ? "スマートストアURL" : "クーパンURL";
-  const smBrand = (!seller && !ngmulti && !rank && current==="smart");   /* スマートのブランド系：楽天列なし */
+  const selUrlLbl = current==="smart" ? "スマートストアURL" : (current==="st11" ? "11番街URL" : "クーパンURL");
+  const smBrand = (!seller && !ngmulti && !rank && current!=="coupang");   /* スマート・11番街のブランド系：楽天列なし */
   const H = seller
     ? ["✓","セラー名",selUrlLbl,"メモ","最終確認日","操作"]
     : ngmulti
