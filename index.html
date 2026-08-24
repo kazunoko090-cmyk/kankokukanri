@@ -595,7 +595,6 @@ window.CAT_ATTR_JA={"색상": "色", "수량": "数量", "패션의류/잡화 �
         <a data-sec="sales" data-p="coupang"><span class="dot"></span>クーパン</a>
         <a data-sec="sales" data-p="smart"><span class="dot"></span>スマートストア</a>
         <a data-sec="sales" data-p="st11"><span class="dot"></span>11番街</a>
-        <a class="soon-item"><span class="dot"></span>11番街 <span class="soon">準備中</span></a>
       </div>
     </div>
     <div class="navgroup" data-g="cs">
@@ -610,7 +609,6 @@ window.CAT_ATTR_JA={"색상": "色", "수량": "数量", "패션의류/잡화 �
         <a data-sec="research" data-p="coupang"><span class="dot"></span>クーパン</a>
         <a data-sec="research" data-p="smart"><span class="dot"></span>スマートストア</a>
         <a data-sec="research" data-p="st11"><span class="dot"></span>11番街</a>
-        <a class="soon-item"><span class="dot"></span>11番街 <span class="soon">準備中</span></a>
       </div>
     </div>
     <div class="navgroup" data-g="list">
@@ -1557,15 +1555,16 @@ function todayStr(){ const d=new Date(); return d.getFullYear()+"-"+String(d.get
 const PW_MS=183*24*60*60*1000;                                   /* 約6か月 */
 let tblmanKey=null;   /* 管理表マニュアルで「発送管理」を開いている時だけ "hassou"。モール別の3つは null */
 const PW_PROTECTED=new Set(["cust","sales","research","list","tblman"]);
-const PW_PINS={coupang:"9980", smart:"3810", st11:"1183"};       /* モールごとの暗証番号 */
+const PW_PINS={coupang:"9980", smart:"3810", st11:"1183", hassou:"8130"};   /* モールごとの暗証番号＋発送管理マニュアル */
 const PW_NAMES={cust:"顧客管理",sales:"売上管理",research:"リサーチ",list:"出品",tblman:"管理表マニュアル"};
-const PW_PLATNAMES={coupang:"クーパン",smart:"スマートストア",st11:"11番街"};
+const PW_PLATNAMES={coupang:"クーパン",smart:"スマートストア",st11:"11番街",hassou:"発送管理"};
+function pwScope(){ return (section==="tblman" && tblmanKey) ? "hassou" : current; }   /* 発送管理はモールとは別枠の鍵 */
 function pwOK(plat){ const t=parseInt(localStorage.getItem("kr_pw_until_"+plat)||"0",10); return !!t && Date.now()<t; }
-function pwNeed(){ if(section==="tblman" && tblmanKey) return false;   /* 発送管理はモール別ではないので暗証番号なし */
-  return PW_PROTECTED.has(section) && !!PW_PINS[current] && !pwOK(current); }   /* 対象画面×該当モールで未解除なら要求 */
-function pwUnlock(){ try{ localStorage.setItem("kr_pw_until_"+current, String(Date.now()+PW_MS)); }catch(e){} render(); }
+function pwNeed(){ const p=pwScope();
+  return PW_PROTECTED.has(section) && !!PW_PINS[p] && !pwOK(p); }   /* 対象画面×該当の鍵で未解除なら要求 */
+function pwUnlock(){ try{ localStorage.setItem("kr_pw_until_"+pwScope(), String(Date.now()+PW_MS)); }catch(e){} render(); }
 (function(){ const b=document.getElementById("lockBtn"), i=document.getElementById("lockInput"), er=document.getElementById("lockErr");
-  function go(){ if(i.value===(PW_PINS[current]||" ")){ if(er) er.textContent=""; i.value=""; pwUnlock(); } else { if(er) er.textContent="暗証番号が違います"; i.value=""; i.focus(); } }
+  function go(){ if(i.value===(PW_PINS[pwScope()]||" ")){ if(er) er.textContent=""; i.value=""; pwUnlock(); } else { if(er) er.textContent="暗証番号が違います"; i.value=""; i.focus(); } }
   if(b) b.addEventListener("click",go);
   if(i) i.addEventListener("keydown",ev=>{ if(ev.key==="Enter") go(); });
 })();
@@ -1574,7 +1573,9 @@ function render(){
   document.getElementById("view-lock").style.display=_locked?"":"none";
   if(_locked){
     ["view-home","view-cust","view-sales","view-research","view-list","view-banned","view-banlist","view-shortcut","view-blog","view-manual","view-tblman","view-cs","view-faq","view-shipfee"].forEach(id=>{ const el=document.getElementById(id); if(el) el.style.display="none"; });
-    const lm=document.getElementById("lockMsg"); if(lm) lm.textContent="「"+(PW_PLATNAMES[current]||"")+" "+(PW_NAMES[section]||"")+"」を開くには暗証番号を入力してください";
+    const lm=document.getElementById("lockMsg"); if(lm) lm.textContent= (pwScope()==="hassou")
+      ? "「管理表マニュアル 発送管理」を開くには暗証番号を入力してください"
+      : "「"+(PW_PLATNAMES[current]||"")+" "+(PW_NAMES[section]||"")+"」を開くには暗証番号を入力してください";
     const li=document.getElementById("lockInput"); if(li) setTimeout(()=>{ try{ li.focus(); }catch(e){} },40);
     return;
   }
