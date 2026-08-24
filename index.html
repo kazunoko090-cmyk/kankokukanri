@@ -639,6 +639,7 @@ window.CAT_ATTR_JA={"색상": "色", "수량": "数量", "패션의류/잡화 �
         <a data-sec="tblman" data-p="coupang"><span class="dot"></span>クーパン</a>
         <a data-sec="tblman" data-p="smart"><span class="dot"></span>スマートストア</a>
         <a data-sec="tblman" data-p="st11"><span class="dot"></span>11番街</a>
+        <a id="nav-tblman-hassou"><span class="dot"></span>発送管理</a>
       </div>
     </div>
     <div class="navgroup" data-g="banned">
@@ -1528,12 +1529,14 @@ function todayStr(){ const d=new Date(); return d.getFullYear()+"-"+String(d.get
 /* ===== router ===== */
 /* ===== パスワードロック（モール別・対象5画面のみ／端末ごとに約6か月間は再入力不要・クラウド非同期） ===== */
 const PW_MS=183*24*60*60*1000;                                   /* 約6か月 */
+let tblmanKey=null;   /* 管理表マニュアルで「発送管理」を開いている時だけ "hassou"。モール別の3つは null */
 const PW_PROTECTED=new Set(["cust","sales","research","list","tblman"]);
 const PW_PINS={coupang:"9980", smart:"3810", st11:"1183"};       /* モールごとの暗証番号 */
 const PW_NAMES={cust:"顧客管理",sales:"売上管理",research:"リサーチ",list:"出品",tblman:"管理表マニュアル"};
 const PW_PLATNAMES={coupang:"クーパン",smart:"スマートストア",st11:"11番街"};
 function pwOK(plat){ const t=parseInt(localStorage.getItem("kr_pw_until_"+plat)||"0",10); return !!t && Date.now()<t; }
-function pwNeed(){ return PW_PROTECTED.has(section) && !!PW_PINS[current] && !pwOK(current); }   /* 対象画面×該当モールで未解除なら要求 */
+function pwNeed(){ if(section==="tblman" && tblmanKey) return false;   /* 発送管理はモール別ではないので暗証番号なし */
+  return PW_PROTECTED.has(section) && !!PW_PINS[current] && !pwOK(current); }   /* 対象画面×該当モールで未解除なら要求 */
 function pwUnlock(){ try{ localStorage.setItem("kr_pw_until_"+current, String(Date.now()+PW_MS)); }catch(e){} render(); }
 (function(){ const b=document.getElementById("lockBtn"), i=document.getElementById("lockInput"), er=document.getElementById("lockErr");
   function go(){ if(i.value===(PW_PINS[current]||" ")){ if(er) er.textContent=""; i.value=""; pwUnlock(); } else { if(er) er.textContent="暗証番号が違います"; i.value=""; i.focus(); } }
@@ -1571,10 +1574,12 @@ function render(){
 /* ===== 管理表マニュアル（ブログマニュアルと同じフォーマット・モール別） ===== */
 const TBLMAN_SEED=[{title:"",url:""},{title:"",url:""},{title:"",url:""},{title:"",url:""}];
 function renderTblMan(){
-  const p=current;
-  document.getElementById("tblman-head").innerHTML=`管理表マニュアル：${PNAME[p]||p} <small>管理表マニュアルを準備します</small>`;
+  const p=current, hassou=(tblmanKey==="hassou");   /* 発送管理はモール別ではない4つ目 */
+  document.getElementById("tblman-head").innerHTML= hassou
+    ? `管理表マニュアル：発送管理 <small>モール共通。発送まわりの動画をここにまとめます</small>`
+    : `管理表マニュアル：${PNAME[p]||p} <small>管理表マニュアルを準備します</small>`;
   document.getElementById("tblman-body").innerHTML=`<div class="man-note">タイトルを入れ、動画URL（Loom等）を貼るとその場で再生できます。「＋ 項目を追加」で箱を増やせます。</div><div id="tblman-list"></div>`;
-  renderManInto("tblman-list","kr_tblman_"+p, TBLMAN_SEED);
+  renderManInto("tblman-list", hassou?"kr_tblman_hassou":("kr_tblman_"+p), TBLMAN_SEED);
 }
 /* ===== 顧客対応（日本語⇄韓国語の翻訳・韓国語の定型文） =====
    翻訳は無料のエンドポイント（Google gtx →失敗時 MyMemory）。APIキー不要・費用ゼロ。
@@ -3784,7 +3789,7 @@ document.querySelectorAll(".navhead").forEach(h=>h.addEventListener("click",()=>
 })();
 /* サイドバー：プラットフォーム選択（顧客管理グループのみ稼働） */
 document.querySelectorAll(".navsub a[data-p]").forEach(a=>a.addEventListener("click",()=>{
-  section=a.dataset.sec||"cust"; current=a.dataset.p;
+  section=a.dataset.sec||"cust"; current=a.dataset.p; tblmanKey=null;   /* モール別を選んだら発送管理の表示は解除 */
   svMonth=null;   /* プラットフォームを開いたら売上は最新月から表示 */
   document.querySelectorAll(".navsub a").forEach(x=>x.classList.remove("active"));
   a.classList.add("active");
@@ -3794,6 +3799,17 @@ document.querySelectorAll(".navsub a[data-p]").forEach(a=>a.addEventListener("cl
 }));
 /* 準備中メニュー */
 document.querySelectorAll(".navsub a.soon-item").forEach(a=>a.addEventListener("click",()=>alert("この項目は準備中です。顧客管理・クーパンが完成したら順番に作っていきます。")));
+/* 管理表マニュアル：発送管理（モール別ではない4つ目） */
+(function(){ const a=document.getElementById("nav-tblman-hassou"); if(!a) return;
+  a.addEventListener("click",()=>{
+    section="tblman"; tblmanKey="hassou";
+    document.querySelectorAll(".navsub a").forEach(x=>x.classList.remove("active"));
+    a.classList.add("active");
+    document.getElementById("crumb").innerHTML=`HOME / <b>管理表マニュアル</b> / 発送管理`;
+    const sb=document.getElementById("search"); if(sb) sb.value="";
+    render();
+  });
+})();
 /* 出品禁止（プラットフォーム分けなしの単独項目） */
 document.getElementById("nav-banlist").addEventListener("click",()=>{
   section="banlist";
