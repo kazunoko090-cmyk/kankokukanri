@@ -173,7 +173,10 @@ window.CAT_ATTR_JA={"색상": "色", "수량": "数量", "패션의류/잡화 �
   .dvsel[data-st="返品"]{ color:#9b51e0; background:#f6effc; border-color:#e2d0f4; }
   .dvsel[data-st="トラブル"]{ color:#fff; background:#e5453c; border-color:#d0342c; }
 
-  .stsel{ height:31px; border:1px solid var(--line); border-radius:8px; font-size:12px; font-weight:700; padding:0 7px; background:var(--surface); cursor:pointer; transition:box-shadow .15s; }
+  .stsel{ height:31px; border:1px solid var(--line); border-radius:8px; font-size:12px; font-weight:700; padding:0 10px; background:var(--surface); cursor:pointer; transition:box-shadow .15s; font-family:inherit;
+    -webkit-appearance:none; -moz-appearance:none; appearance:none; text-align:center; text-align-last:center; }   /* ▼を消して文字だけにする */
+  .stsel::-ms-expand{ display:none; }
+  .stsel:hover{ filter:brightness(.97); }
   .stsel:focus{ outline:none; box-shadow:0 0 0 3px var(--ring); }
   .stsel[data-v="入金済み"]{ color:#8a640f; background:#fffaf0; border-color:#f0e2b8; }
   .stsel[data-v="仕入れ済み"]{ color:var(--accent-d); background:#eef2ff; border-color:#cdd6ff; }
@@ -1137,7 +1140,7 @@ const COUPANG_COLS = [
 
 /* ===== 表示する12列（ご指定順）。head=見出しに出す韓国語、jp=日本語補足 ===== */
 const VIEW = [
-  {en:"Order number", head:"注文番号", jp:"注文番号"},
+  {en:"Order number", head:"注文番号", jp:"注文番号", copy:true},
   {track:true, jp:"追跡番号"},
   {en:"Order date", head:"주문일", jp:"購入日"},
   {en:"Expected shipment date upon order", head:"출고예정일", jp:"発送期日", deadline:true},
@@ -1155,7 +1158,7 @@ const VIEW_KEYS = new Set(VIEW.map(v=>v.en));
 
 /* ===== スマートストア（発注発送管理）表示列。key=Excelの韓国語見出しをそのまま使用 ===== */
 const SMART_VIEW = [
-  {key:"주문번호", jp:"注文番号"},
+  {key:"주문번호", jp:"注文番号", copy:true},
   {track:true, jp:"追跡番号"},
   {key:"주문일시", jp:"購入日"},
   {key:"발송기한", jp:"発送期日", deadline:true},
@@ -3622,8 +3625,8 @@ function renderSalesDetail(){
       `<td class="s1">${sel}</td>`+
       `<td class="s2c"><input type="checkbox" class="rowchk" ${checked} onclick="setHi(this,'${id}')" title="チェックで色付け"></td>`+
       `<td ondblclick="editAsin('${id}')">${asinCell}</td>`+
-      `<td>${esc(s.order)}</td>`+
-      `<td><span class="clip" title="${esc(s.title||"")}" onclick="toggleClip(this)">${esc(s.title||"")}</span></td>`+
+      `<td>${esc(s.order)}${s.order?`<button class="cbtn" data-copy="${esc(s.order)}" onclick="copyBtn(this)" title="コピー">📋</button>`:""}</td>`+
+      `<td><span class="clip" title="${esc(s.title||"")}" onclick="toggleClip(this)">${esc(s.title||"")}</span>${s.title?`<button class="cbtn" data-copy="${esc(s.title)}" onclick="copyBtn(this)" title="コピー">📋</button>`:""}</td>`+
       `<td>${esc(md(s.date))}</td>`+
       `<td class="${dcls}">${esc(md(s.deadline))}</td>`+
       `<td><input class="cellinput txt" value="${esc(s.track)}" onchange="setSaleField('${id}','track',this.value)"></td>`+
@@ -3713,7 +3716,7 @@ function renderCust(){
         : `<td ondblclick="editAsin('${id}')"><span class="edit-mark add" onclick="editAsin('${id}')" title="ASINを入力">＋</span></td>`;
       if(c.qty){ return `<td class="mono${num(v)>=2?' qty2':''}">${esc(v)}</td>`; }   /* 仕入れ数量が2以上なら赤字 */
       if(c.copy){ const has=v!=null&&String(v)!==""; return `<td>${esc(v)}${has?`<button class="cbtn" data-copy="${esc(v)}" onclick="copyBtn(this)" title="コピー">📋</button>`:""}</td>`; }
-      if(c.clip) return `<td><span class="clip" title="${esc(v)}" onclick="toggleClip(this)">${esc(v)}</span></td>`;
+      if(c.clip){ const hasv=v!=null&&String(v)!==""; return `<td><span class="clip" title="${esc(v)}" onclick="toggleClip(this)">${esc(v)}</span>${hasv?`<button class="cbtn" data-copy="${esc(v)}" onclick="copyBtn(this)" title="コピー">📋</button>`:""}</td>`; }
       return `<td>${esc(v)}</td>`;
     }).join("");
     const base=r._status==="トラブル"?"trouble":(r._status==="返品"?"returned":(r._status==="キャンセル"?"cancelled":(r._status==="仕入れ済み"?"stocked":"")));
