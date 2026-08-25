@@ -2395,14 +2395,15 @@ function renderBlogStats(){
   if(!blogMonth||sel.indexOf(blogMonth)<0) blogMonth=(sel.indexOf(nowM)>=0)?nowM:sel[sel.length-1];
   const yy=+blogMonth.slice(0,4), mm=+blogMonth.slice(5,7), lastDay=new Date(yy,mm,0).getDate();
   const cm=months[blogMonth]||{f:0,c:0,s:0,t:0,days:{}}, cy=years[String(yy)]||{f:0,c:0,s:0,t:0,days:{}};
-  /* 最終投稿：実際の記録の中でいちばん新しいもの（時刻はこの機能を入れて以降の投稿に付く） */
-  const lastPost=got.list.slice().sort((a,b)=> a.date<b.date?-1:(a.date>b.date?1:String(a.at).localeCompare(String(b.at)))).pop();
-  const lpD=lastPost?(+lastPost.date.slice(5,7))+"/"+(+lastPost.date.slice(8,10)):"—";
-  const lpT=(lastPost&&/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$/.test(lastPost.at))?lastPost.at.slice(11,16):"";
+  /* 投稿確定日：3件そろっている（＝満了・確定ずみ）いちばん新しい日。ここまでは投稿が埋まっている */
+  const fullDays=Object.keys(byDay).filter(d=>byDay[d]>=BLOG_PER_DAY).sort();
+  const lastFull=fullDays.length?fullDays[fullDays.length-1]:"";
+  const lpD=lastFull?(+lastFull.slice(5,7))+"/"+(+lastFull.slice(8,10)):"—";
+  const lpW=lastFull?BLOG_WD[new Date(+lastFull.slice(0,4),+lastFull.slice(5,7)-1,+lastFull.slice(8,10)).getDay()]:"";
   const todoC=blogTodoCount("coupang"), todoS=blogTodoCount("smart");
   const cards=`<div class="stats s4">`+
     `<div class="card alert"><div class="label">${yy}年${mm}月 の累計</div><div class="num">${cm.t}<small> 件</small></div></div>`+
-    `<div class="card"><div class="label">最終投稿</div><div class="num">${lpD}<small> ${lpT?esc(lpT):(lastPost?"時刻なし":"")}</small></div></div>`+
+    `<div class="card"><div class="label">投稿確定日</div><div class="num">${lpD}<small> ${lastFull?`(${lpW}) まで確定`:""}</small></div></div>`+
     `<div class="card" style="cursor:pointer" title="クーパンの未投稿を開く" onclick="blogGoTodo('coupang')"><div class="label">クーパン 未投稿</div><div class="num" style="color:var(--brand);text-decoration:underline">${todoC}<small> 件</small></div></div>`+
     `<div class="card" style="cursor:pointer" title="スマートストアの未投稿を開く" onclick="blogGoTodo('smart')"><div class="label">スマートストア 未投稿</div><div class="num" style="color:var(--brand);text-decoration:underline">${todoS}<small> 件</small></div></div>`+
   `</div>`;
