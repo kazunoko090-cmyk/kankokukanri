@@ -278,6 +278,14 @@ window.CAT_ATTR_JA={"색상": "色", "수량": "数量", "패션의류/잡화 �
   .attr-in{ height:30px; border:1px solid var(--line); border-radius:6px; padding:0 8px; font-size:13px; font-family:inherit; width:150px; }
   .attr-in:focus{ outline:none; border-color:var(--accent); box-shadow:0 0 0 3px var(--ring); }
   /* 小さめコピーボタン */
+  /* 在庫管理：分類バッジと済の行 */
+  .stkb{ display:inline-block; font-size:10.5px; font-weight:800; border-radius:6px; padding:2px 7px; border:1px solid transparent; white-space:nowrap; vertical-align:middle; }
+  .stkb.red{ color:#c02b22; background:#fdeeec; border-color:#f6cdc8; }
+  .stkb.green{ color:#0d8a55; background:#e9fbf2; border-color:#bfead2; }
+  .stkb.grey{ color:#5a6377; background:#eef0f4; border-color:#dde1e9; }
+  .stkb.blue{ color:#215fb3; background:#eef7fc; border-color:#c2e0f2; }
+  tr.stk-done td{ opacity:.45; }
+  tr.stk-done .clip{ text-decoration:line-through; }
   .cbtn{ height:16px; min-width:16px; padding:0 3px; margin-left:5px; font-size:9px; line-height:1; border:1px solid var(--line); background:var(--surface); color:var(--muted); border-radius:4px; cursor:pointer; vertical-align:middle; opacity:.75; }
   .cbtn:hover{ background:var(--line-2); color:var(--accent-d); border-color:#cdd6ff; opacity:1; }
   /* 商品名など：省略表示（クリックで全文） */
@@ -608,12 +616,6 @@ window.CAT_ATTR_JA={"색상": "色", "수량": "数量", "패션의류/잡화 �
         <a data-sec="sales" data-p="st11"><span class="dot"></span>11番街</a>
       </div>
     </div>
-    <div class="navgroup" data-g="cs">
-      <div class="navhead" title="顧客対応"><span class="nav-ico">💬</span><span class="nav-txt">顧客対応</span><span class="arw">▶</span></div>
-      <div class="navsub" data-label="顧客対応">
-        <a id="nav-cs"><span class="dot"></span>翻訳・定型文</a>
-      </div>
-    </div>
     <div class="navgroup" data-g="research">
       <div class="navhead" title="リサーチ"><span class="nav-ico">🔍</span><span class="nav-txt">リサーチ</span><span class="arw">▶</span></div>
       <div class="navsub" data-label="リサーチ">
@@ -628,6 +630,20 @@ window.CAT_ATTR_JA={"색상": "色", "수량": "数量", "패션의류/잡화 �
         <a data-sec="list" data-p="coupang"><span class="dot"></span>クーパン</a>
         <a data-sec="list" data-p="smart"><span class="dot"></span>スマートストア</a>
         <a data-sec="list" data-p="st11"><span class="dot"></span>11番街</a>
+      </div>
+    </div>
+    <div class="navgroup" data-g="stock">
+      <div class="navhead" title="在庫管理"><span class="nav-ico">📊</span><span class="nav-txt">在庫管理</span><span class="arw">▶</span></div>
+      <div class="navsub" data-label="在庫管理">
+        <a data-sec="stock" data-p="coupang"><span class="dot"></span>クーパン</a>
+        <a data-sec="stock" data-p="smart"><span class="dot"></span>スマートストア</a>
+        <a data-sec="stock" data-p="st11"><span class="dot"></span>11番街</a>
+      </div>
+    </div>
+    <div class="navgroup" data-g="cs">
+      <div class="navhead" title="顧客対応"><span class="nav-ico">💬</span><span class="nav-txt">顧客対応</span><span class="arw">▶</span></div>
+      <div class="navsub" data-label="顧客対応">
+        <a id="nav-cs"><span class="dot"></span>翻訳・定型文</a>
       </div>
     </div>
     <div class="navgroup" data-g="blog">
@@ -848,6 +864,11 @@ window.CAT_ATTR_JA={"색상": "色", "수량": "数量", "패션의류/잡화 �
   <div id="view-list" style="display:none">
     <div class="page-head" id="list-head">出品</div>
     <div class="panel"><div id="list-body"></div></div>
+  </div>
+
+  <div id="view-stock" style="display:none">
+    <div class="page-head" id="stock-head">在庫管理</div>
+    <div id="stock-body"></div>
   </div>
 
   <div id="view-banned" style="display:none">
@@ -1586,9 +1607,9 @@ function todayStr(){ const d=new Date(); return d.getFullYear()+"-"+String(d.get
 /* ===== パスワードロック（モール別・対象5画面のみ／端末ごとに約6か月間は再入力不要・クラウド非同期） ===== */
 const PW_MS=183*24*60*60*1000;                                   /* 約6か月 */
 let tblmanKey=null;   /* 管理表マニュアルで「発送管理」を開いている時だけ "hassou"。モール別の3つは null */
-const PW_PROTECTED=new Set(["cust","sales","research","list","tblman"]);
+const PW_PROTECTED=new Set(["cust","sales","research","list","tblman","stock"]);
 const PW_PINS={coupang:"9980", smart:"3810", st11:"1183", hassou:"8130"};   /* モールごとの暗証番号＋発送管理マニュアル */
-const PW_NAMES={cust:"顧客管理",sales:"売上管理",research:"リサーチ",list:"出品",tblman:"管理表マニュアル"};
+const PW_NAMES={cust:"顧客管理",sales:"売上管理",research:"リサーチ",list:"出品",tblman:"管理表マニュアル",stock:"在庫管理"};
 const PW_PLATNAMES={coupang:"クーパン",smart:"スマートストア",st11:"11番街",hassou:"発送管理"};
 function pwScope(){ return (section==="tblman" && tblmanKey) ? "hassou" : current; }   /* 発送管理はモールとは別枠の鍵 */
 function pwOK(plat){ const t=parseInt(localStorage.getItem("kr_pw_until_"+plat)||"0",10); return !!t && Date.now()<t; }
@@ -1604,7 +1625,7 @@ function render(){
   const _locked = pwNeed();   /* 対象画面のみロック（ナビは操作可能・モール別の暗証番号） */
   document.getElementById("view-lock").style.display=_locked?"":"none";
   if(_locked){
-    ["view-home","view-cust","view-sales","view-research","view-list","view-banned","view-banlist","view-shortcut","view-blog","view-manual","view-tblman","view-cs","view-faq","view-shipfee"].forEach(id=>{ const el=document.getElementById(id); if(el) el.style.display="none"; });
+    ["view-home","view-cust","view-sales","view-research","view-list","view-banned","view-banlist","view-shortcut","view-blog","view-manual","view-tblman","view-cs","view-faq","view-shipfee","view-stock"].forEach(id=>{ const el=document.getElementById(id); if(el) el.style.display="none"; });
     const lm=document.getElementById("lockMsg"); if(lm) lm.textContent= (pwScope()==="hassou")
       ? "「管理表マニュアル 発送管理」を開くには暗証番号を入力してください"
       : "「"+(PW_PLATNAMES[current]||"")+" "+(PW_NAMES[section]||"")+"」を開くには暗証番号を入力してください";
@@ -1614,8 +1635,8 @@ function render(){
   const home=section==="home";
   document.getElementById("view-home").style.display=home?"":"none";
   if(home){ const c=document.getElementById("crumb"); if(c) c.innerHTML="ホーム"; }
-  const sales=section==="sales", research=section==="research", list=section==="list", banned=section==="banned", banlist=section==="banlist", shortcut=section==="shortcut", blog=section==="blog", manual=section==="manual", tblman=section==="tblman", shipfee=section==="shipfee", cs=section==="cs", faq=section==="faq";
-  document.getElementById("view-cust").style.display=(home||sales||research||list||banned||banlist||shortcut||blog||manual||tblman||shipfee||cs||faq)?"none":"";
+  const sales=section==="sales", research=section==="research", list=section==="list", banned=section==="banned", banlist=section==="banlist", shortcut=section==="shortcut", blog=section==="blog", manual=section==="manual", tblman=section==="tblman", shipfee=section==="shipfee", cs=section==="cs", faq=section==="faq", stock=section==="stock";
+  document.getElementById("view-cust").style.display=(home||sales||research||list||banned||banlist||shortcut||blog||manual||tblman||shipfee||cs||faq||stock)?"none":"";
   document.getElementById("view-faq").style.display=faq?"":"none";
   document.getElementById("view-sales").style.display=sales?"":"none";
   document.getElementById("view-research").style.display=research?"":"none";
@@ -1628,7 +1649,8 @@ function render(){
   document.getElementById("view-tblman").style.display=tblman?"":"none";
   document.getElementById("view-shipfee").style.display=shipfee?"":"none";
   document.getElementById("view-cs").style.display=cs?"":"none";
-  if(home){ /* ホームは何も描画しない */ } else if(faq) renderFaq(); else if(cs) renderCs(); else if(shipfee) renderShipfee(); else if(tblman) renderTblMan(); else if(manual) renderManual(); else if(blog) renderBlog(); else if(shortcut) renderShortcut(); else if(banlist) renderBanlist(); else if(banned) renderBanned(); else if(list) renderList(); else if(research) renderResearch(); else if(sales) renderSales(); else renderCust();
+  document.getElementById("view-stock").style.display=stock?"":"none";
+  if(home){ /* ホームは何も描画しない */ } else if(faq) renderFaq(); else if(cs) renderCs(); else if(shipfee) renderShipfee(); else if(tblman) renderTblMan(); else if(manual) renderManual(); else if(blog) renderBlog(); else if(shortcut) renderShortcut(); else if(banlist) renderBanlist(); else if(banned) renderBanned(); else if(stock) renderStock(); else if(list) renderList(); else if(research) renderResearch(); else if(sales) renderSales(); else renderCust();
 }
 /* ===== 管理表マニュアル（ブログマニュアルと同じフォーマット・モール別） ===== */
 const TBLMAN_SEED=[{title:"",url:""},{title:"",url:""},{title:"",url:""},{title:"",url:""}];
@@ -1639,6 +1661,118 @@ function renderTblMan(){
     : `管理表マニュアル：${PNAME[p]||p} <small>管理表マニュアルを準備します</small>`;
   document.getElementById("tblman-body").innerHTML=`<div class="man-note">タイトルを入れ、動画URL（Loom等）を貼るとその場で再生できます。「＋ 項目を追加」で箱を増やせます。</div><div id="tblman-list"></div>`;
   renderManInto("tblman-list", hassou?"kr_tblman_hassou":("kr_tblman_"+p), TBLMAN_SEED, true);   /* 管理表マニュアルは並べ替えできる */
+}
+/* ===== 在庫管理（出品ツールの「修正必要商品リスト表」を取り込み、やることだけを抽出する） =====
+   ・マーケット列を見て クーパン／スマートストア／11番街 に自動で振り分ける（どのモールの画面から取り込んでもよい）
+   ・取込のたびに、そのモールのリストは丸ごと入れ替える（毎日の定期チェックの前提）
+   ・済チェックは商品IDで持ち、次の取込でもリストに残っていれば引き継ぐ
+   ・データはこの端末のローカルにだけ保存（クラウド同期なし。共有したくなったら別途配線する） */
+const STOCK_MK2P={ "クーパン":"coupang", "スマートストア":"smart", "11番街":"st11" };
+const STOCK_TABS=[ {id:"all",label:"全体"}, {id:"stop",label:"出品停止"}, {id:"price",label:"値段調整"}, {id:"revive",label:"在庫復活"} ];
+let stockTab="stop";
+function stockKey(p){ return "kr_stock_"+p+"_v1"; }
+function stockDoneKey(p){ return "kr_stock_done_"+p+"_v1"; }
+function loadStock(p){ try{ const d=JSON.parse(localStorage.getItem(stockKey(p))); if(d&&Array.isArray(d.rows)) return d; }catch(e){} return {t:"",rows:[]}; }
+function stockDoneSet(p){ try{ const d=JSON.parse(localStorage.getItem(stockDoneKey(p))); if(Array.isArray(d)) return new Set(d); }catch(e){} return new Set(); }
+/* 分類：出品停止（在庫切れ）＞ 在庫復活 ＞ 値段調整（適正価格とのズレ）の順で1つに決める */
+function stockCat(r){
+  if(String(r.stock)==="要出品停止"||r.color==="在庫切れ商品") return "stop";
+  if(r.color==="在庫復活商品") return "revive";
+  if(num(r.price)>0&&num(r.fair)>0&&Math.round(num(r.price))!==Math.round(num(r.fair))) return "price";
+  return "";
+}
+const STOCK_BADGE={ "在庫切れ商品":"grey", "在庫復活商品":"green", "赤字商品":"red", "黒字転換商品":"blue" };
+window.setStockTab=(t)=>{ stockTab=t; render(); };
+window.stockDoneChk=(id,el)=>{ const s=stockDoneSet(current);
+  if(el.checked) s.add(id); else s.delete(id);
+  localStorage.setItem(stockDoneKey(current),JSON.stringify([...s])); render(); };
+window.stockImportFile=(el)=>{ const f=el.files[0]; if(!f) return; const rd=new FileReader();
+  rd.onload=ev=>{ try{ const wb=readWB(ev.target.result); const sh=wb.Sheets[wb.SheetNames[0]];
+    importStock(XLSX.utils.sheet_to_json(sh,{header:1,raw:true,defval:""}));   /* raw=元の値で読む。商品IDの桁落ちも数値の日付化も起きない */
+  }catch(err){ alert("取込エラー："+err.message); } el.value=""; };
+  rd.readAsArrayBuffer(f); };
+function importStock(arr){
+  let hr=-1;
+  for(let i=0;i<Math.min(6,arr.length);i++){ const c=(arr[i]||[]).map(x=>String(x==null?"":x).trim());
+    if(c.includes("商品ID")&&c.includes("マーケット")){ hr=i; break; } }
+  if(hr<0){ alert("対応していない形式です。\nツールからダウンロードした「修正必要商品リスト表」のExcelをそのまま選んでください。"); return; }
+  const H=(arr[hr]||[]).map(x=>String(x==null?"":x).trim()), col=n=>H.indexOf(n);
+  const ci={ id:col("商品ID"), mk:col("マーケット"), name:col("商品名（韓国語）"), st:col("現在の出品ステータス"),
+             price:col("出品時価格[₩]"), fair:col("適正価格[₩]"), profit:col("商品利益額[¥]"),
+             stock:col("在庫数"), sold:col("過去販売数"), color:col("色説明") };
+  const byP={coupang:[],smart:[],st11:[]};
+  for(let i=hr+1;i<arr.length;i++){ const L=arr[i]; if(!L) continue;
+    const g=j=>(j<0||L[j]==null)?"":L[j];
+    const p=STOCK_MK2P[String(g(ci.mk)).trim()];
+    const idv=g(ci.id); const id=(typeof idv==="number"&&isFinite(idv))?String(Math.round(idv)):String(idv).trim();
+    if(!p||!id) continue;                                      /* 凡例・注記の行はここで自然に落ちる */
+    byP[p].push({ id, name:String(g(ci.name)), st:String(g(ci.st)).trim(),
+      price:(typeof g(ci.price)==="number")?g(ci.price):num(g(ci.price)),
+      fair:(typeof g(ci.fair)==="number")?g(ci.fair):num(g(ci.fair)),
+      profit:(typeof g(ci.profit)==="number")?g(ci.profit):"",
+      stock:String(g(ci.stock)).trim(), sold:(typeof g(ci.sold)==="number")?g(ci.sold):0,
+      color:String(g(ci.color)).trim() });
+  }
+  const t=new Date(), z=n=>String(n).padStart(2,"0");
+  const ts=t.getFullYear()+"-"+z(t.getMonth()+1)+"-"+z(t.getDate())+" "+z(t.getHours())+":"+z(t.getMinutes());
+  const parts=[];
+  Object.keys(byP).forEach(p=>{ const rows=byP[p]; if(!rows.length) return;
+    localStorage.setItem(stockKey(p),JSON.stringify({t:ts,rows}));
+    localStorage.setItem(stockDoneKey(p),JSON.stringify([...stockDoneSet(p)].filter(x=>rows.some(r=>r.id===x))));
+    parts.push(`${PNAME[p]}：${rows.length}件`); });
+  if(!parts.length){ alert("取り込める行がありませんでした。\n（マーケット列が クーパン／スマートストア／11番街 の行だけを取り込みます）"); return; }
+  render();
+  alert("取込完了（在庫管理）\n"+parts.join("\n")+"\n※モールごとにリストを丸ごと入れ替えました。済チェックは、今回のリストにも残っている商品だけ引き継いでいます。");
+}
+function renderStock(){
+  const p=current, d=loadStock(p), done=stockDoneSet(p);
+  document.getElementById("stock-head").innerHTML=`在庫管理：${PNAME[p]||p} <small>「修正必要商品リスト」から、やることだけを抽出</small>`;
+  const rows=d.rows.map(r=>({ ...r, cat:stockCat(r) }));
+  const of=c=>rows.filter(r=>c==="all"?true:r.cat===c);
+  const remain=c=>of(c).filter(r=>!done.has(r.id)).length;
+  const w$=n=>"₩"+Math.round(n).toLocaleString("ja-JP");
+  const toolbar=`<div class="toolbar">`+
+    `<span style="font-size:12px;color:var(--muted);font-weight:600">${d.t?("最終取込："+esc(d.t)):"まだ取り込みがありません"}</span>`+
+    `<div class="grow"></div>`+
+    `<button class="btn-ghost" onclick="document.getElementById('stock-file').click()">📥 修正必要リストを取り込む</button>`+
+    `<input type="file" id="stock-file" accept=".xlsx,.xls,.csv" style="display:none" onchange="stockImportFile(this)">`+
+  `</div>`;
+  if(!rows.length){
+    document.getElementById("stock-body").innerHTML=`<div class="panel">${toolbar}<div class="empty"><b>データがありません</b>右上の「📥 修正必要リストを取り込む」から、ツールでダウンロードしたExcelを選んでください。<br>マーケット列を見て、クーパン／スマートストア／11番街へ自動で振り分けます。</div></div>`;
+    return;
+  }
+  const cards=`<div class="stats s4">`+
+    `<div class="card"><div class="label">全体（残り）</div><div class="num">${remain("all")}<small>／${of("all").length}件</small></div></div>`+
+    `<div class="card${remain("stop")?" alert":""}"><div class="label">出品停止が必要</div><div class="num">${remain("stop")}<small>／${of("stop").length}件</small></div></div>`+
+    `<div class="card"><div class="label">値段調整（適正価格へ）</div><div class="num">${remain("price")}<small>／${of("price").length}件</small></div></div>`+
+    `<div class="card"><div class="label">在庫復活</div><div class="num">${remain("revive")}<small>／${of("revive").length}件</small></div></div>`+
+  `</div>`;
+  const chips=`<div class="chips">`+STOCK_TABS.map(t=>
+    `<button class="chip${stockTab===t.id?" active":""}" onclick="setStockTab('${t.id}')">${t.label} <span class="n">${remain(t.id)}/${of(t.id).length}</span></button>`).join("")+`</div>`;
+  const view=of(stockTab);
+  const CATLB={stop:"出品停止",price:"値段調整",revive:"在庫復活"};
+  const trs=view.map(r=>{
+    const isD=done.has(r.id);
+    const badge=r.color?` <span class="stkb ${STOCK_BADGE[r.color]||"grey"}">${esc(r.color)}</span>`:"";
+    const diff=(r.price>0&&r.fair>0)?Math.round(r.fair-r.price):0;
+    return `<tr${isD?' class="stk-done"':''}>`+
+      `<td><input type="checkbox" class="rowchk" ${isD?"checked":""} onclick="stockDoneChk('${esc(r.id)}',this)" title="対応が終わったらチェック"></td>`+
+      `<td class="mono">${esc(r.id)}<button class="cbtn" data-copy="${esc(r.id)}" onclick="copyBtn(this)" title="商品IDをコピー">📋</button></td>`+
+      `<td><span class="clip" title="${esc(r.name)}" onclick="toggleClip(this)">${esc(r.name)}</span></td>`+
+      `<td>${esc(r.st||"—")}</td>`+
+      `<td class="money mono">${r.price>0?w$(r.price):"—"}</td>`+
+      `<td class="money mono">${r.fair>0?`<b>${w$(r.fair)}</b><button class="cbtn" data-copy="${Math.round(r.fair)}" onclick="copyBtn(this)" title="適正価格を数字だけコピー">📋</button>`:"—"}</td>`+
+      `<td class="money mono${diff<0?" neg":""}">${diff?((diff<0?"▼":"▲")+Math.abs(diff).toLocaleString("ja-JP")):"—"}</td>`+
+      `<td class="mono">${esc(r.stock||"—")}</td>`+
+      `<td class="money mono${(typeof r.profit==="number"&&r.profit<0)?" neg":""}">${(typeof r.profit==="number")?("¥"+r.profit.toLocaleString("ja-JP")):"—"}</td>`+
+      `<td>${CATLB[r.cat]||"—"}${badge}</td>`+
+    `</tr>`; }).join("");
+  document.getElementById("stock-body").innerHTML=
+    cards+chips+
+    `<div class="panel">${toolbar}<div class="tablewrap"><table>`+
+    `<thead><tr><th>済</th><th>商品ID</th><th>商品名</th><th>今の状態</th><th>出品時価格</th><th>適正価格</th><th>差</th><th>在庫</th><th>利益[¥]</th><th>分類</th></tr></thead>`+
+    `<tbody>${trs||`<tr><td class="empty" colspan="10"><b>この分類には商品がありません</b></td></tr>`}</tbody>`+
+    `</table></div></div>`;
 }
 /* ===== 顧客対応（日本語⇄韓国語の翻訳・韓国語の定型文） =====
    翻訳は無料のエンドポイント（Google gtx →失敗時 MyMemory）。APIキー不要・費用ゼロ。
@@ -3898,7 +4032,7 @@ document.querySelectorAll(".navsub a[data-p]").forEach(a=>a.addEventListener("cl
   svMonth=null;   /* プラットフォームを開いたら売上は最新月から表示 */
   document.querySelectorAll(".navsub a").forEach(x=>x.classList.remove("active"));
   a.classList.add("active");
-  const secName=section==="sales"?"売上管理":(section==="research"?"リサーチ":(section==="list"?"出品":(section==="banned"?"禁止ブランド":(section==="blog"?"ブログ":(section==="tblman"?"管理表マニュアル":"顧客管理")))));
+  const secName=section==="sales"?"売上管理":(section==="research"?"リサーチ":(section==="list"?"出品":(section==="stock"?"在庫管理":(section==="banned"?"禁止ブランド":(section==="blog"?"ブログ":(section==="tblman"?"管理表マニュアル":"顧客管理"))))));
   document.getElementById("crumb").innerHTML=`HOME / <b>${secName}</b> / ${PNAME[current]}`;
   document.getElementById("search").value=""; render();
 }));
