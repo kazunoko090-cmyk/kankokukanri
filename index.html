@@ -904,13 +904,15 @@ window.CAT_ATTR_JA={"색상": "色", "수량": "数量", "패션의류/잡화 �
         <div class="seg" id="blog-tabs">
           <button class="segbtn active" data-bt="todo">未投稿</button>
           <button class="segbtn" data-bt="done">投稿済み</button>
+          <button class="segbtn" data-bt="stats">累計</button>
         </div>
         <input type="text" id="blog-search" placeholder="🔍 ASIN・商品タイトルで検索" style="height:36px;border:1px solid var(--line);border-radius:7px;padding:0 10px;font-size:13px;min-width:230px">
         <div class="grow"></div>
         <button class="btn-ghost" id="blog-export">CSV出力</button>
       </div>
-      <div class="retnote" style="background:#fafbff;color:var(--muted)">販売した商品のASINを一覧にしています。投稿日を選んで「投稿する」を押すと「投稿済み」に移動します（クーパン／スマートストアは別々に管理）。</div>
-      <div class="tablewrap"><table id="blogtbl"><thead id="bloghead"></thead><tbody id="blogbody"></tbody></table></div>
+      <div class="retnote" id="blog-note" style="background:#fafbff;color:var(--muted)">販売した商品のASINを一覧にしています。投稿日を選んで「投稿する」を押すと「投稿済み」に移動します（クーパン／スマートストアは別々に管理）。</div>
+      <div class="tablewrap" id="blog-tablewrap"><table id="blogtbl"><thead id="bloghead"></thead><tbody id="blogbody"></tbody></table></div>
+      <div id="blog-stats" style="display:none"></div>
       <div class="count" id="blogcount"></div>
     </div>
   </div>
@@ -2286,7 +2288,8 @@ function renderShortcut(){
   document.getElementById("shortcut-body").innerHTML=html;
 }
 /* ===== ブログ（販売済み商品のASINを投稿管理・モール別） ===== */
-let blogTab="todo";  // todo=未投稿 / done=投稿済み
+let blogTab="todo";  // todo=未投稿 / done=投稿済み / stats=累計
+let blogMonth="";    // 累計タブで見ている月（YYYY-MM）
 function loadBlog(p){ try{ const d=JSON.parse(localStorage.getItem("kr_blog_"+p)); if(d&&typeof d==="object") return d; }catch(e){} return {}; }
 function saveBlog(p,d){ localStorage.setItem("kr_blog_"+p, JSON.stringify(d)); }
 window.blogSetDate=(asin,val)=>{ const b=loadBlog(current); if(!b[asin]) b[asin]={posted:false,date:""}; b[asin].date=val; saveBlog(current,b); };
@@ -2300,6 +2303,13 @@ function blogData(p){ const l=loadSales(platforms[p].salesKey); const g={};
 function renderBlog(){
   const p=current, blog=loadBlog(p);
   document.querySelectorAll("#blog-tabs .segbtn").forEach(b=>b.classList.toggle("active",b.dataset.bt===blogTab));
+  const st=(blogTab==="stats");   /* 累計はモール合算なので、検索・CSV・一覧は隠す */
+  document.getElementById("blog-stats").style.display=st?"":"none";
+  document.getElementById("blog-tablewrap").style.display=st?"none":"";
+  document.getElementById("blog-note").style.display=st?"none":"";
+  document.getElementById("blog-search").style.display=st?"none":"";
+  document.getElementById("blog-export").style.display=st?"none":"";
+  if(st){ renderBlogStats(); return; }
   document.getElementById("blog-head").innerHTML=`ブログ：${PNAME[p]||p} <small>販売済み商品のASINを投稿管理</small>`;
   let arr=blogData(p);
   const q=(document.getElementById("blog-search").value||"").trim().toLowerCase();
@@ -2327,6 +2337,96 @@ function renderBlog(){
       : `<tr><td class="empty" colspan="4"><b>未投稿のASINがありません</b>売上管理に販売データが入ると、ここへASINが並びます。</td></tr>`;
   }
   document.getElementById("blogcount").textContent=`${PNAME[p]} ・ 未投稿 ${todoCount}件 ／ 投稿済み ${doneCount}件`;
+}
+/* ===== ブログ 累計（クーパン＋スマートストア 合算） =====
+   1日にできるのは3件までなので、同じ日に4件以上たまっている分は翌日へ繰り下げて数える（＝実際にこなせる形に換算する）。
+   月別・年別の集計も、この換算後の日付で数える。 */
+const BLOG_PER_DAY=3;
+const BLOG_WD=["日","月","火","水","木","金","土"];
+function blogYmd(s){ const d=parseDate(s); if(!d) return "";
+  return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"); }
+function blogNextDay(s){ const d=new Date(s+"T00:00:00"); d.setDate(d.getDate()+1);
+  return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"); }
+/* 投稿済みを2モール分あつめる。日付が入っていないものは数えられないので件数だけ返す */
+function blogAllPosted(){ const out=[]; let nodate=0;
+  ["coupang","smart"].forEach(pl=>{ const b=loadBlog(pl)||{};
+    Object.keys(b).forEach(a=>{ const r=b[a]; if(!r||!r.posted) return;
+      const d=blogYmd(r.date); if(!d){ nodate++; return; } out.push({asin:a,pl:pl,date:d}); }); });
+  out.sort((x,y)=> x.date<y.date?-1:(x.date>y.date?1:(x.asin<y.asin?-1:(x.asin>y.asin?1:0))));
+  return {list:out, nodate:nodate}; }
+/* 1日3件で繰り下げ換算する */
+function blogAssign(list){ let cur="", n=0;
+  return list.map(it=>{ if(!cur||it.date>cur){ cur=it.date; n=0; }
+    while(n>=BLOG_PER_DAY){ cur=blogNextDay(cur); n=0; }
+    n++; return {asin:it.asin, pl:it.pl, date:it.date, day:cur}; }); }
+window.blogSetMonth=(v)=>{ blogMonth=v; renderBlog(); };
+function renderBlogStats(){
+  const got=blogAllPosted(), asg=blogAssign(got.list);
+  document.getElementById("blog-head").innerHTML=`ブログ：累計 <small>クーパン＋スマートストアの合算。1日${BLOG_PER_DAY}件で換算</small>`;
+  const box=document.getElementById("blog-stats");
+  if(!asg.length){
+    box.innerHTML=`<div class="empty"><b>投稿済みがまだありません</b>「未投稿」で投稿日を選び「投稿する」を押すと、ここで数えます。`
+      +(got.nodate?`<br>（投稿日が空のまま投稿済みになっているものが ${got.nodate}件あります）`:"")+`</div>`;
+    document.getElementById("blogcount").textContent="クーパン＋スマートストア 合算 ・ 投稿済み 0件"; return; }
+  const months={}, years={}, byDay={};
+  asg.forEach(x=>{ const m=x.day.slice(0,7), y=x.day.slice(0,4), k=(x.pl==="coupang")?"c":"s";
+    if(!months[m]) months[m]={c:0,s:0,t:0,days:{}}; months[m][k]++; months[m].t++; months[m].days[x.day]=1;
+    if(!years[y]) years[y]={c:0,s:0,t:0,days:{}}; years[y][k]++; years[y].t++; years[y].days[x.day]=1;
+    byDay[x.day]=(byDay[x.day]||0)+1; });
+  const mkeys=Object.keys(months).sort(), nowM=todayStr().slice(0,7);
+  const sel=mkeys.slice(); if(sel.indexOf(nowM)<0) sel.push(nowM); sel.sort();
+  if(!blogMonth||sel.indexOf(blogMonth)<0) blogMonth = (sel.indexOf(nowM)>=0)?nowM:sel[sel.length-1];
+  const yy=+blogMonth.slice(0,4), mm=+blogMonth.slice(5,7);
+  const lastDay=new Date(yy,mm,0).getDate();
+  const cm=months[blogMonth]||{c:0,s:0,t:0,days:{}}, cy=years[String(yy)]||{c:0,s:0,t:0,days:{}};
+  const cards=`<div class="stats s4">`+
+    `<div class="card"><div class="label">投稿 累計（合算）</div><div class="num">${asg.length}<small> 件</small></div></div>`+
+    `<div class="card"><div class="label">${yy}年</div><div class="num">${cy.t}<small> 件</small></div></div>`+
+    `<div class="card alert"><div class="label">${yy}年${mm}月</div><div class="num">${cm.t}<small> 件</small></div></div>`+
+    `<div class="card"><div class="label">この月に投稿した日</div><div class="num">${Object.keys(cm.days).length}<small> 日 / ${lastDay}日</small></div></div>`+
+  `</div>`;
+  const opts=sel.slice().reverse().map(m=>`<option value="${m}"${m===blogMonth?" selected":""}>${m.slice(0,4)}年${+m.slice(5,7)}月（${months[m]?months[m].t:0}件）</option>`).join("");
+  const picker=`<div class="toolbar"><span style="font-size:12px;color:var(--muted);font-weight:600">見たい月</span>`+
+    `<select onchange="blogSetMonth(this.value)" style="height:34px;border:1px solid var(--line);border-radius:7px;padding:0 8px;font-size:13px">${opts}</select>`+
+    `<div class="grow"></div>`+
+    `<span style="font-size:12px;color:var(--muted)">この月 合計 <b>${cm.t}件</b>（クーパン ${cm.c} ／ スマートストア ${cm.s}）</span></div>`;
+  /* 日別はカレンダーで見せる。外注さんはこの枠（1日3件）を見て投稿予約するので、空きが一目で分かる形にする */
+  const today=todayStr(), lead=new Date(yy,mm-1,1).getDay();
+  const cell=(inner,style)=>`<div style="border:1px solid var(--line);border-radius:8px;min-height:74px;padding:6px 7px;${style||""}">${inner}</div>`;
+  let cells="";
+  for(let i=0;i<lead;i++) cells+=`<div></div>`;
+  for(let d=1;d<=lastDay;d++){
+    const ds=yy+"-"+String(mm).padStart(2,"0")+"-"+String(d).padStart(2,"0");
+    const n=byDay[ds]||0, w=new Date(yy,mm-1,d).getDay(), full=(n>=BLOG_PER_DAY);
+    const dots="●".repeat(Math.min(n,BLOG_PER_DAY))+"○".repeat(Math.max(0,BLOG_PER_DAY-n));
+    const dcol=w===0?"#c0392b":(w===6?"#2874a6":"var(--ink)");
+    const bg=full?"background:#eafaf1;border-color:#a9dfbf":(n?"background:#fffdf5;border-color:#f0d9a0":"background:#fff");
+    const mark=(ds===today)?"box-shadow:0 0 0 2px var(--brand) inset;":"";
+    cells+=cell(
+      `<div style="font-size:12px;font-weight:700;color:${dcol}">${d}${ds===today?' <span style="font-size:10px;color:var(--brand)">今日</span>':""}</div>`+
+      `<div style="letter-spacing:3px;font-size:15px;line-height:1.5;color:${full?"#2e7d32":(n?"#b7791f":"#cfd6e4")}">${dots}</div>`+
+      `<div style="font-size:11px;color:var(--muted)">${n} / ${BLOG_PER_DAY}${full?" 満了":(n?"":" 空き")}</div>`,
+      bg+";"+mark);
+  }
+  const head7=BLOG_WD.map((w,i)=>`<div style="text-align:center;font-size:11px;font-weight:700;padding:4px 0;color:${i===0?"#c0392b":(i===6?"#2874a6":"var(--muted)")}">${w}</div>`).join("");
+  const daily=`<div style="padding:4px 2px 10px">`+
+    `<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:6px">${head7}</div>`+
+    `<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:6px;margin-top:4px">${cells}</div>`+
+    `<div style="font-size:11px;color:var(--muted);margin-top:8px">● 投稿ずみ ／ ○ 空き（1日 ${BLOG_PER_DAY}件）　緑＝満了・黄＝途中。同じ日に${BLOG_PER_DAY}件を超えた分は翌日に繰り下げて数えています。</div>`+
+  `</div>`;
+  const mrows=mkeys.slice().reverse().map(m=>{ const v=months[m];
+    return `<tr${m===blogMonth?' style="background:#fff8e1"':""}><td class="mono">${m.slice(0,4)}年${+m.slice(5,7)}月</td>`+
+      `<td class="mono">${v.c}</td><td class="mono">${v.s}</td><td class="mono"><b>${v.t}</b></td>`+
+      `<td class="mono">${Object.keys(v.days).length}</td></tr>`; }).join("");
+  const yrows=Object.keys(years).sort().reverse().map(y=>{ const v=years[y];
+    return `<tr><td class="mono">${y}年</td><td class="mono">${v.c}</td><td class="mono">${v.s}</td>`+
+      `<td class="mono"><b>${v.t}</b></td><td class="mono">${Object.keys(v.days).length}</td></tr>`; }).join("");
+  const tbl=(ttl,rows)=>`<div class="panel" style="margin-top:14px"><div class="retnote" style="background:#fafbff;color:var(--muted)">${ttl}</div>`+
+    `<div class="tablewrap"><table><thead><tr><th>期間</th><th>クーパン</th><th>スマートストア</th><th>合計</th><th>投稿した日数</th></tr></thead><tbody>${rows}</tbody></table></div></div>`;
+  box.innerHTML=cards+picker+daily
+    +(got.nodate?`<div class="retnote" style="background:#fff8e1">投稿日が空のまま投稿済みになっているものが ${got.nodate}件あります（数に入っていません）。「投稿済み」で日付を入れ直すと数えます。</div>`:"")
+    +tbl("月別（換算後の日付で集計）",mrows)+tbl("年別（換算後の日付で集計）",yrows);
+  document.getElementById("blogcount").textContent=`クーパン＋スマートストア 合算 ・ 投稿済み ${asg.length}件（1日${BLOG_PER_DAY}件で換算）`;
 }
 /* ===== ブログ マニュアル（動画リスト＋クロードプロンプト） ===== */
 const MANUAL_SEED=[
