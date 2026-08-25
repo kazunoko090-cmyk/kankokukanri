@@ -93,6 +93,9 @@ window.CAT_ATTR_JA={"색상": "色", "수량": "数量", "패션의류/잡화 �
   .cellinput{ width:88px; height:30px; border:1px solid var(--line); border-radius:7px; padding:0 8px; font-size:12px; font-family:inherit; transition:border .15s,box-shadow .15s; }
   .cellinput:focus{ outline:none; border-color:var(--accent); box-shadow:0 0 0 3px var(--ring); }
   .cellinput.txt{ width:122px; }
+  /* 国内注文番号：桁が長いので幅を詰める（全部見えなくてOK。欄をクリックすれば全体が見えて、📋で全文コピー） */
+  .cellinput.jp{ width:92px; padding:0 6px; font-size:11.5px; font-variant-numeric:tabular-nums; letter-spacing:-.2px; text-overflow:ellipsis; }
+  td.jpord{ white-space:nowrap; }
   #view-sales td{ padding:7px 9px; }
   #view-sales th{ white-space:nowrap; }
   #view-sales td a{ color:var(--accent-d); text-decoration:none; font-weight:700; }
@@ -1141,7 +1144,8 @@ const COUPANG_COLS = [
 
 /* ===== 表示する12列（ご指定順）。head=見出しに出す韓国語、jp=日本語補足 ===== */
 const VIEW = [
-  {en:"Order number", head:"注文番号", jp:"注文番号", copy:true},
+  {jpord:true, jp:"国内注文番号"},
+  {en:"Order number", head:"注文番号", jp:"韓国注文番号", copy:true},
   {track:true, jp:"追跡番号"},
   {en:"Order date", head:"주문일", jp:"購入日"},
   {en:"Expected shipment date upon order", head:"출고예정일", jp:"発送期日", deadline:true},
@@ -1159,7 +1163,8 @@ const VIEW_KEYS = new Set(VIEW.map(v=>v.en));
 
 /* ===== スマートストア（発注発送管理）表示列。key=Excelの韓国語見出しをそのまま使用 ===== */
 const SMART_VIEW = [
-  {key:"주문번호", jp:"注文番号", copy:true},
+  {jpord:true, jp:"国内注文番号"},
+  {key:"주문번호", jp:"韓国注文番号", copy:true},
   {track:true, jp:"追跡番号"},
   {key:"주문일시", jp:"購入日"},
   {key:"발송기한", jp:"発送期日", deadline:true},
@@ -1198,7 +1203,8 @@ function msgOf(s){ return (s&&s.msg)?s.msg:autoMsg(s?s.won:0); }
 
 /* ===== 11番街（注文確認ファイル）表示列。key=Excelの韓国語見出しをそのまま使用 ===== */
 const ST11_VIEW = [
-  {key:"주문번호", jp:"注文番号", copy:true},
+  {jpord:true, jp:"国内注文番号"},
+  {key:"주문번호", jp:"韓国注文番号", copy:true},
   {track:true, jp:"追跡番号"},
   {key:"주문일시", jp:"購入日"},
   {key:"발송마감일", jp:"発送期日", deadline:true},
@@ -1278,6 +1284,10 @@ function removeSale(id){ saveSales(loadSales().filter(x=>String(x.order)!==Strin
 const DELIVS=["H","D"];
 function delivOf(s){ return (s&&String(s.deliv||"").toUpperCase()==="D")?"D":"H"; }   /* 未設定＝H（過去に取り込んだ分もHで表示） */
 function delivSel(id,v,st){ return `<select class="dvsel" data-v="${v}" data-st="${esc(st||"")}" onchange="setDeliv('${id}',this.value)" title="配送（H / D）">`+DELIVS.map(x=>`<option ${x===v?"selected":""}>${x}</option>`).join("")+`</select>`; }   /* 色はステータス（data-st）で決まる */
+/* ---- 国内注文番号（日本側＝Amazon・楽天などの注文番号）：台帳を正とし、顧客管理・売上管理の両方に同じ値を出す ---- */
+function jpOrdOf(s){ return (s&&s.jpord)?String(s.jpord):""; }
+function jpOrdCell(id,s){ const v=jpOrdOf(s);
+  return `<td class="jpord"><input class="cellinput jp" value="${esc(v)}" placeholder="国内No." title="${esc(v||"国内注文番号（Amazon・楽天などの注文番号）を入力")}" onchange="setJpOrd('${id}',this.value)">${v?`<button class="cbtn" data-copy="${esc(v)}" onclick="copyBtn(this)" title="国内注文番号をコピー">📋</button>`:""}</td>`; }
 function histTip(s){ if(!s||!s.hist||!s.hist.length) return ""; return "ステータス変更履歴\n"+s.hist.slice(-8).map(h=>(h.t||"").slice(0,16).replace("T"," ")+" → "+h.s).join("\n"); }
 /* 顧客データ→売上台帳へ不足分を追加（削除しない=履歴保持／手入力欄は保持） */
 function syncLedger(rows){ const spec=platforms[current], m=spec.map; const l=loadSales(); const map={}; l.forEach(x=>map[String(x.order)]=x); const added=[];
@@ -3623,10 +3633,10 @@ function renderSalesDetail(){
   const hasDisc=!!(platforms[current].map&&platforms[current].map.discount);
   const q=(document.getElementById("sv-search").value||"").trim().toLowerCase();
   let rows,scope;
-  if(q){ rows=l.filter(s=>[s.order,s.dorder,s.title,s.track,s.asin,s.url,s.status].some(v=>String(v||"").toLowerCase().includes(q))); scope="検索「"+q+"」"; }
+  if(q){ rows=l.filter(s=>[s.order,s.dorder,s.jpord,s.title,s.track,s.asin,s.url,s.status].some(v=>String(v||"").toLowerCase().includes(q))); scope="検索「"+q+"」"; }
   else { rows=l.filter(s=>monthKey(s.date)===svMonth); scope=svMonth; }
   rows=rows.sort((a,b)=>{const x=parseDate(a.date),y=parseDate(b.date);return (y?y.getTime():0)-(x?x.getTime():0);});  /* 新しい順（上から） */
-  const H=["配送","ステータス","✓","ASIN","注文番号","商品タイトル","販売日","発送期日","追跡番号","仕入れ値","仕入れ数量","仕入れ額","売値(ウォン)","売上数","売値合計","発送料金","経費","手数料","発送料+手数料","純利益","備考","操作"];
+  const H=["配送","ステータス","✓","ASIN","国内注文番号","韓国注文番号","商品タイトル","販売日","発送期日","追跡番号","仕入れ値","仕入れ数量","仕入れ額","売値(ウォン)","売上数","売値合計","発送料金","経費","手数料","発送料+手数料","純利益","備考","操作"];
   if(hasDisc){ H.splice(H.indexOf("売値合計")+1,0,"割引(₩)"); }
   const COL=H.length;
   document.getElementById("sthead").innerHTML="<tr>"+H.map((h,i)=>`<th${i===0?' class="s0"':(i===1?' class="s1"':(i===2?' class="s2c"':''))}>${h}</th>`).join("")+"</tr>";
@@ -3662,6 +3672,7 @@ function renderSalesDetail(){
       `<td class="s1">${sel}</td>`+
       `<td class="s2c"><input type="checkbox" class="rowchk" ${checked} onclick="setHi(this,'${id}')" title="チェックで色付け"></td>`+
       `<td ondblclick="editAsin('${id}')">${asinCell}</td>`+
+      jpOrdCell(id,s)+
       `<td>${esc(s.order)}${s.order?`<button class="cbtn" data-copy="${esc(s.order)}" onclick="copyBtn(this)" title="コピー">📋</button>`:""}</td>`+
       `<td><span class="clip" title="${esc(s.title||"")}" onclick="toggleClip(this)">${esc(s.title||"")}</span>${s.title?`<button class="cbtn" data-copy="${esc(s.title)}" onclick="copyBtn(this)" title="コピー">📋</button>`:""}</td>`+
       `<td>${esc(md(s.date))}</td>`+
@@ -3744,6 +3755,7 @@ function renderCust(){
     const chk=`<td class="s2c"><input type="checkbox" class="rowchk" ${checked} onclick="setHi(this,'${id}')" title="配送指示チェック（コピペ用に色付け）"></td>`;
     const cells=view.map(c=>{
       let v=r[c.key||c.en];
+      if(c.jpord){ return jpOrdCell(id,led); }   /* 国内注文番号は台帳（=クラウド同期）が正。売上管理と同じ値が出る */
       if(c.track){ const tv=led?(led.track||""):""; return `<td><input class="cellinput txt" value="${esc(tv)}" placeholder="追跡番号" onchange="setSaleField('${id}','track',this.value)" title="入力すると自動で発送済みになり、売上管理と共有されます"></td>`; }
       if(c.money){ const has=v!=null&&String(v)!==""; let wv=num(v); if(c.unit){ const q=num(r[spec.map&&spec.map.qty])||1; if(q>1) wv=Math.round(wv/q); }   /* 販売価格は1個あたり（合計÷数量） */ const rate=(led&&led.rate>0)?led.rate:getRate(); const yen=Math.round(wv*rate);
         return `<td class="money">${esc(won(wv))}${(c.copy&&has)?`<button class="cbtn" data-copy="${esc(wv)}" onclick="copyBtn(this)" title="ウォンをコピー">📋</button>`:""}${has?` = ¥${yen.toLocaleString("ja-JP")}<button class="cbtn" data-copy="${yen}" onclick="copyBtn(this)" title="円をコピー">📋</button>`:""}</td>`; }
@@ -4018,7 +4030,7 @@ document.getElementById("btn-export").onclick=()=>{
   const rows=sortRows(purge(load())); const lmap=ledgerMap();
   const head=["ステータス",...view.map(c=>c.jp),"備考"].join(",");
   const body=rows.map(r=>{ const led=lmap[String(r[okey])]; const note=led?(led.note||""):"";
-    return [r._status,...view.map(c=>r[c.key||c.en]??""),note].map(v=>{const s=String(v);return /[",\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s;}).join(","); }).join("\n");
+    return [r._status,...view.map(c=> c.jpord?jpOrdOf(led) : (c.track?((led&&led.track)||"") : (r[c.key||c.en]??""))),note].map(v=>{const s=String(v);return /[",\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s;}).join(","); }).join("\n");
   const blob=new Blob(["﻿"+head+"\n"+body],{type:"text/csv;charset=utf-8"});
   const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download="顧客管理_"+spec.name+".csv"; a.click();
 };
@@ -4055,6 +4067,9 @@ window.editUrl=(id)=>{ const l=loadSales(); const s=l.find(x=>String(x.order)===
   if(v===null) return; s.url=v.trim(); saveSales(l); pushLedger([s]); render(); };
 window.setDeliv=(id,val)=>{ const l=loadSales(); const s=l.find(x=>String(x.order)===String(id)); if(!s) return;
   s.deliv=(String(val).toUpperCase()==="D")?"D":"H"; saveSales(l); pushLedger([s]); render(); };
+/* 国内注文番号：文字も入るので num() に通さない（setSaleField は数値化してしまうため専用にする） */
+window.setJpOrd=(id,val)=>{ const l=loadSales(); const s=l.find(x=>String(x.order)===String(id)); if(!s) return;
+  s.jpord=String(val==null?"":val).trim(); saveSales(l); pushLedger([s]); render(); };
 window.setSaleStatus=(id,val)=>{ syncSaleStatus(id,val);
   updateCustField(id,"status",val);
   render(); };
@@ -4082,8 +4097,8 @@ document.getElementById("btn-sexport").onclick=()=>{
     dl("売上ランキング_クーパン_"+svMonth+".csv", H.join(",")+"\n"+lines.join("\n")); return;
   }
   const rows=l.filter(s=>monthKey(s.date)===svMonth).sort((a,b)=>{const x=parseDate(a.date),y=parseDate(b.date);return (y?y.getTime():0)-(x?x.getTime():0);});
-  const H=["ステータス","ASIN","注文番号","商品タイトル","販売日","発送期日","追跡番号","仕入れ値","仕入れ数量","仕入れ額","売値(ウォン)","売上数","売値合計","発送料金","経費","手数料","発送料+手数料","純利益","備考"];
-  const body=rows.map(s=>{const c=calcSale(s,rate);return [s.status,s.asin,s.order,s.title,s.date,s.deadline,s.track,c.cost,c.qty,c.costTotal,c.won,c.cancel?0:c.qty,c.saleTotal,c.ship,c.exp,c.fee,c.shipFee,c.profit,s.note||""].map(v=>{const t=String(v??"");return /[",\n]/.test(t)?'"'+t.replace(/"/g,'""')+'"':t;}).join(",");}).join("\n");
+  const H=["ステータス","ASIN","国内注文番号","韓国注文番号","商品タイトル","販売日","発送期日","追跡番号","仕入れ値","仕入れ数量","仕入れ額","売値(ウォン)","売上数","売値合計","発送料金","経費","手数料","発送料+手数料","純利益","備考"];
+  const body=rows.map(s=>{const c=calcSale(s,rate);return [s.status,s.asin,jpOrdOf(s),s.order,s.title,s.date,s.deadline,s.track,c.cost,c.qty,c.costTotal,c.won,c.cancel?0:c.qty,c.saleTotal,c.ship,c.exp,c.fee,c.shipFee,c.profit,s.note||""].map(v=>{const t=String(v??"");return /[",\n]/.test(t)?'"'+t.replace(/"/g,'""')+'"':t;}).join(",");}).join("\n");
   dl("売上管理_クーパン_"+svMonth+".csv", H.join(",")+"\n"+body);
 };
 
