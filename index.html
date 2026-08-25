@@ -1668,13 +1668,19 @@ function renderTblMan(){
    ・「🧹 リセット」で、そのモールのリストを空にし、最終チェック日を今日にする（確認つき。他のモールには触らない）
    ・行のチェックは「まとめてコピー」用。ASIN（商品ID）と適正価格を、どちらも同じ並び順で一括コピーできる（表計算に2列で貼れる）
    ・1件だけ欲しいときは、各行のASIN・適正価格それぞれの📋を押す
+   ・ファイル名の日時（…_20260825_144112.xlsx）で新旧を判定する。古いファイルを後から入れても追加だけで上書きしない
+     ＝何日分かをまとめて入れるとき、順番を気にしなくてよい
    ・データはこの端末のローカルにだけ保存（クラウド同期なし。共有したくなったら別途配線する） */
 const STOCK_MK2P={ "スマートストア":"smart", "11番街":"st11" };
 const STOCK_PLATS=["smart","st11"];
 const STOCK_TABS=[ {id:"all",label:"全体"}, {id:"stop",label:"出品停止"}, {id:"price",label:"値段調整"}, {id:"revive",label:"在庫復活"} ];
 let stockTab="stop", stockSel=new Set(), stockSelPlat="";
 function stockKey(p){ return "kr_stock_"+p+"_v1"; }
-function loadStock(p){ try{ const d=JSON.parse(localStorage.getItem(stockKey(p))); if(d&&Array.isArray(d.rows)) return {t:d.t||"",rows:d.rows,lc:d.lc||""}; }catch(e){} return {t:"",rows:[],lc:""}; }
+function loadStock(p){ try{ const d=JSON.parse(localStorage.getItem(stockKey(p))); if(d&&Array.isArray(d.rows)) return {t:d.t||"",rows:d.rows,lc:d.lc||"",fn:d.fn||""}; }catch(e){} return {t:"",rows:[],lc:"",fn:""}; }
+/* ファイル名の日時（修正必要商品リスト表_20260825_144112.xlsx）を取り出す。取れた時だけ新旧を判定する */
+function stockStamp(name){ const m=String(name||"").match(/(\d{8})[_-](\d{6})/); return m?(m[1]+"_"+m[2]):""; }
+function stockStampLabel(s){ return /^\d{8}_\d{6}$/.test(s||"")?(s.slice(0,4)+"-"+s.slice(4,6)+"-"+s.slice(6,8)+" "+s.slice(9,11)+":"+s.slice(11,13)):""; }
+function stockLastStamp(){ try{ return localStorage.getItem("kr_stock_lastmail_v1")||""; }catch(e){ return ""; } }
 /* 分類：出品停止（在庫切れ）＞ 在庫復活 ＞ 値段調整（適正価格とのズレ）の順で1つに決める */
 function stockCat(r){
   if(String(r.stock)==="要出品停止"||r.color==="在庫切れ商品") return "stop";
@@ -1708,13 +1714,13 @@ window.stockReset=()=>{ const p=current, d=loadStock(p); if(!d.rows.length){ ale
   if(!confirm(`在庫管理（${PNAME[p]}）のリストをリセットします。よろしいですか？\n\n【消すもの】この一覧 ${d.rows.length}件（${PNAME[p]}のみ。もう一方のモールには触りません）\n【影響】この端末の表示だけです。ツール側のデータは消えません。最終チェック日が今日になります。\n【元に戻す】次の取込で、まだ残っている商品はまた入ってきます。\n【消さない】キャンセルを押してください。`)) return;
   const t=new Date(), z=n=>String(n).padStart(2,"0");
   const today=t.getFullYear()+"-"+z(t.getMonth()+1)+"-"+z(t.getDate());
-  localStorage.setItem(stockKey(p),JSON.stringify({t:"",rows:[],lc:today})); stockSel=new Set(); render(); };
-window.stockImportFile=(el)=>{ const f=el.files[0]; if(!f) return; const rd=new FileReader();
+  localStorage.setItem(stockKey(p),JSON.stringify({t:"",rows:[],lc:today,fn:d.fn||""})); stockSel=new Set(); render(); };
+window.stockImportFile=(el)=>{ const f=el.files[0]; if(!f) return; const stamp=stockStamp(f.name); const rd=new FileReader();
   rd.onload=ev=>{ try{ const wb=readWB(ev.target.result); const sh=wb.Sheets[wb.SheetNames[0]];
-    importStock(XLSX.utils.sheet_to_json(sh,{header:1,raw:true,defval:""}));   /* raw=元の値で読む。商品IDの桁落ちも数値の日付化も起きない */
+    importStock(XLSX.utils.sheet_to_json(sh,{header:1,raw:true,defval:""}),stamp);   /* raw=元の値で読む。商品IDの桁落ちも数値の日付化も起きない */
   }catch(err){ alert("取込エラー："+err.message); } el.value=""; };
   rd.readAsArrayBuffer(f); };
-function importStock(arr){
+function importStock(arr,stamp){
   let hr=-1;
   for(let i=0;i<Math.min(6,arr.length);i++){ const c=(arr[i]||[]).map(x=>String(x==null?"":x).trim());
     if(c.includes("商品ID")&&c.includes("マーケット")){ hr=i; break; } }
@@ -1739,20 +1745,27 @@ function importStock(arr){
   const t=new Date(), z=n=>String(n).padStart(2,"0");
   const ts=t.getFullYear()+"-"+z(t.getMonth()+1)+"-"+z(t.getDate())+" "+z(t.getHours())+":"+z(t.getMinutes());
   /* 蓄積式：新しい商品IDは追加（NEW付き）、すでにある商品IDは中身を更新。無くなった商品も消さない（消すのはリセットボタンだけ） */
+  /* ファイル名の日時で新旧を判定。前に取り込んだものより古いファイルなら、
+     新しい商品の追加だけして、すでにある商品は上書きしない（古い価格で新しい価格を潰さないため）。
+     日時が読み取れないファイル名のときは、これまでどおり上書きする。 */
+  const last=stockLastStamp(), older=!!(stamp&&last&&stamp<last);
   const parts=[];
   STOCK_PLATS.forEach(p=>{ const cur=loadStock(p); const map={}; cur.rows.forEach(r=>{ r.isNew=false; map[r.id]=r; });
-    let add=0,upd=0;
+    let add=0,upd=0,keep=0;
     byP[p].forEach(r=>{ const ex=map[r.id];
-      if(ex){ ex.name=r.name; ex.st=r.st; ex.price=r.price; ex.fair=r.fair; ex.stock=r.stock; ex.color=r.color; upd++; }
+      if(ex){ if(older){ keep++; } else { ex.name=r.name; ex.st=r.st; ex.price=r.price; ex.fair=r.fair; ex.stock=r.stock; ex.color=r.color; upd++; } }
       else{ r.isNew=true; cur.rows.push(r); map[r.id]=r; add++; } });
-    localStorage.setItem(stockKey(p),JSON.stringify({t:ts,rows:cur.rows,lc:cur.lc||""}));
-    parts.push(`${PNAME[p]}：新しく${add}件・更新${upd}件（合計${cur.rows.length}件）`); });
+    localStorage.setItem(stockKey(p),JSON.stringify({t:ts,rows:cur.rows,lc:cur.lc||"",fn:older?(cur.fn||""):(stamp||cur.fn||"")}));
+    parts.push(`${PNAME[p]}：新しく${add}件・`+(older?`据え置き${keep}件`:`更新${upd}件`)+`（合計${cur.rows.length}件）`); });
+  if(stamp&&(!last||stamp>last)){ try{ localStorage.setItem("kr_stock_lastmail_v1",stamp); }catch(e){} }
   try{ ["kr_stock_coupang_v1","kr_stock_done_smart_v1","kr_stock_done_st11_v1","kr_stock_done_coupang_v1"].forEach(k=>localStorage.removeItem(k)); }catch(e){}   /* 旧仕様の残り（クーパン分・済チェック）を掃除 */
   stockSel=new Set();
   render();
-  alert("取込完了（在庫管理・蓄積式）\n"+parts.join("\n")
+  const fl=stockStampLabel(stamp);
+  alert("取込完了（在庫管理・蓄積式）"+(fl?`\nこのファイルのデータ日時：${fl}`:"")+"\n"+parts.join("\n")
     +(skipCp?`\n（クーパンの行 ${skipCp}件は対象外のため取り込みませんでした）`:"")
-    +"\n※たまった一覧は「🧹 見たらリセット」で空にできます。");
+    +(older?`\n\n※このファイルは前に取り込んだ ${stockStampLabel(last)} より古いので、新しい商品の追加だけしました。\n　すでにある商品の価格などは、新しい情報を守るため上書きしていません。\n　（何日分かをまとめて入れるとき、順番を気にしなくて大丈夫です）`:"")
+    +"\n※たまった一覧は「🧹 リセット」で空にできます。");
 }
 function renderStock(){
   const p=current, hd=document.getElementById("stock-head"), bd=document.getElementById("stock-body");
@@ -1768,7 +1781,7 @@ function renderStock(){
   const of=c=>rows.filter(r=>c==="all"?true:r.cat===c);
   const w$=n=>"₩"+Math.round(n).toLocaleString("ja-JP");
   const toolbar=`<div class="toolbar">`+
-    `<span style="font-size:12px;color:var(--muted);font-weight:600">${d.t?("最終取込："+esc(d.t)):"まだ取り込みがありません"}${d.lc?("　／　最終チェック："+esc(d.lc)):""}</span>`+
+    `<span style="font-size:12px;color:var(--muted);font-weight:600">${d.t?("最終取込："+esc(d.t)):"まだ取り込みがありません"}${stockStampLabel(d.fn)?("（データ "+esc(stockStampLabel(d.fn))+"）"):""}${d.lc?("　／　最終チェック："+esc(d.lc)):""}</span>`+
     `<div class="grow"></div>`+
     `<button class="btn-ghost" id="stock-copyid" onclick="stockCopySel(this,'id')">📋 ASINをまとめてコピー（${stockSel.size}件）</button>`+
     `<button class="btn-ghost" id="stock-copyfair" onclick="stockCopySel(this,'fair')">📋 適正価格をまとめてコピー（${stockSel.size}件）</button>`+
