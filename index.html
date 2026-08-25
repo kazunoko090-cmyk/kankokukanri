@@ -744,7 +744,7 @@ window.CAT_ATTR_JA={"색상": "色", "수량": "数量", "패션의류/잡화 �
 
   <div class="panel">
     <div class="toolbar">
-      <input type="text" id="search" placeholder="🔍 注文番号・名前・商品名・住所などで検索">
+      <input type="text" id="search" placeholder="🔍 韓国注文番号・国内注文番号・追跡番号・名前・商品名・住所・備考などで検索">
       <div class="grow"></div>
       <button class="btn-ghost" id="btn-guide">📖 項目の日本語解説</button>
       <button class="btn-ghost" id="btn-export">CSV出力</button>
@@ -776,7 +776,7 @@ window.CAT_ATTR_JA={"색상": "色", "수량": "数量", "패션의류/잡화 �
           <button class="segbtn" id="tab-year">年間サマリー</button>
         </div>
         <span id="ctl-search" style="display:flex;gap:10px;align-items:center">
-          <input type="text" id="sv-search" placeholder="🔍 注文番号・商品タイトル・追跡番号で検索" style="height:36px;border:1px solid var(--line);border-radius:7px;padding:0 10px;font-size:13px;min-width:250px">
+          <input type="text" id="sv-search" placeholder="🔍 韓国注文番号・国内注文番号・追跡番号・商品タイトル・備考などで検索" style="height:36px;border:1px solid var(--line);border-radius:7px;padding:0 10px;font-size:13px;min-width:250px">
         </span>
         <span id="ctl-month" style="display:flex;gap:8px;align-items:center">
           <label style="font-weight:700;font-size:13px">対象月</label>
@@ -3687,7 +3687,7 @@ function renderSalesDetail(){
   const hasDisc=!!(platforms[current].map&&platforms[current].map.discount);
   const q=(document.getElementById("sv-search").value||"").trim().toLowerCase();
   let rows,scope;
-  if(q){ rows=l.filter(s=>[s.order,s.dorder,s.jpord,s.title,s.track,s.asin,s.url,s.status].some(v=>String(v||"").toLowerCase().includes(q))); scope="検索「"+q+"」"; }
+  if(q){ rows=l.filter(s=>[s.order,s.dorder,s.jpord,s.title,s.track,s.asin,s.url,s.status,s.note].some(v=>String(v||"").toLowerCase().includes(q))); scope="検索「"+q+"」"; }
   else { rows=l.filter(s=>monthKey(s.date)===svMonth); scope=svMonth; }
   rows=rows.sort((a,b)=>{const x=parseDate(a.date),y=parseDate(b.date);return (y?y.getTime():0)-(x?x.getTime():0);});  /* 新しい順（上から） */
   const H=["配送","ステータス","✓","ASIN","国内注文番号","韓国注文番号","商品タイトル","販売日","発送期日","追跡番号","仕入れ値","仕入れ数量","仕入れ額","売値(ウォン)","売上数","売値合計","発送料金","経費","手数料","発送料+手数料","純利益","備考","操作"];
@@ -3787,7 +3787,14 @@ function renderCust(){
   rows=rows.filter(r=>{ const dl=daysLeft(r); return dl===null||dl>0; });   /* 表示だけ60日で絞る（データは削除しない） */
 
   const q=document.getElementById("search").value.trim().toLowerCase();
-  let view2=q?rows.filter(r=>Object.entries(r).some(([k,v])=>k[0]!=="_"&&String(v).toLowerCase().includes(q))):rows;
+  /* Excelの列だけでなく、台帳側の手入力（国内注文番号・追跡番号・備考）とステータスも検索できるようにする */
+  const hitQ=(r)=>{
+    if(Object.entries(r).some(([k,v])=>k[0]!=="_"&&String(v).toLowerCase().includes(q))) return true;
+    const led=lmap[String(r[okey])];
+    return [r._status, led&&led.jpord, led&&led.track, led&&led.note, led&&led.asin, led&&led.url]
+      .some(v=>String(v==null?"":v).toLowerCase().includes(q));
+  };
+  let view2=q?rows.filter(hitQ):rows;
   /* ステータス絞り込みチップ（件数は検索後の集合を基準） */
   const cc={__all:view2.length}; STATUSES.forEach(s=>cc[s]=view2.filter(r=>r._status===s).length);
   document.getElementById("cust-chips").innerHTML=statusChips(cc,custStatusFilter,"setCustStatus");
