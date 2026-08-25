@@ -635,7 +635,6 @@ window.CAT_ATTR_JA={"색상": "色", "수량": "数量", "패션의류/잡화 �
     <div class="navgroup" data-g="stock">
       <div class="navhead" title="在庫管理"><span class="nav-ico">📊</span><span class="nav-txt">在庫管理</span><span class="arw">▶</span></div>
       <div class="navsub" data-label="在庫管理">
-        <a data-sec="stock" data-p="coupang"><span class="dot"></span>クーパン</a>
         <a data-sec="stock" data-p="smart"><span class="dot"></span>スマートストア</a>
         <a data-sec="stock" data-p="st11"><span class="dot"></span>11番街</a>
       </div>
@@ -1663,17 +1662,17 @@ function renderTblMan(){
   renderManInto("tblman-list", hassou?"kr_tblman_hassou":("kr_tblman_"+p), TBLMAN_SEED, true);   /* 管理表マニュアルは並べ替えできる */
 }
 /* ===== 在庫管理（出品ツールの「修正必要商品リスト表」を取り込み、やることだけを抽出する） =====
-   ・マーケット列を見て クーパン／スマートストア／11番街 に自動で振り分ける（どのモールの画面から取り込んでもよい）
-   ・取込のたびに、そのモールのリストは丸ごと入れ替える（毎日の定期チェックの前提）
-   ・済チェックは商品IDで持ち、次の取込でもリストに残っていれば引き継ぐ
+   ・対象はスマートストアと11番街の2つ。Excelはモールが混ざって届くので、マーケット列で確実に振り分ける
+     （クーパンの行は取り込まない＝対象外。何件飛ばしたかだけ知らせる）
+   ・取込のたびに、前回のデータは2モールとも自動で消して丸ごと入れ替える（毎日の定期チェックの前提）
+   ・行のチェックは「まとめてコピー」用。チェックした商品のASIN（商品ID）を改行区切りで一括コピーできる
    ・データはこの端末のローカルにだけ保存（クラウド同期なし。共有したくなったら別途配線する） */
-const STOCK_MK2P={ "クーパン":"coupang", "スマートストア":"smart", "11番街":"st11" };
+const STOCK_MK2P={ "スマートストア":"smart", "11番街":"st11" };
+const STOCK_PLATS=["smart","st11"];
 const STOCK_TABS=[ {id:"all",label:"全体"}, {id:"stop",label:"出品停止"}, {id:"price",label:"値段調整"}, {id:"revive",label:"在庫復活"} ];
-let stockTab="stop";
+let stockTab="stop", stockSel=new Set(), stockSelPlat="";
 function stockKey(p){ return "kr_stock_"+p+"_v1"; }
-function stockDoneKey(p){ return "kr_stock_done_"+p+"_v1"; }
 function loadStock(p){ try{ const d=JSON.parse(localStorage.getItem(stockKey(p))); if(d&&Array.isArray(d.rows)) return d; }catch(e){} return {t:"",rows:[]}; }
-function stockDoneSet(p){ try{ const d=JSON.parse(localStorage.getItem(stockDoneKey(p))); if(Array.isArray(d)) return new Set(d); }catch(e){} return new Set(); }
 /* 分類：出品停止（在庫切れ）＞ 在庫復活 ＞ 値段調整（適正価格とのズレ）の順で1つに決める */
 function stockCat(r){
   if(String(r.stock)==="要出品停止"||r.color==="在庫切れ商品") return "stop";
@@ -1683,9 +1682,18 @@ function stockCat(r){
 }
 const STOCK_BADGE={ "在庫切れ商品":"grey", "在庫復活商品":"green", "赤字商品":"red", "黒字転換商品":"blue" };
 window.setStockTab=(t)=>{ stockTab=t; render(); };
-window.stockDoneChk=(id,el)=>{ const s=stockDoneSet(current);
-  if(el.checked) s.add(id); else s.delete(id);
-  localStorage.setItem(stockDoneKey(current),JSON.stringify([...s])); render(); };
+/* 行チェック＝コピー対象の選択。画面は描き直さず、ボタンの件数と全選択の状態だけ更新する */
+function stockSelSync(){
+  const btn=document.getElementById("stock-copysel"); if(btn) btn.textContent=`📋 チェックしたASINをコピー（${stockSel.size}件）`;
+  const all=document.getElementById("stock-selall");
+  if(all){ const boxes=[...document.querySelectorAll("#stock-body tbody .stock-chk")];
+    all.checked=boxes.length>0&&boxes.every(b=>b.checked); }
+}
+window.stockChk=(id,el)=>{ if(el.checked) stockSel.add(id); else stockSel.delete(id); stockSelSync(); };
+window.stockSelAll=(el)=>{ document.querySelectorAll("#stock-body tbody .stock-chk").forEach(b=>{ b.checked=el.checked;
+    const id=b.getAttribute("data-id"); if(el.checked) stockSel.add(id); else stockSel.delete(id); }); stockSelSync(); };
+window.stockCopySel=(btn)=>{ if(!stockSel.size){ alert("コピーする商品にチェックを入れてください。\n（一番上のチェックで、表示中の行を全部選べます）"); return; }
+  copyText([...stockSel].join("\n")); flashBtn(btn); };
 window.stockImportFile=(el)=>{ const f=el.files[0]; if(!f) return; const rd=new FileReader();
   rd.onload=ev=>{ try{ const wb=readWB(ev.target.result); const sh=wb.Sheets[wb.SheetNames[0]];
     importStock(XLSX.utils.sheet_to_json(sh,{header:1,raw:true,defval:""}));   /* raw=元の値で読む。商品IDの桁落ちも数値の日付化も起きない */
@@ -1698,81 +1706,86 @@ function importStock(arr){
   if(hr<0){ alert("対応していない形式です。\nツールからダウンロードした「修正必要商品リスト表」のExcelをそのまま選んでください。"); return; }
   const H=(arr[hr]||[]).map(x=>String(x==null?"":x).trim()), col=n=>H.indexOf(n);
   const ci={ id:col("商品ID"), mk:col("マーケット"), name:col("商品名（韓国語）"), st:col("現在の出品ステータス"),
-             price:col("出品時価格[₩]"), fair:col("適正価格[₩]"), profit:col("商品利益額[¥]"),
-             stock:col("在庫数"), sold:col("過去販売数"), color:col("色説明") };
-  const byP={coupang:[],smart:[],st11:[]};
+             price:col("出品時価格[₩]"), fair:col("適正価格[₩]"), stock:col("在庫数"), color:col("色説明") };
+  const byP={smart:[],st11:[]}; let skipCp=0;
   for(let i=hr+1;i<arr.length;i++){ const L=arr[i]; if(!L) continue;
     const g=j=>(j<0||L[j]==null)?"":L[j];
-    const p=STOCK_MK2P[String(g(ci.mk)).trim()];
+    const mk=String(g(ci.mk)).trim(), p=STOCK_MK2P[mk];
     const idv=g(ci.id); const id=(typeof idv==="number"&&isFinite(idv))?String(Math.round(idv)):String(idv).trim();
+    if(mk==="クーパン"){ skipCp++; continue; }                 /* クーパンは対象外 */
     if(!p||!id) continue;                                      /* 凡例・注記の行はここで自然に落ちる */
     byP[p].push({ id, name:String(g(ci.name)), st:String(g(ci.st)).trim(),
       price:(typeof g(ci.price)==="number")?g(ci.price):num(g(ci.price)),
       fair:(typeof g(ci.fair)==="number")?g(ci.fair):num(g(ci.fair)),
-      profit:(typeof g(ci.profit)==="number")?g(ci.profit):"",
-      stock:String(g(ci.stock)).trim(), sold:(typeof g(ci.sold)==="number")?g(ci.sold):0,
-      color:String(g(ci.color)).trim() });
+      stock:String(g(ci.stock)).trim(), color:String(g(ci.color)).trim() });
   }
+  if(!byP.smart.length&&!byP.st11.length){
+    alert("スマートストア・11番街の行がありませんでした。\n前回の取込データはそのまま残しています。"+(skipCp?`\n（クーパンの行 ${skipCp}件は対象外です）`:"")); return; }
   const t=new Date(), z=n=>String(n).padStart(2,"0");
   const ts=t.getFullYear()+"-"+z(t.getMonth()+1)+"-"+z(t.getDate())+" "+z(t.getHours())+":"+z(t.getMinutes());
-  const parts=[];
-  Object.keys(byP).forEach(p=>{ const rows=byP[p]; if(!rows.length) return;
-    localStorage.setItem(stockKey(p),JSON.stringify({t:ts,rows}));
-    localStorage.setItem(stockDoneKey(p),JSON.stringify([...stockDoneSet(p)].filter(x=>rows.some(r=>r.id===x))));
-    parts.push(`${PNAME[p]}：${rows.length}件`); });
-  if(!parts.length){ alert("取り込める行がありませんでした。\n（マーケット列が クーパン／スマートストア／11番街 の行だけを取り込みます）"); return; }
+  STOCK_PLATS.forEach(p=>localStorage.setItem(stockKey(p),JSON.stringify({t:ts,rows:byP[p]})));   /* 2モールとも丸ごと入れ替え（0件なら空になる） */
+  try{ ["kr_stock_coupang_v1","kr_stock_done_smart_v1","kr_stock_done_st11_v1","kr_stock_done_coupang_v1"].forEach(k=>localStorage.removeItem(k)); }catch(e){}   /* 旧仕様の残り（クーパン分・済チェック）を掃除 */
+  stockSel=new Set();
   render();
-  alert("取込完了（在庫管理）\n"+parts.join("\n")+"\n※モールごとにリストを丸ごと入れ替えました。済チェックは、今回のリストにも残っている商品だけ引き継いでいます。");
+  alert(`取込完了（在庫管理）\nスマートストア：${byP.smart.length}件\n11番街：${byP.st11.length}件`
+    +(skipCp?`\n（クーパンの行 ${skipCp}件は対象外のため取り込みませんでした）`:"")
+    +"\n※前回の取込データは自動で消して、丸ごと入れ替えました。");
 }
 function renderStock(){
-  const p=current, d=loadStock(p), done=stockDoneSet(p);
-  document.getElementById("stock-head").innerHTML=`在庫管理：${PNAME[p]||p} <small>「修正必要商品リスト」から、やることだけを抽出</small>`;
+  const p=current, hd=document.getElementById("stock-head"), bd=document.getElementById("stock-body");
+  if(STOCK_PLATS.indexOf(p)<0){
+    hd.innerHTML=`在庫管理`;
+    bd.innerHTML=`<div class="panel"><div class="empty"><b>このモールは対象外です</b>左の「スマートストア」か「11番街」を選んでください。</div></div>`;
+    return;
+  }
+  if(stockSelPlat!==p){ stockSel=new Set(); stockSelPlat=p; }   /* モールを切り替えたらチェックはリセット */
+  const d=loadStock(p);
+  hd.innerHTML=`在庫管理：${PNAME[p]||p} <small>「修正必要商品リスト」から、やることだけを抽出</small>`;
   const rows=d.rows.map(r=>({ ...r, cat:stockCat(r) }));
   const of=c=>rows.filter(r=>c==="all"?true:r.cat===c);
-  const remain=c=>of(c).filter(r=>!done.has(r.id)).length;
   const w$=n=>"₩"+Math.round(n).toLocaleString("ja-JP");
   const toolbar=`<div class="toolbar">`+
     `<span style="font-size:12px;color:var(--muted);font-weight:600">${d.t?("最終取込："+esc(d.t)):"まだ取り込みがありません"}</span>`+
     `<div class="grow"></div>`+
+    `<button class="btn-ghost" id="stock-copysel" onclick="stockCopySel(this)">📋 チェックしたASINをコピー（${stockSel.size}件）</button>`+
     `<button class="btn-ghost" onclick="document.getElementById('stock-file').click()">📥 修正必要リストを取り込む</button>`+
     `<input type="file" id="stock-file" accept=".xlsx,.xls,.csv" style="display:none" onchange="stockImportFile(this)">`+
   `</div>`;
   if(!rows.length){
-    document.getElementById("stock-body").innerHTML=`<div class="panel">${toolbar}<div class="empty"><b>データがありません</b>右上の「📥 修正必要リストを取り込む」から、ツールでダウンロードしたExcelを選んでください。<br>マーケット列を見て、クーパン／スマートストア／11番街へ自動で振り分けます。</div></div>`;
+    bd.innerHTML=`<div class="panel">${toolbar}<div class="empty"><b>データがありません</b>右上の「📥 修正必要リストを取り込む」から、ツールでダウンロードしたExcelを選んでください。<br>マーケット列を見て、スマートストアと11番街へ自動で振り分けます（クーパンの行は取り込みません）。</div></div>`;
     return;
   }
   const cards=`<div class="stats s4">`+
-    `<div class="card"><div class="label">全体（残り）</div><div class="num">${remain("all")}<small>／${of("all").length}件</small></div></div>`+
-    `<div class="card${remain("stop")?" alert":""}"><div class="label">出品停止が必要</div><div class="num">${remain("stop")}<small>／${of("stop").length}件</small></div></div>`+
-    `<div class="card"><div class="label">値段調整（適正価格へ）</div><div class="num">${remain("price")}<small>／${of("price").length}件</small></div></div>`+
-    `<div class="card"><div class="label">在庫復活</div><div class="num">${remain("revive")}<small>／${of("revive").length}件</small></div></div>`+
+    `<div class="card"><div class="label">全体</div><div class="num">${of("all").length}<small> 件</small></div></div>`+
+    `<div class="card${of("stop").length?" alert":""}"><div class="label">出品停止が必要</div><div class="num">${of("stop").length}<small> 件</small></div></div>`+
+    `<div class="card"><div class="label">値段調整（適正価格へ）</div><div class="num">${of("price").length}<small> 件</small></div></div>`+
+    `<div class="card"><div class="label">在庫復活</div><div class="num">${of("revive").length}<small> 件</small></div></div>`+
   `</div>`;
   const chips=`<div class="chips">`+STOCK_TABS.map(t=>
-    `<button class="chip${stockTab===t.id?" active":""}" onclick="setStockTab('${t.id}')">${t.label} <span class="n">${remain(t.id)}/${of(t.id).length}</span></button>`).join("")+`</div>`;
+    `<button class="chip${stockTab===t.id?" active":""}" onclick="setStockTab('${t.id}')">${t.label} <span class="n">${of(t.id).length}</span></button>`).join("")+`</div>`;
   const view=of(stockTab);
   const CATLB={stop:"出品停止",price:"値段調整",revive:"在庫復活"};
   const trs=view.map(r=>{
-    const isD=done.has(r.id);
     const badge=r.color?` <span class="stkb ${STOCK_BADGE[r.color]||"grey"}">${esc(r.color)}</span>`:"";
     const diff=(r.price>0&&r.fair>0)?Math.round(r.fair-r.price):0;
-    return `<tr${isD?' class="stk-done"':''}>`+
-      `<td><input type="checkbox" class="rowchk" ${isD?"checked":""} onclick="stockDoneChk('${esc(r.id)}',this)" title="対応が終わったらチェック"></td>`+
-      `<td class="mono">${esc(r.id)}<button class="cbtn" data-copy="${esc(r.id)}" onclick="copyBtn(this)" title="商品IDをコピー">📋</button></td>`+
+    return `<tr>`+
+      `<td><input type="checkbox" class="rowchk stock-chk" data-id="${esc(r.id)}" ${stockSel.has(r.id)?"checked":""} onclick="stockChk('${esc(r.id)}',this)" title="チェックした商品のASINをまとめてコピーできます"></td>`+
+      `<td class="mono">${esc(r.id)}<button class="cbtn" data-copy="${esc(r.id)}" onclick="copyBtn(this)" title="この商品のASINをコピー">📋</button></td>`+
       `<td><span class="clip" title="${esc(r.name)}" onclick="toggleClip(this)">${esc(r.name)}</span></td>`+
       `<td>${esc(r.st||"—")}</td>`+
       `<td class="money mono">${r.price>0?w$(r.price):"—"}</td>`+
       `<td class="money mono">${r.fair>0?`<b>${w$(r.fair)}</b><button class="cbtn" data-copy="${Math.round(r.fair)}" onclick="copyBtn(this)" title="適正価格を数字だけコピー">📋</button>`:"—"}</td>`+
       `<td class="money mono${diff<0?" neg":""}">${diff?((diff<0?"▼":"▲")+Math.abs(diff).toLocaleString("ja-JP")):"—"}</td>`+
       `<td class="mono">${esc(r.stock||"—")}</td>`+
-      `<td class="money mono${(typeof r.profit==="number"&&r.profit<0)?" neg":""}">${(typeof r.profit==="number")?("¥"+r.profit.toLocaleString("ja-JP")):"—"}</td>`+
       `<td>${CATLB[r.cat]||"—"}${badge}</td>`+
     `</tr>`; }).join("");
-  document.getElementById("stock-body").innerHTML=
+  bd.innerHTML=
     cards+chips+
     `<div class="panel">${toolbar}<div class="tablewrap"><table>`+
-    `<thead><tr><th>済</th><th>商品ID</th><th>商品名</th><th>今の状態</th><th>出品時価格</th><th>適正価格</th><th>差</th><th>在庫</th><th>利益[¥]</th><th>分類</th></tr></thead>`+
-    `<tbody>${trs||`<tr><td class="empty" colspan="10"><b>この分類には商品がありません</b></td></tr>`}</tbody>`+
+    `<thead><tr><th><input type="checkbox" class="rowchk" id="stock-selall" onclick="stockSelAll(this)" title="表示中の行を全部チェック／解除"></th><th>商品ID（ASIN）</th><th>商品名</th><th>今の状態</th><th>出品時価格</th><th>適正価格</th><th>差</th><th>在庫</th><th>分類</th></tr></thead>`+
+    `<tbody>${trs||`<tr><td class="empty" colspan="9"><b>この分類には商品がありません</b></td></tr>`}</tbody>`+
     `</table></div></div>`;
+  stockSelSync();
 }
 /* ===== 顧客対応（日本語⇄韓国語の翻訳・韓国語の定型文） =====
    翻訳は無料のエンドポイント（Google gtx →失敗時 MyMemory）。APIキー不要・費用ゼロ。
