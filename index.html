@@ -315,6 +315,13 @@ window.CAT_ATTR_JA={"색상": "色", "수량": "数量", "패션의류/잡화 �
   .man-video{ position:relative; padding-bottom:56.25%; height:0; border-radius:10px; overflow:hidden; background:#000; }
   .man-video iframe{ position:absolute; top:0; left:0; width:100%; height:100%; border:0; }
   .man-empty{ border:2px dashed var(--line); border-radius:10px; padding:24px 12px; text-align:center; color:var(--muted); font-size:12.5px; background:#fafbff; }
+  /* 並べ替え：⠿を押したまま動かすと入れ替わる。画面の上下端まで持っていくと自動でスクロールする */
+  .man-grip{ flex:none; cursor:grab; user-select:none; touch-action:none; color:var(--muted); font-size:17px; line-height:1; padding:2px 4px; border-radius:6px; }
+  .man-grip:hover{ background:var(--line-2); color:var(--accent-d); }
+  .man-card.man-dragging{ opacity:.55; border-color:var(--accent); box-shadow:0 10px 26px rgba(20,28,50,.22); cursor:grabbing; }
+  .man-grid.man-sorting iframe{ pointer-events:none; }   /* 動画の上を通ってもドラッグが切れないようにする */
+  .man-grid.man-sorting{ user-select:none; }
+  .man-hint{ max-width:1100px; font-size:12.5px; color:var(--muted); margin-bottom:12px; line-height:1.7; }
   .man-url{ display:flex; align-items:center; gap:8px; margin-top:10px; }
   .man-url input{ flex:1; height:31px; border:1px solid var(--line); border-radius:7px; padding:0 9px; font-size:12px; font-family:inherit; }
   .man-url input:focus{ outline:none; border-color:var(--accent); box-shadow:0 0 0 3px var(--ring); }
@@ -476,6 +483,7 @@ window.CAT_ATTR_JA={"색상": "色", "수량": "数量", "패션의류/잡화 �
   #hdr-menu{ display:none; }    /* ☰ボタン：パソコンでは出さない */
   #navmask{ display:none; }     /* メニューを開いた時の暗い幕：パソコンでは出さない */
   @media (max-width:768px){
+    .man-grip{ font-size:21px; padding:7px 9px; }   /* 指でつまめる大きさにする */
     /* --- 共通の枠（ヘッダー・左メニュー・余白） --- */
     header{ height:54px; padding:0 12px; gap:10px; }
     .brand-txt{ display:none; }
@@ -1155,9 +1163,9 @@ const VIEW = [
   {en:"Purchased qty", head:"구매수", jp:"購入数", qty:true},
   {en:"Zipcode", head:"우편번호", jp:"郵便番号", copy:true},
   {en:"Recipient address", head:"수취인 주소", jp:"住所", copy:true},
-  {en:"Recipient name", head:"수취인 이름", jp:"名前", copy:true},                    /* 通関番号の左隣に配置 */
-  {en:"Personal Customs Clearance Code (PCCC)", head:"개인통관고유부호", jp:"個人通関番号", copy:true},
-  {en:"Contact information of buyer for customs clearance purpose", head:"연락처", jp:"電話番号", copy:true}
+  {en:"Recipient name", head:"수취인 이름", jp:"名前", copy:true},                    /* 電話番号の左隣に配置 */
+  {en:"Contact information of buyer for customs clearance purpose", head:"연락처", jp:"電話番号", copy:true},
+  {en:"Personal Customs Clearance Code (PCCC)", head:"개인통관고유부호", jp:"個人通関番号", copy:true}
 ];
 const VIEW_KEYS = new Set(VIEW.map(v=>v.en));
 
@@ -1175,9 +1183,9 @@ const SMART_VIEW = [
   {key:"수량", jp:"購入数", qty:true},
   {key:"우편번호", jp:"郵便番号", copy:true},
   {key:"통합배송지", jp:"住所", copy:true},
-  {key:"수취인명", jp:"名前", copy:true},                    /* 通関番号の左隣に配置 */
-  {key:"개인통관고유부호", jp:"個人通関番号", copy:true},
-  {key:"수취인연락처1", jp:"電話番号", copy:true}
+  {key:"수취인명", jp:"名前", copy:true},                    /* 電話番号の左隣に配置 */
+  {key:"수취인연락처1", jp:"電話番号", copy:true},
+  {key:"개인통관고유부호", jp:"個人通関番号", copy:true}
 ];
 
 const RETENTION_DAYS = 60;
@@ -1214,9 +1222,9 @@ const ST11_VIEW = [
   {key:"수량", jp:"購入数", qty:true},
   {key:"우편번호", jp:"郵便番号", copy:true},
   {key:"주소", jp:"住所", copy:true},
-  {key:"수취인", jp:"名前", copy:true},                    /* 通関番号の左隣に配置 */
-  {key:"세관신고정보", jp:"個人通関番号", copy:true},
-  {key:"휴대폰번호", jp:"電話番号", copy:true}
+  {key:"수취인", jp:"名前", copy:true},                    /* 電話番号の左隣に配置 */
+  {key:"휴대폰번호", jp:"電話番号", copy:true},
+  {key:"세관신고정보", jp:"個人通関番号", copy:true}
 ];
 const platforms = {
   coupang:{ name:"クーパン", key:"kr_cust_coupang_v4", salesKey:"kr_sales_coupang_v3", ready:true, cloud:true,
@@ -1616,7 +1624,7 @@ function renderTblMan(){
     ? `管理表マニュアル：発送管理 <small>モール共通。発送まわりの動画をここにまとめます</small>`
     : `管理表マニュアル：${PNAME[p]||p} <small>管理表マニュアルを準備します</small>`;
   document.getElementById("tblman-body").innerHTML=`<div class="man-note">タイトルを入れ、動画URL（Loom等）を貼るとその場で再生できます。「＋ 項目を追加」で箱を増やせます。</div><div id="tblman-list"></div>`;
-  renderManInto("tblman-list", hassou?"kr_tblman_hassou":("kr_tblman_"+p), TBLMAN_SEED);
+  renderManInto("tblman-list", hassou?"kr_tblman_hassou":("kr_tblman_"+p), TBLMAN_SEED, true);   /* 管理表マニュアルは並べ替えできる */
 }
 /* ===== 顧客対応（日本語⇄韓国語の翻訳・韓国語の定型文） =====
    翻訳は無料のエンドポイント（Google gtx →失敗時 MyMemory）。APIキー不要・費用ゼロ。
@@ -2166,18 +2174,50 @@ const UNDO_NG="元に戻せません（削除の記録が残るので、他の�
 const UNDO_ORDER="元に戻せません。必要なときは管理者にバックアップからの復元を依頼してください。";
 window.manDel=(key,id)=>{ if(!askDel("マニュアル項目", delLabel(loadMan(key).find(x=>x.id===id),["title","url"]), UNDO_NG)) return; saveMan(key, loadMan(key).filter(x=>x.id!==id)); addTomb(key,id); render(); };
 window.manAdd=(key)=>{ const l=loadMan(key); l.push({id:uid(),title:"",url:""}); saveMan(key,l); render(); };
-function manCardHTML(it,i,key){ const emb=loomEmbed(it.url);
+function manCardHTML(it,i,key,sortable){ const emb=loomEmbed(it.url);
   const video= emb ? `<div class="man-video"><iframe src="${esc(emb)}" allowfullscreen></iframe></div>`
     : `<div class="man-empty">動画は後日追加予定<br>下の欄にURLを貼ると、ここに表示されます</div>`;
-  return `<div class="man-card" data-id="${esc(it.id)}"><div class="man-h"><span class="man-no">${i+1}</span>`+
+  return `<div class="man-card" data-id="${esc(it.id)}"><div class="man-h">`+
+    (sortable?`<span class="man-grip" title="ここを押したまま動かすと、順番を入れ替えられます" onpointerdown="manSortStart(event,'${key}')">⠿</span>`:"")+
+    `<span class="man-no">${i+1}</span>`+
     `<input class="man-title" value="${esc(it.title)}" placeholder="タイトル" onchange="manEdit('${key}','${it.id}','title',this.value)">`+
     `<button class="rowbtn del btn-sm" onclick="manDel('${key}','${it.id}')" title="この項目を削除">削除</button></div>`+
     video+
     `<div class="man-url"><input type="text" placeholder="Loom等のURLを貼り付け" value="${esc(it.url)}" onchange="manEdit('${key}','${it.id}','url',this.value)">${it.url?`<a class="ctool-ext" href="${esc(it.url)}" target="_blank">開く↗</a>`:""}</div></div>`;
 }
-function renderManInto(containerId,key,seed){ const l=loadMan(key,seed);
-  document.getElementById(containerId).innerHTML=`<div class="man-grid">${l.map((it,i)=>manCardHTML(it,i,key)).join("")}</div>`+
+function renderManInto(containerId,key,seed,sortable){ const l=loadMan(key,seed);
+  document.getElementById(containerId).innerHTML=
+    (sortable?`<div class="man-hint">並べ替え：カード左の <b>⠿</b> を押したまま動かすと、順番を入れ替えられます。画面の上端・下端まで持っていくと自動でスクロールします。順番はそのまま保存され、全員の画面に反映されます。</div>`:"")+
+    `<div class="man-grid">${l.map((it,i)=>manCardHTML(it,i,key,sortable)).join("")}</div>`+
     `<div class="man-addwrap"><button class="btn-ghost" onclick="manAdd('${key}')">＋ 項目を追加</button></div>`; }
+/* ---- マニュアルの並べ替え（⠿をドラッグ）。項目は1件も増減させない＝順番だけ入れ替える ---- */
+let _manDrag=null;
+window.manSortStart=(e,key)=>{ const grip=e.currentTarget, card=grip&&grip.closest(".man-card"), grid=card&&card.parentElement;
+  if(!card||!grid||!grid.classList.contains("man-grid")) return;
+  e.preventDefault(); try{ grip.setPointerCapture(e.pointerId); }catch(err){}
+  card.classList.add("man-dragging"); grid.classList.add("man-sorting");
+  _manDrag={key,card,grid,y:e.clientY,timer:setInterval(manSortScroll,40)}; };
+function manSortScroll(){ const d=_manDrag; if(!d) return; const m=100, y=d.y;
+  if(y<m) window.scrollBy(0,-Math.ceil((m-y)/5));
+  else if(y>window.innerHeight-m) window.scrollBy(0,Math.ceil((y-(window.innerHeight-m))/5)); }
+function manSortMove(e){ const d=_manDrag; if(!d) return; d.y=e.clientY;
+  const el=document.elementFromPoint(e.clientX,e.clientY); const over=el&&el.closest?el.closest(".man-card"):null;
+  if(!over||over===d.card||over.parentElement!==d.grid) return;
+  const cards=[].slice.call(d.grid.children);
+  if(cards.indexOf(over)<cards.indexOf(d.card)) d.grid.insertBefore(d.card,over);
+  else d.grid.insertBefore(d.card,over.nextSibling); }
+function manSortEnd(){ const d=_manDrag; if(!d) return; _manDrag=null; clearInterval(d.timer);
+  d.card.classList.remove("man-dragging"); d.grid.classList.remove("man-sorting");
+  const ids=[].slice.call(d.grid.children).map(c=>c.getAttribute("data-id"));
+  const l=loadMan(d.key), map={}; l.forEach(x=>{ map[x.id]=x; });
+  const next=ids.map(i=>map[i]).filter(Boolean);
+  l.forEach(x=>{ if(ids.indexOf(x.id)<0) next.push(x); });          /* 画面に無い項目も必ず後ろに残す */
+  if(next.length!==l.length){ render(); return; }                    /* 件数が合わない時は保存しない＝1件も失わせない */
+  if(next.every((x,i)=>x===l[i])){ return; }                         /* 動いていなければ保存しない（_revを無駄に動かさない） */
+  saveMan(d.key,next); render(); }
+document.addEventListener("pointermove",manSortMove);
+document.addEventListener("pointerup",manSortEnd);
+document.addEventListener("pointercancel",manSortEnd);
 /* 旧ブログマニュアル（title→url）から新形式へ一度だけ移行 */
 function blogManualSeed(){ let ov={}; try{ ov=JSON.parse(localStorage.getItem("kr_manual_urls"))||{}; }catch(e){}
   return MANUAL_SEED.map(x=>({title:x.title, url:(ov[x.title]!==undefined?ov[x.title]:x.url)})); }
