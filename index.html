@@ -1732,6 +1732,49 @@ window.stockPasteRun=()=>{
 window.stockPasteCopy=(btn)=>{ if(!stockPasteOut){ alert("先に「価格を作る」を押してください。"); return; }
   copyText(stockPasteOut); flashBtn(btn); };
 window.stockPasteClear=()=>{ stockPasteIn=""; stockPasteOut=""; stockPasteInfo=""; renderStock(); };
+/* ===== スマートストアの一括修正Excelを、そのまま書き換えてダウンロードする =====
+   F列（판매가）だけを適正価格に置き換える。他の列・他の行には一切触らない。
+   対象は「値段調整」と「在庫復活」だけ（出品停止は판매중지で手作業のため対象外）。 */
+window.stockXlsxFile=(el)=>{
+  const f=(el.files||[])[0]; if(!f) return; const nm=String(f.name||"");
+  const rd=new FileReader();
+  rd.onload=ev=>{ try{
+    const wb=XLSX.read(new Uint8Array(ev.target.result),{type:"array",cellStyles:true});
+    const shName=(wb.SheetNames.indexOf("일괄수정")>=0)?"일괄수정":wb.SheetNames[0];
+    const ws=wb.Sheets[shName], ref=XLSX.utils.decode_range(ws["!ref"]||"A1");
+    const cv=(r,c)=>{ const x=ws[XLSX.utils.encode_cell({r:r,c:c})]; return x==null?"":String(x.v==null?"":x.v).trim(); };
+    let hr=-1,cAsin=-1,cPrice=-1,cNum=-1;
+    for(let r=ref.s.r;r<=Math.min(ref.s.r+8,ref.e.r);r++){ let a=-1,pz=-1,nu=-1;
+      for(let c=ref.s.c;c<=ref.e.c;c++){ const v=cv(r,c);
+        if(v==="판매자 상품코드") a=c; else if(v==="판매가") pz=c; else if(v==="상품번호") nu=c; }
+      if(a>=0&&pz>=0){ hr=r; cAsin=a; cPrice=pz; cNum=nu; break; } }
+    if(hr<0){ alert("スマートストアの一括修正Excelではないようです。\n「판매자 상품코드」と「판매가」の見出しが見つかりませんでした。"); el.value=""; return; }
+    const map={};
+    (loadStock(current).rows||[]).forEach(r=>{ const cat=stockCat(r);
+      if(cat!=="price"&&cat!=="revive") return;                       /* 出品停止は触らない */
+      const k=String(r.id||"").trim().toUpperCase(); if(k&&num(r.fair)>0) map[k]=Math.round(num(r.fair)); });
+    let data=0,chg=0,same=0;
+    for(let r=hr+1;r<=ref.e.r;r++){
+      const idv=(cNum>=0)?cv(r,cNum):"";
+      if(cNum>=0 && !/^[0-9]{8,}$/.test(idv)) continue;                /* 説明行・注記行はここで落ちる */
+      const asin=cv(r,cAsin).toUpperCase(); if(!asin) continue;
+      data++;
+      const np=map[asin]; if(np==null) continue;                       /* 在庫管理に無い商品はそのまま */
+      const addr=XLSX.utils.encode_cell({r:r,c:cPrice});
+      const old=Number(String((ws[addr]||{}).v==null?"":(ws[addr]||{}).v).replace(/[^0-9.]/g,""));
+      if(old===np){ same++; continue; }
+      ws[addr]={t:"n",v:np}; chg++;
+    }
+    if(!chg){ alert(`書き換える価格がありませんでした。\n（このExcelの ${data}件は、値段調整・在庫復活の対象に入っていないか、すでに適正価格です）`); el.value=""; return; }
+    const out=nm.replace(/\.xls[xm]?$/i,"")+"_価格修正.xlsx";
+    XLSX.writeFile(wb,out);
+    alert("価格を書き換えました\n"
+      +`このExcelの商品 ${data}件 → 書き換え ${chg}件`+(same?` ／ すでに同じ ${same}件`:"")
+      +` ／ 対象外そのまま ${data-chg-same}件\n`
+      +`ダウンロード：${out}\n\n※出品停止の商品は触っていません。\n※このファイルをスマートストアにアップロードしてください。`);
+  }catch(err){ alert("取込エラー："+err.message); }
+  el.value=""; };
+  rd.readAsArrayBuffer(f); };
 /* 行チェック＝コピー対象の選択。画面は描き直さず、ボタンの件数と全選択の状態だけ更新する */
 function stockSelSync(){
   const b1=document.getElementById("stock-copyid"); if(b1) b1.textContent=`📋 ASINをまとめてコピー（${stockSel.size}件）`;
@@ -1757,16 +1800,46 @@ window.stockReset=()=>{ const p=current, d=loadStock(p); if(!d.rows.length){ ale
   const t=new Date(), z=n=>String(n).padStart(2,"0");
   const today=t.getFullYear()+"-"+z(t.getMonth()+1)+"-"+z(t.getDate());
   localStorage.setItem(stockKey(p),JSON.stringify({t:"",rows:[],lc:today,fn:d.fn||""})); stockSel=new Set(); render(); };
-window.stockImportFile=(el)=>{ const f=el.files[0]; if(!f) return; const stamp=stockStamp(f.name); const rd=new FileReader();
-  rd.onload=ev=>{ try{ const wb=readWB(ev.target.result); const sh=wb.Sheets[wb.SheetNames[0]];
-    importStock(XLSX.utils.sheet_to_json(sh,{header:1,raw:true,defval:""}),stamp);   /* raw=元の値で読む。商品IDの桁落ちも数値の日付化も起きない */
-  }catch(err){ alert("取込エラー："+err.message); } el.value=""; };
-  rd.readAsArrayBuffer(f); };
-function importStock(arr,stamp){
+/* 何日分かをまとめて選べる。ファイル名の日時で古い順に並べ、1つずつ順に取り込む＝新しいファイルの内容が最後に残る */
+window.stockImportFile=(el)=>{
+  const files=Array.prototype.slice.call(el.files||[]); if(!files.length) return;
+  files.sort((a,b)=>{ const A=stockStamp(a.name)||"", B=stockStamp(b.name)||"";
+    if(A!==B) return A<B?-1:1; return String(a.name).localeCompare(String(b.name)); });
+  const readOne=f=>new Promise((ok,ng)=>{ const rd=new FileReader();
+    rd.onload=ev=>ok(ev.target.result); rd.onerror=()=>ng(new Error("読み込めません")); rd.readAsArrayBuffer(f); });
+  (async()=>{
+    const sum={done:0, skipped:[], skipCp:0, older:0, first:"", last:""};
+    STOCK_PLATS.forEach(p=>{ sum[p]={add:0,upd:0}; });
+    for(let i=0;i<files.length;i++){ const f=files[i];
+      try{
+        const wb=readWB(await readOne(f)); const sh=wb.Sheets[wb.SheetNames[0]];
+        const r=importStock(XLSX.utils.sheet_to_json(sh,{header:1,raw:true,defval:""}), stockStamp(f.name),
+                            {silent:true, keepNew:(sum.done>0)});   /* 2つ目以降もNEWを消さない＝今回まとめて入った分が全部NEWになる */
+        if(!r||!r.ok){ sum.skipped.push(f.name+"（"+((r&&r.why)||"読めません")+"）"); continue; }
+        sum.done++; sum.skipCp+=r.skipCp; if(r.older) sum.older++;
+        STOCK_PLATS.forEach(p=>{ sum[p].add+=r[p].add; sum[p].upd+=r[p].upd; });
+        const lb=stockStampLabel(stockStamp(f.name)); if(lb){ if(!sum.first) sum.first=lb; sum.last=lb; }
+      }catch(err){ sum.skipped.push(f.name+"（"+(err.message||"読めません")+"）"); }
+    }
+    el.value=""; stockSel=new Set(); render();
+    if(!sum.done){ alert("取り込めたファイルがありませんでした。\n"+(sum.skipped.join("\n")||"")); return; }
+    const tot=STOCK_PLATS.map(p=>`${PNAME[p]}：新しく${sum[p].add}件・更新${sum[p].upd}件（合計${loadStock(p).rows.length}件）`);
+    alert("取込完了（在庫管理・蓄積式）"
+      +`\nファイル ${sum.done}件`+(sum.first?`（データ ${sum.first}${sum.last!==sum.first?" 〜 "+sum.last:""}）`:"")+"\n"
+      +tot.join("\n")
+      +(sum.skipCp?`\n（クーパンの行 ${sum.skipCp}件は対象外のため取り込みませんでした）`:"")
+      +(sum.skipped.length?`\n\n読めなかったファイル：\n`+sum.skipped.join("\n"):"")
+      +(sum.older?`\n\n※前に取り込んだ分より古いファイルが ${sum.older}件ありました。その分は新しい商品の追加だけで、価格などは上書きしていません。`:"")
+      +"\n※NEWは今回入った分です。たまった一覧は「🧹 リセット」で空にできます。");
+  })();
+};
+function importStock(arr,stamp,opts){
+  opts=opts||{};
   let hr=-1;
   for(let i=0;i<Math.min(6,arr.length);i++){ const c=(arr[i]||[]).map(x=>String(x==null?"":x).trim());
     if(c.includes("商品ID")&&c.includes("マーケット")){ hr=i; break; } }
-  if(hr<0){ alert("対応していない形式です。\nツールからダウンロードした「修正必要商品リスト表」のExcelをそのまま選んでください。"); return; }
+  if(hr<0){ if(opts.silent) return {ok:false,why:"形式が違います"};
+    alert("対応していない形式です。\nツールからダウンロードした「修正必要商品リスト表」のExcelをそのまま選んでください。"); return {ok:false,why:"形式が違います"}; }
   const H=(arr[hr]||[]).map(x=>String(x==null?"":x).trim()), col=n=>H.indexOf(n);
   const ci={ id:col("商品ID"), mk:col("マーケット"), name:col("商品名（韓国語）"), st:col("現在の出品ステータス"),
              price:col("出品時価格[₩]"), fair:col("適正価格[₩]"), stock:col("在庫数"), color:col("色説明") };
@@ -1782,8 +1855,8 @@ function importStock(arr,stamp){
       fair:(typeof g(ci.fair)==="number")?g(ci.fair):num(g(ci.fair)),
       stock:String(g(ci.stock)).trim(), color:String(g(ci.color)).trim() });
   }
-  if(!byP.smart.length&&!byP.st11.length){
-    alert("スマートストア・11番街の行がありませんでした。\n今あるデータはそのまま残しています。"+(skipCp?`\n（クーパンの行 ${skipCp}件は対象外です）`:"")); return; }
+  if(!byP.smart.length&&!byP.st11.length){ if(opts.silent) return {ok:false,why:"対象の行がありません"};
+    alert("スマートストア・11番街の行がありませんでした。\n今あるデータはそのまま残しています。"+(skipCp?`\n（クーパンの行 ${skipCp}件は対象外です）`:"")); return {ok:false,why:"対象の行がありません"}; }
   const t=new Date(), z=n=>String(n).padStart(2,"0");
   const ts=t.getFullYear()+"-"+z(t.getMonth()+1)+"-"+z(t.getDate())+" "+z(t.getHours())+":"+z(t.getMinutes());
   /* 蓄積式：新しい商品IDは追加（NEW付き）、すでにある商品IDは中身を更新。無くなった商品も消さない（消すのはリセットボタンだけ） */
@@ -1791,23 +1864,26 @@ function importStock(arr,stamp){
      新しい商品の追加だけして、すでにある商品は上書きしない（古い価格で新しい価格を潰さないため）。
      日時が読み取れないファイル名のときは、これまでどおり上書きする。 */
   const last=stockLastStamp(), older=!!(stamp&&last&&stamp<last);
-  const parts=[];
-  STOCK_PLATS.forEach(p=>{ const cur=loadStock(p); const map={}; cur.rows.forEach(r=>{ r.isNew=false; map[r.id]=r; });
+  const parts=[], res={ok:true, skipCp, older};
+  STOCK_PLATS.forEach(p=>{ const cur=loadStock(p); const map={}; cur.rows.forEach(r=>{ if(!opts.keepNew) r.isNew=false; map[r.id]=r; });
     let add=0,upd=0,keep=0;
     byP[p].forEach(r=>{ const ex=map[r.id];
       if(ex){ if(older){ keep++; } else { ex.name=r.name; ex.st=r.st; ex.price=r.price; ex.fair=r.fair; ex.stock=r.stock; ex.color=r.color; upd++; } }
       else{ r.isNew=true; cur.rows.push(r); map[r.id]=r; add++; } });
     localStorage.setItem(stockKey(p),JSON.stringify({t:ts,rows:cur.rows,lc:cur.lc||"",fn:older?(cur.fn||""):(stamp||cur.fn||"")}));
+    res[p]={add,upd,keep};
     parts.push(`${PNAME[p]}：新しく${add}件・`+(older?`据え置き${keep}件`:`更新${upd}件`)+`（合計${cur.rows.length}件）`); });
   if(stamp&&(!last||stamp>last)){ try{ localStorage.setItem("kr_stock_lastmail_v1",stamp); }catch(e){} }
   try{ ["kr_stock_coupang_v1","kr_stock_done_smart_v1","kr_stock_done_st11_v1","kr_stock_done_coupang_v1"].forEach(k=>localStorage.removeItem(k)); }catch(e){}   /* 旧仕様の残り（クーパン分・済チェック）を掃除 */
   stockSel=new Set();
+  if(opts.silent) return res;              /* まとめて取込のときは、最後に1回だけ描き直して1回だけ知らせる */
   render();
   const fl=stockStampLabel(stamp);
   alert("取込完了（在庫管理・蓄積式）"+(fl?`\nこのファイルのデータ日時：${fl}`:"")+"\n"+parts.join("\n")
     +(skipCp?`\n（クーパンの行 ${skipCp}件は対象外のため取り込みませんでした）`:"")
     +(older?`\n\n※このファイルは前に取り込んだ ${stockStampLabel(last)} より古いので、新しい商品の追加だけしました。\n　すでにある商品の価格などは、新しい情報を守るため上書きしていません。\n　（何日分かをまとめて入れるとき、順番を気にしなくて大丈夫です）`:"")
     +"\n※たまった一覧は「🧹 リセット」で空にできます。");
+  return res;
 }
 function renderStock(){
   const p=current, hd=document.getElementById("stock-head"), bd=document.getElementById("stock-body");
@@ -1828,11 +1904,11 @@ function renderStock(){
     `<button class="btn-ghost" id="stock-copyid" onclick="stockCopySel(this,'id')">📋 ASINをまとめてコピー（${stockSel.size}件）</button>`+
     `<button class="btn-ghost" id="stock-copyfair" onclick="stockCopySel(this,'fair')">📋 適正価格をまとめてコピー（${stockSel.size}件）</button>`+
     `<button class="btn-ghost" onclick="stockReset()" title="この一覧を空にして、最終チェック日を今日にします（確認が出ます）">🧹 リセット</button>`+
-    `<button class="btn-ghost" onclick="document.getElementById('stock-file').click()">📥 修正必要リストを取り込む</button>`+
-    `<input type="file" id="stock-file" accept=".xlsx,.xls,.csv" style="display:none" onchange="stockImportFile(this)">`+
+    `<button class="btn-ghost" onclick="document.getElementById('stock-file').click()" title="何日分かをまとめて選べます（ファイル名の日時で古い順に取り込みます）">📥 修正必要リストを取り込む<small style="color:var(--muted);font-weight:600">（複数可）</small></button>`+
+    `<input type="file" id="stock-file" accept=".xlsx,.xls,.csv" multiple style="display:none" onchange="stockImportFile(this)">`+
   `</div>`;
   if(!rows.length){
-    bd.innerHTML=`<div class="panel">${toolbar}<div class="empty"><b>データがありません</b>右上の「📥 修正必要リストを取り込む」から、ツールでダウンロードしたExcelを選んでください。<br>マーケット列を見て、スマートストアと11番街へ自動で振り分けます（クーパンの行は取り込みません）。</div></div>`;
+    bd.innerHTML=`<div class="panel">${toolbar}<div class="empty"><b>データがありません</b>右上の「📥 修正必要リストを取り込む」から、ツールでダウンロードしたExcelを選んでください。何日分かをまとめて選べます。<br>マーケット列を見て、スマートストアと11番街へ自動で振り分けます（クーパンの行は取り込みません）。</div></div>`;
     return;
   }
   const cards=`<div class="stats s4">`+
@@ -1862,9 +1938,16 @@ function renderStock(){
   const ta="width:100%;height:150px;box-sizing:border-box;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px;line-height:1.5;border:1px solid var(--line);border-radius:8px;padding:8px;resize:vertical";
   const pasteBox=(stockTab!=="price")?"":
     `<div class="panel" style="margin-top:12px;padding:14px 16px">`+
-    `<div style="font-size:14px;font-weight:800">📋 Excelの並びに合わせて価格を作る</div>`+
+    `<div style="font-size:14px;font-weight:800">価格の一括修正（スマートストアの一括修正Excel）</div>`+
+    `<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:11px 13px;border:1px solid #cfe3f7;border-radius:10px;background:#f5faff;margin:8px 0 14px">`+
+      `<b style="font-size:13px">① Excelを丸ごと直す（おすすめ）</b>`+
+      `<button class="btn-primary btn-sm" onclick="document.getElementById('stock-xlsx').click()">📥 Excelを選ぶ</button>`+
+      `<input type="file" id="stock-xlsx" accept=".xlsx,.xls" style="display:none" onchange="stockXlsxFile(this)">`+
+      `<span style="font-size:11.5px;color:var(--muted);line-height:1.8">ダウンロードした一括修正Excelを選ぶと、<b>F列（판매가）だけ</b>を適正価格に書き換えたファイルが出てきます。<br>他の列・他の行には触りません。出品停止の商品も触りません。そのままアップロードできます。</span>`+
+    `</div>`+
+    `<div style="font-size:13px;font-weight:800">② 手で貼る場合</div>`+
     `<div style="font-size:11.5px;color:var(--muted);line-height:1.9;margin:4px 0 10px">`+
-      `①一括修正Excelの <b>A〜F列</b> を <b>6行目から下まで</b> コピー → ②左に貼り付け → ③「価格を作る」 → ④右をコピーして <b>F6</b> に貼る<br>`+
+      `一括修正Excelの <b>A〜F列</b> を <b>6行目から下まで</b> コピー → 左に貼り付け → 「価格を作る」 → 右をコピーして <b>F6</b> に貼る<br>`+
       `Excelの行の順番のまま同じ行数を返すので、並べ替えは要りません。在庫管理に無い商品は<b>いまの価格をそのまま返す</b>ので、価格が消えることはありません。`+
     `</div>`+
     `<div id="stock-paste-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:12px">`+
