@@ -1739,7 +1739,8 @@ window.stockXlsxFile=(el)=>{
   const f=(el.files||[])[0]; if(!f) return; const nm=String(f.name||"");
   const rd=new FileReader();
   rd.onload=ev=>{ try{
-    const wb=XLSX.read(new Uint8Array(ev.target.result),{type:"array",cellStyles:true});
+    /* cellStyles は付けない：SheetJSは書式を書き戻せないのに、付けるとファイルが30倍近くに膨らむ（933KB vs 57KB）。値は同じ */
+    const wb=XLSX.read(new Uint8Array(ev.target.result),{type:"array"});
     const shName=(wb.SheetNames.indexOf("일괄수정")>=0)?"일괄수정":wb.SheetNames[0];
     const ws=wb.Sheets[shName], ref=XLSX.utils.decode_range(ws["!ref"]||"A1");
     /* スマストの書き出しは !ref（範囲宣言）が実データより短いことがある（1商品のときに実際に発生）。
