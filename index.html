@@ -1742,6 +1742,12 @@ window.stockXlsxFile=(el)=>{
     const wb=XLSX.read(new Uint8Array(ev.target.result),{type:"array",cellStyles:true});
     const shName=(wb.SheetNames.indexOf("일괄수정")>=0)?"일괄수정":wb.SheetNames[0];
     const ws=wb.Sheets[shName], ref=XLSX.utils.decode_range(ws["!ref"]||"A1");
+    /* スマストの書き出しは !ref（範囲宣言）が実データより短いことがある（1商品のときに実際に発生）。
+       セルの並びから本当の範囲を出し直し、書き戻すファイルからも行が落ちないようにする。 */
+    Object.keys(ws).forEach(k=>{ if(k.charAt(0)==="!") return; const a=XLSX.utils.decode_cell(k);
+      if(a.r>ref.e.r) ref.e.r=a.r; if(a.c>ref.e.c) ref.e.c=a.c;
+      if(a.r<ref.s.r) ref.s.r=a.r; if(a.c<ref.s.c) ref.s.c=a.c; });
+    ws["!ref"]=XLSX.utils.encode_range(ref);
     const cv=(r,c)=>{ const x=ws[XLSX.utils.encode_cell({r:r,c:c})]; return x==null?"":String(x.v==null?"":x.v).trim(); };
     let hr=-1,cAsin=-1,cPrice=-1,cNum=-1;
     for(let r=ref.s.r;r<=Math.min(ref.s.r+8,ref.e.r);r++){ let a=-1,pz=-1,nu=-1;
