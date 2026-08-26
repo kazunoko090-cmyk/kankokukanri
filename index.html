@@ -1806,10 +1806,11 @@ window.stockXlsxFile=(el)=>{
     (loadStock(current).rows||[]).forEach(r=>{ const cat=stockCat(r);
       if(cat!=="price"&&cat!=="revive") return;                       /* 出品停止は触らない */
       const k=String(r.id||"").trim().toUpperCase(); if(k&&num(r.fair)>0) map[k]=Math.round(num(r.fair)); });
-    let data=0,chg=0,same=0,unk=0;
+    let data=0,chg=0,same=0,unk=0,firstData=-1;
     for(let r=hr+1;r<=ref.e.r;r++){
       const idv=(H.no!=null)?cv(r,H.no):"";
       if(H.no!=null && !/^[0-9]{8,}$/.test(idv)) continue;             /* 説明行・注記行はここで落ちる */
+      if(firstData<0) firstData=r;
       const asin=(kind==="st11bulk")?String(noMap[idv]||"").toUpperCase():cv(r,H.asin).toUpperCase();
       if(!asin){ if(kind==="st11bulk"){ data++; unk++; } continue; }   /* 対応表に無い＝どの商品か分からないので触らない */
       data++;
@@ -1822,6 +1823,19 @@ window.stockXlsxFile=(el)=>{
     const pcol=XLSX.utils.encode_col(H.price);
     if(!chg){ alert(`書き換える価格がありませんでした。\n（このExcelの ${data}件は、値段調整・在庫復活の対象に入っていないか、すでに適正価格です）`
       +(unk?`\n\n※うち ${unk}件は対応表に無い商品番号でした。商品リストExcelを取り直すと解決します。`:"")); el.value=""; return; }
+    /* 11番街は「업로드 시, 안내행(2~3행)은 삭제해 주세요」＝見出しの下の案内行（필수/비필수・記入例）を
+       消してからでないとアップロードを受け付けない。見出しと最初のデータ行の間を丸ごと詰める。 */
+    let cut=0;
+    if(kind==="st11bulk"&&firstData>hr+1){
+      const gap=firstData-hr-1, keep={};
+      Object.keys(ws).forEach(k=>{ if(k.charAt(0)==="!") return;
+        const a=XLSX.utils.decode_cell(k);
+        if(a.r>hr&&a.r<firstData) return;                              /* 案内行は捨てる */
+        keep[XLSX.utils.encode_cell({r:(a.r>=firstData)?a.r-gap:a.r,c:a.c})]=ws[k]; });
+      Object.keys(ws).forEach(k=>{ if(k.charAt(0)!=="!") delete ws[k]; });
+      Object.keys(keep).forEach(k=>{ ws[k]=keep[k]; });
+      if(Array.isArray(ws["!rows"])) ws["!rows"].splice(hr+1,gap);
+      ref.e.r-=gap; ws["!ref"]=XLSX.utils.encode_range(ref); cut=gap; }
     /* 拡張子は元のまま返す（.xls で配られるファイルを .xlsx にして返さない） */
     const ext=((nm.match(/\.(xlsx|xlsm|xls)$/i)||["",""])[1]||"xlsx").toLowerCase();
     const out=nm.replace(/\.[^.]+$/,"")+"_価格修正."+ext;
@@ -1829,7 +1843,8 @@ window.stockXlsxFile=(el)=>{
     alert("価格を書き換えました\n"
       +`このExcelの商品 ${data}件 → ${pcol}列（판매가）を書き換え ${chg}件`+(same?` ／ すでに同じ ${same}件`:"")
       +` ／ 対象外そのまま ${data-chg-same-unk}件`+(unk?` ／ 対応表に無い ${unk}件`:"")+"\n"
-      +`ダウンロード：${out}\n\n※出品停止の商品は触っていません。\n※このファイルを${PNAME[current]}にアップロードしてください。`);
+      +`ダウンロード：${out}\n`+(cut?`\n※11番街の決まりどおり、案内行 ${cut}行（필수/비필수・記入例）を削除しました。\n`:"")
+      +`\n※出品停止の商品は触っていません。\n※このファイルを${PNAME[current]}にアップロードしてください。`);
   }catch(err){ alert("取込エラー："+err.message); }
   el.value=""; };
   rd.readAsArrayBuffer(f); };
