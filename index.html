@@ -1936,14 +1936,14 @@ function renderStock(){
       `<td>${CATLB[r.cat]||"—"}${badge}</td>`+
     `</tr>`; }).join("");
   const ta="width:100%;height:150px;box-sizing:border-box;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px;line-height:1.5;border:1px solid var(--line);border-radius:8px;padding:8px;resize:vertical";
-  const pasteBox=(stockTab!=="price")?"":
+  const pasteBox=(stockTab!=="price"&&stockTab!=="revive")?"":
     `<div class="panel" style="margin-top:12px;padding:14px 16px">`+
     `<div style="font-size:14px;font-weight:800">価格の一括修正（スマートストアの一括修正Excel）</div>`+
     `<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:11px 13px;border:1px solid #cfe3f7;border-radius:10px;background:#f5faff;margin:8px 0 14px">`+
       `<b style="font-size:13px">① Excelを丸ごと直す（おすすめ）</b>`+
       `<button class="btn-primary btn-sm" onclick="document.getElementById('stock-xlsx').click()">📥 Excelを選ぶ</button>`+
       `<input type="file" id="stock-xlsx" accept=".xlsx,.xls" style="display:none" onchange="stockXlsxFile(this)">`+
-      `<span style="font-size:11.5px;color:var(--muted);line-height:1.8">ダウンロードした一括修正Excelを選ぶと、<b>F列（판매가）だけ</b>を適正価格に書き換えたファイルが出てきます。<br>他の列・他の行には触りません。出品停止の商品も触りません。そのままアップロードできます。</span>`+
+      `<span style="font-size:11.5px;color:var(--muted);line-height:1.8">ダウンロードした一括修正Excelを選ぶと、<b>F列（판매가）だけ</b>を適正価格に書き換えたファイルが出てきます。<br>対象は<b>値段調整と在庫復活の両方</b>。他の列・他の行には触りません。出品停止の商品も触りません。そのままアップロードできます。</span>`+
     `</div>`+
     `<div style="font-size:13px;font-weight:800">② 手で貼る場合</div>`+
     `<div style="font-size:11.5px;color:var(--muted);line-height:1.9;margin:4px 0 10px">`+
