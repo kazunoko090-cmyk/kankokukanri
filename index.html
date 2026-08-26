@@ -545,6 +545,7 @@ window.CAT_ATTR_JA={"색상": "色", "수량": "数量", "패션의류/잡화 �
     #view-cust .toolbar button, #view-sales .toolbar button{ flex:1 1 calc(50% - 4px); height:40px; padding:0 8px; font-size:12px; }
     #view-sales .seg{ display:flex; width:100%; }
     #view-sales .segbtn{ flex:1 1 0; min-width:0; height:auto; min-height:38px; padding:5px 6px; font-size:11.5px; line-height:1.3; white-space:normal; }
+    #stock-paste-grid{ grid-template-columns:1fr !important; }
     #view-sales #ctl-search, #view-sales #ctl-month, #view-sales #ctl-year, #view-sales #ctl-rate, #view-sales #ctl-cvt{ flex:1 1 100%; margin-left:0 !important; }
     #view-sales #sv-search{ flex:1; width:100%; min-width:0 !important; height:42px !important; font-size:16px !important; }
     #view-sales #sv-month, #view-sales #sv-year{ flex:1; height:42px; }
@@ -1699,6 +1700,38 @@ function stockCat(r){
 }
 const STOCK_BADGE={ "在庫切れ商品":"grey", "在庫復活商品":"green", "赤字商品":"red", "黒字転換商品":"blue" };
 window.setStockTab=(t)=>{ stockTab=t; render(); };
+/* ===== 値段調整：Excelの並びに合わせて価格の列を作る =====
+   スマストの一括修正Excelは「商品番号の新しい順」で出てくるので、こちらの表示順とは一致しない。
+   そこでExcelから貼られた行の順番をそのまま使い、同じ行数だけ価格を返す（＝上から順にF列へ貼れる）。
+   同じASINが2行あっても、その2行ともに同じ価格を返す。 */
+let stockPasteIn="", stockPasteOut="", stockPasteInfo="";
+window.stockPasteSet=(v)=>{ stockPasteIn=v; };
+window.stockPasteRun=()=>{
+  const rows=loadStock(current).rows||[], map={};
+  rows.forEach(r=>{ const k=String(r.id||"").trim().toUpperCase(); if(k) map[k]=r; });
+  const lines=String(stockPasteIn||"").replace(/\r/g,"").split("\n");
+  while(lines.length&&!lines[lines.length-1].trim()) lines.pop();      /* 末尾の空行は捨てる */
+  if(!lines.length){ alert("Excelからコピーした中身を、左の欄に貼り付けてください。"); return; }
+  let hit=0, keep=0, blank=0; const out=[];
+  lines.forEach(ln=>{
+    const cells=ln.split("\t").map(c=>c.trim()).filter(c=>c!=="");
+    let r=null;
+    for(let i=0;i<cells.length;i++){ const m=map[cells[i].toUpperCase()]; if(m){ r=m; break; } }   /* 何列貼られてもASINの列を自分で探す */
+    const last=cells.length>1?cells[cells.length-1]:"";
+    const org=/^[0-9]+$/.test(last)?last:"";                            /* A〜F列で貼られていれば、最後がいまの価格 */
+    if(r&&num(r.fair)>0){ out.push(String(Math.round(num(r.fair)))); hit++; }
+    else if(org){ out.push(org); keep++; }                              /* 在庫管理に無い商品は、いまの価格をそのまま返す＝消えない */
+    else { out.push(""); blank++; }
+  });
+  stockPasteOut=out.join("\n");
+  const notTen=out.filter(v=>v&&Number(v)%10!==0).length;
+  stockPasteInfo=`${lines.length}行 → 適正価格に置き換え ${hit}行`+(keep?` ／ 元の価格のまま ${keep}行`:"")
+    +(blank?` ／ <b style="color:#c0392b">空欄 ${blank}行</b>`:"")+(notTen?`　⚠ 10ウォン単位でない値が ${notTen}件`:"");
+  renderStock();
+};
+window.stockPasteCopy=(btn)=>{ if(!stockPasteOut){ alert("先に「価格を作る」を押してください。"); return; }
+  copyText(stockPasteOut); flashBtn(btn); };
+window.stockPasteClear=()=>{ stockPasteIn=""; stockPasteOut=""; stockPasteInfo=""; renderStock(); };
 /* 行チェック＝コピー対象の選択。画面は描き直さず、ボタンの件数と全選択の状態だけ更新する */
 function stockSelSync(){
   const b1=document.getElementById("stock-copyid"); if(b1) b1.textContent=`📋 ASINをまとめてコピー（${stockSel.size}件）`;
@@ -1826,12 +1859,32 @@ function renderStock(){
       `<td class="mono">${esc(r.stock||"—")}</td>`+
       `<td>${CATLB[r.cat]||"—"}${badge}</td>`+
     `</tr>`; }).join("");
+  const ta="width:100%;height:150px;box-sizing:border-box;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px;line-height:1.5;border:1px solid var(--line);border-radius:8px;padding:8px;resize:vertical";
+  const pasteBox=(stockTab!=="price")?"":
+    `<div class="panel" style="margin-top:12px;padding:14px 16px">`+
+    `<div style="font-size:14px;font-weight:800">📋 Excelの並びに合わせて価格を作る</div>`+
+    `<div style="font-size:11.5px;color:var(--muted);line-height:1.9;margin:4px 0 10px">`+
+      `①一括修正Excelの <b>A〜F列</b> を <b>6行目から下まで</b> コピー → ②左に貼り付け → ③「価格を作る」 → ④右をコピーして <b>F6</b> に貼る<br>`+
+      `Excelの行の順番のまま同じ行数を返すので、並べ替えは要りません。在庫管理に無い商品は<b>いまの価格をそのまま返す</b>ので、価格が消えることはありません。`+
+    `</div>`+
+    `<div id="stock-paste-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:12px">`+
+      `<div><div style="font-size:11px;font-weight:700;color:var(--muted);margin-bottom:4px">Excelからコピーしたもの</div>`+
+      `<textarea id="stock-paste-in" style="${ta}" placeholder="ここに貼り付け" oninput="stockPasteSet(this.value)">${esc(stockPasteIn)}</textarea></div>`+
+      `<div><div style="font-size:11px;font-weight:700;color:var(--muted);margin-bottom:4px">F列（판매가）に貼る価格</div>`+
+      `<textarea id="stock-paste-out" style="${ta};background:#fafbff" readonly>${esc(stockPasteOut)}</textarea></div>`+
+    `</div>`+
+    `<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:10px">`+
+      `<button class="btn-primary btn-sm" onclick="stockPasteRun()">価格を作る</button>`+
+      `<button class="btn-ghost btn-sm" onclick="stockPasteCopy(this)">📋 F列用にコピー</button>`+
+      `<button class="btn-ghost btn-sm" onclick="stockPasteClear()">クリア</button>`+
+      `<span style="font-size:11.5px;color:var(--muted)">${stockPasteInfo}</span>`+
+    `</div></div>`;
   bd.innerHTML=
     cards+chips+
     `<div class="panel">${toolbar}<div class="tablewrap"><table>`+
     `<thead><tr><th><input type="checkbox" class="rowchk" id="stock-selall" onclick="stockSelAll(this)" title="表示中の行を全部チェック／解除"></th><th>商品ID（ASIN）</th><th>商品名</th><th>今の状態</th><th>出品時価格</th><th>適正価格</th><th>差</th><th>在庫</th><th>分類</th></tr></thead>`+
     `<tbody>${trs||`<tr><td class="empty" colspan="9"><b>この分類には商品がありません</b></td></tr>`}</tbody>`+
-    `</table></div></div>`;
+    `</table></div></div>`+pasteBox;
   stockSelSync();
 }
 /* ===== 顧客対応（日本語⇄韓国語の翻訳・韓国語の定型文） =====
