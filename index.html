@@ -1732,8 +1732,21 @@ window.stockPasteRun=()=>{
 window.stockPasteCopy=(btn)=>{ if(!stockPasteOut){ alert("先に「価格を作る」を押してください。"); return; }
   copyText(stockPasteOut); flashBtn(btn); };
 window.stockPasteClear=()=>{ stockPasteIn=""; stockPasteOut=""; stockPasteInfo=""; renderStock(); };
-/* ===== スマートストアの一括修正Excelを、そのまま書き換えてダウンロードする =====
-   F列（판매가）だけを適正価格に置き換える。他の列・他の行には一切触らない。
+/* ===== 11番街だけに要る対応表（商品番号 ⇄ ASIN） =====
+   11番街の一括修正ExcelにはASINが入っておらず、상품번호しか無い。
+   商品リストExcel（상품번호＋판매자상품코드が両方入っている）を取り込んで、この端末に持っておく。
+   増やすだけで、勝手に減らさない（＝一度覚えた商品は取り直しても消えない）。 */
+const ST11MAP_KEY="kr_stock_st11_map_v1";
+function st11Map(){ try{ const o=JSON.parse(localStorage.getItem(ST11MAP_KEY)||"null");
+    if(o&&o.map) return {map:o.map,t:String(o.t||""),n:Object.keys(o.map).length}; }catch(e){}
+  return {map:{},t:"",n:0}; }
+function st11MapSave(m){ const t=new Date(), z=n=>String(n).padStart(2,"0");
+  localStorage.setItem(ST11MAP_KEY,JSON.stringify({map:m,t:t.getFullYear()+"-"+z(t.getMonth()+1)+"-"+z(t.getDate())})); }
+/* ===== ダウンロードした商品Excelを、そのまま書き換えてダウンロードし直す =====
+   価格の列（판매가）だけを適正価格に置き換える。他の列・他の行には一切触らない。
+   ・スマートストアの一括修正Excel（일괄수정シート）→ F列。ASIN（판매자 상품코드）入りなのでそのまま照合できる。
+   ・11番街の一括修正Excel（Sheet1）→ D列。ASINが無いので上の対応表で 상품번호→ASIN に直してから照合する。
+   ・11番街の商品リストExcel（단일상품여부…の並び）→ 価格は直さず、対応表の取り込みに使う。
    対象は「値段調整」と「在庫復活」だけ（出品停止は판매중지で手作業のため対象外）。 */
 window.stockXlsxFile=(el)=>{
   const f=(el.files||[])[0]; if(!f) return; const nm=String(f.name||"");
@@ -1741,7 +1754,8 @@ window.stockXlsxFile=(el)=>{
   rd.onload=ev=>{ try{
     /* cellStyles は付けない：SheetJSは書式を書き戻せないのに、付けるとファイルが30倍近くに膨らむ（933KB vs 57KB）。値は同じ */
     const wb=XLSX.read(new Uint8Array(ev.target.result),{type:"array"});
-    const shName=(wb.SheetNames.indexOf("일괄수정")>=0)?"일괄수정":wb.SheetNames[0];
+    const pick=n=>(wb.SheetNames.indexOf(n)>=0)?n:"";
+    const shName=pick("일괄수정")||pick("List")||wb.SheetNames[0];
     const ws=wb.Sheets[shName], ref=XLSX.utils.decode_range(ws["!ref"]||"A1");
     /* スマストの書き出しは !ref（範囲宣言）が実データより短いことがある（1商品のときに実際に発生）。
        セルの並びから本当の範囲を出し直し、書き戻すファイルからも行が落ちないようにする。 */
@@ -1750,35 +1764,72 @@ window.stockXlsxFile=(el)=>{
       if(a.r<ref.s.r) ref.s.r=a.r; if(a.c<ref.s.c) ref.s.c=a.c; });
     ws["!ref"]=XLSX.utils.encode_range(ref);
     const cv=(r,c)=>{ const x=ws[XLSX.utils.encode_cell({r:r,c:c})]; return x==null?"":String(x.v==null?"":x.v).trim(); };
-    let hr=-1,cAsin=-1,cPrice=-1,cNum=-1;
-    for(let r=ref.s.r;r<=Math.min(ref.s.r+8,ref.e.r);r++){ let a=-1,pz=-1,nu=-1;
-      for(let c=ref.s.c;c<=ref.e.c;c++){ const v=cv(r,c);
-        if(v==="판매자 상품코드") a=c; else if(v==="판매가") pz=c; else if(v==="상품번호") nu=c; }
-      if(a>=0&&pz>=0){ hr=r; cAsin=a; cPrice=pz; cNum=nu; break; } }
-    if(hr<0){ alert("スマートストアの一括修正Excelではないようです。\n「판매자 상품코드」と「판매가」の見出しが見つかりませんでした。"); el.value=""; return; }
+    /* 見出しはモールで書き方が違う（「판매자 상품코드」に空白が入る／「상품번호(수정불가)」と注記が付く）ので、
+       空白を落として、頭が一致するかで見る。 */
+    const nk=s=>String(s).replace(/[\s　]/g,"");
+    let hr=-1,H={};
+    for(let r=ref.s.r;r<=Math.min(ref.s.r+8,ref.e.r);r++){ const h={};
+      for(let c=ref.s.c;c<=ref.e.c;c++){ const v=nk(cv(r,c)); if(!v) continue;
+        if(v==="판매자상품코드"){ if(h.asin==null) h.asin=c; }
+        else if(v==="판매가"){ if(h.price==null) h.price=c; }
+        else if(v.indexOf("상품번호")===0){ if(h.no==null) h.no=c; }
+        else if(v==="단일상품여부"||v==="서비스이용료") h.list=true; }
+      if(h.price!=null&&(h.asin!=null||h.no!=null)){ hr=r; H=h; break; } }
+    if(hr<0){ alert("商品のExcelではないようです。\n「판매가」の見出しが見つかりませんでした。\n\n取り込めるのは\n・スマートストア：一括修正Excel\n・11番街：一括修正Excel／商品リストExcel\nです。"); el.value=""; return; }
+    /* どの様式か。11番街の商品リストだけは「단일상품여부」などの見出しを持っている */
+    const kind=H.list?"st11list":((H.asin!=null)?"smart":"st11bulk");
+
+    /* --- 11番街の商品リスト＝対応表の取り込み（価格は直さない） --- */
+    if(kind==="st11list"){
+      if(current!=="st11"){ alert(`これは11番街の商品リストExcelです。\n11番街のタブに切り替えてから取り込んでください。`); el.value=""; return; }
+      const cur=st11Map(), m=Object.assign({},cur.map); let add=0,upd=0;
+      for(let r=hr+1;r<=ref.e.r;r++){
+        const no=cv(r,H.no), a=cv(r,H.asin).toUpperCase();
+        if(!/^[0-9]{6,}$/.test(no)||!a) continue;
+        if(m[no]==null) add++; else if(m[no]!==a) upd++;
+        m[no]=a; }
+      if(!add&&!upd){ alert(`対応表は変わりませんでした（すでに ${cur.n}件ぜんぶ入っています）。`); el.value=""; return; }
+      st11MapSave(m);
+      alert("11番街の対応表（商品番号 ⇄ ASIN）を更新しました\n\n"
+        +`新しく ${add}件`+(upd?` ／ ASINの付け替え ${upd}件`:"")+`\n対応表はぜんぶで ${Object.keys(m).length}件です。\n\n`
+        +"続けて、一括修正Excelを同じボタンから取り込んでください。");
+      el.value=""; renderStock(); return; }
+
+    /* --- ここから価格の書き換え --- */
+    const mall=(kind==="smart")?"smart":"st11";
+    if(current!==mall){ alert(`いま開いているのは「${PNAME[current]}」ですが、このExcelは「${PNAME[mall]}」のものです。\n\n${PNAME[mall]}のタブに切り替えてから取り込んでください。\n（別のモールの価格で上書きしないように、何もせずに止めました）`); el.value=""; return; }
+    let noMap=null;
+    if(kind==="st11bulk"){ const mm=st11Map();
+      if(!mm.n){ alert("先に「商品リストExcel」を取り込んでください。\n\n11番街の一括修正ExcelにはASINが入っておらず、商品番号しか分かりません。\nそのままではどの商品か特定できないので、価格は書き換えません。\n\n11番街の管理画面から商品リスト（상품번호と판매자상품코드が入ったExcel）をダウンロードして、\n同じ「Excelを選ぶ」から先に取り込んでください。1回で済みます。"); el.value=""; return; }
+      noMap=mm.map; }
     const map={};
     (loadStock(current).rows||[]).forEach(r=>{ const cat=stockCat(r);
       if(cat!=="price"&&cat!=="revive") return;                       /* 出品停止は触らない */
       const k=String(r.id||"").trim().toUpperCase(); if(k&&num(r.fair)>0) map[k]=Math.round(num(r.fair)); });
-    let data=0,chg=0,same=0;
+    let data=0,chg=0,same=0,unk=0;
     for(let r=hr+1;r<=ref.e.r;r++){
-      const idv=(cNum>=0)?cv(r,cNum):"";
-      if(cNum>=0 && !/^[0-9]{8,}$/.test(idv)) continue;                /* 説明行・注記行はここで落ちる */
-      const asin=cv(r,cAsin).toUpperCase(); if(!asin) continue;
+      const idv=(H.no!=null)?cv(r,H.no):"";
+      if(H.no!=null && !/^[0-9]{8,}$/.test(idv)) continue;             /* 説明行・注記行はここで落ちる */
+      const asin=(kind==="st11bulk")?String(noMap[idv]||"").toUpperCase():cv(r,H.asin).toUpperCase();
+      if(!asin){ if(kind==="st11bulk"){ data++; unk++; } continue; }   /* 対応表に無い＝どの商品か分からないので触らない */
       data++;
       const np=map[asin]; if(np==null) continue;                       /* 在庫管理に無い商品はそのまま */
-      const addr=XLSX.utils.encode_cell({r:r,c:cPrice});
+      const addr=XLSX.utils.encode_cell({r:r,c:H.price});
       const old=Number(String((ws[addr]||{}).v==null?"":(ws[addr]||{}).v).replace(/[^0-9.]/g,""));
       if(old===np){ same++; continue; }
       ws[addr]={t:"n",v:np}; chg++;
     }
-    if(!chg){ alert(`書き換える価格がありませんでした。\n（このExcelの ${data}件は、値段調整・在庫復活の対象に入っていないか、すでに適正価格です）`); el.value=""; return; }
-    const out=nm.replace(/\.xls[xm]?$/i,"")+"_価格修正.xlsx";
-    XLSX.writeFile(wb,out);
+    const pcol=XLSX.utils.encode_col(H.price);
+    if(!chg){ alert(`書き換える価格がありませんでした。\n（このExcelの ${data}件は、値段調整・在庫復活の対象に入っていないか、すでに適正価格です）`
+      +(unk?`\n\n※うち ${unk}件は対応表に無い商品番号でした。商品リストExcelを取り直すと解決します。`:"")); el.value=""; return; }
+    /* 拡張子は元のまま返す（.xls で配られるファイルを .xlsx にして返さない） */
+    const ext=((nm.match(/\.(xlsx|xlsm|xls)$/i)||["",""])[1]||"xlsx").toLowerCase();
+    const out=nm.replace(/\.[^.]+$/,"")+"_価格修正."+ext;
+    XLSX.writeFile(wb,out,{bookType:(ext==="xls")?"biff8":ext});
     alert("価格を書き換えました\n"
-      +`このExcelの商品 ${data}件 → 書き換え ${chg}件`+(same?` ／ すでに同じ ${same}件`:"")
-      +` ／ 対象外そのまま ${data-chg-same}件\n`
-      +`ダウンロード：${out}\n\n※出品停止の商品は触っていません。\n※このファイルをスマートストアにアップロードしてください。`);
+      +`このExcelの商品 ${data}件 → ${pcol}列（판매가）を書き換え ${chg}件`+(same?` ／ すでに同じ ${same}件`:"")
+      +` ／ 対象外そのまま ${data-chg-same-unk}件`+(unk?` ／ 対応表に無い ${unk}件`:"")+"\n"
+      +`ダウンロード：${out}\n\n※出品停止の商品は触っていません。\n※このファイルを${PNAME[current]}にアップロードしてください。`);
   }catch(err){ alert("取込エラー："+err.message); }
   el.value=""; };
   rd.readAsArrayBuffer(f); };
@@ -1943,15 +1994,18 @@ function renderStock(){
       `<td>${CATLB[r.cat]||"—"}${badge}</td>`+
     `</tr>`; }).join("");
   const ta="width:100%;height:150px;box-sizing:border-box;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px;line-height:1.5;border:1px solid var(--line);border-radius:8px;padding:8px;resize:vertical";
-  const pasteBox=(stockTab!=="price"&&stockTab!=="revive")?"":
-    `<div class="panel" style="margin-top:12px;padding:14px 16px">`+
-    `<div style="font-size:14px;font-weight:800">価格の一括修正（スマートストアの一括修正Excel）</div>`+
-    `<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:11px 13px;border:1px solid #cfe3f7;border-radius:10px;background:#f5faff;margin:8px 0 14px">`+
-      `<b style="font-size:13px">① Excelを丸ごと直す（おすすめ）</b>`+
-      `<button class="btn-primary btn-sm" onclick="document.getElementById('stock-xlsx').click()">📥 Excelを選ぶ</button>`+
-      `<input type="file" id="stock-xlsx" accept=".xlsx,.xls" style="display:none" onchange="stockXlsxFile(this)">`+
-      `<span style="font-size:11.5px;color:var(--muted);line-height:1.8">ダウンロードした一括修正Excelを選ぶと、<b>F列（판매가）だけ</b>を適正価格に書き換えたファイルが出てきます。<br>対象は<b>値段調整と在庫復活の両方</b>。他の列・他の行には触りません。出品停止の商品も触りません。そのままアップロードできます。</span>`+
-    `</div>`+
+  /* 一括修正の様式はモールで別物。スマスト＝ASIN入り(F列)／11番街＝ASINが無く商品番号だけ(D列) */
+  const st11=(current==="st11"), xmp=st11?st11Map():null;
+  const xlm=st11?{nm:"11番街の一括修正Excel",col:"D列（판매가）"}
+                :{nm:"スマートストアの一括修正Excel",col:"F列（판매가）"};
+  const mapBox=!st11?"":
+    `<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:11px 13px;border:1px solid ${xmp.n?"#cfe3d3":"#f0d7ae"};border-radius:10px;background:${xmp.n?"#f6fbf7":"#fffaf0"};margin:8px 0 10px">`+
+      `<b style="font-size:13px">① 対応表（商品番号 ⇄ ASIN）</b>`+
+      `<span style="font-size:12.5px">${xmp.n?`<b>${xmp.n}件</b><span style="color:var(--muted)">（${esc(xmp.t)} 更新）</span>`:`<b style="color:#c0392b">まだありません</b>`}</span>`+
+      `<button class="btn-ghost btn-sm" onclick="document.getElementById('stock-xlsx').click()">📥 商品リストExcelを選ぶ</button>`+
+      `<span style="font-size:11.5px;color:var(--muted);line-height:1.8">11番街の一括修正Excelには<b>ASINが入っていません</b>（商品番号だけ）。<br>先に<b>商品リストExcel</b>（판매자상품코드が入っているもの）を取り込むと、商品番号からASINを引けるようになります。<b>1回でOK</b>。新しく出品したら取り直してください。</span>`+
+    `</div>`;
+  const handBox=st11?"":
     `<div style="font-size:13px;font-weight:800">② 手で貼る場合</div>`+
     `<div style="font-size:11.5px;color:var(--muted);line-height:1.9;margin:4px 0 10px">`+
       `一括修正Excelの <b>A〜F列</b> を <b>6行目から下まで</b> コピー → 左に貼り付け → 「価格を作る」 → 右をコピーして <b>F6</b> に貼る<br>`+
@@ -1968,7 +2022,18 @@ function renderStock(){
       `<button class="btn-ghost btn-sm" onclick="stockPasteCopy(this)">📋 F列用にコピー</button>`+
       `<button class="btn-ghost btn-sm" onclick="stockPasteClear()">クリア</button>`+
       `<span style="font-size:11.5px;color:var(--muted)">${stockPasteInfo}</span>`+
-    `</div></div>`;
+    `</div>`;
+  const pasteBox=(stockTab!=="price"&&stockTab!=="revive")?"":
+    `<div class="panel" style="margin-top:12px;padding:14px 16px">`+
+    `<div style="font-size:14px;font-weight:800">価格の一括修正（${xlm.nm}）</div>`+
+    mapBox+
+    `<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:11px 13px;border:1px solid #cfe3f7;border-radius:10px;background:#f5faff;margin:8px 0 14px">`+
+      `<b style="font-size:13px">${st11?"②":"①"} Excelを丸ごと直す${st11?"":"（おすすめ）"}</b>`+
+      `<button class="btn-primary btn-sm" onclick="document.getElementById('stock-xlsx').click()">📥 Excelを選ぶ</button>`+
+      `<input type="file" id="stock-xlsx" accept=".xlsx,.xls" style="display:none" onchange="stockXlsxFile(this)">`+
+      `<span style="font-size:11.5px;color:var(--muted);line-height:1.8">ダウンロードした${xlm.nm}を選ぶと、<b>${xlm.col}だけ</b>を適正価格に書き換えたファイルが出てきます。<br>対象は<b>値段調整と在庫復活の両方</b>。他の列・他の行には触りません。出品停止の商品も触りません。そのままアップロードできます。</span>`+
+    `</div>`+
+    handBox+`</div>`;
   bd.innerHTML=
     cards+chips+
     `<div class="panel">${toolbar}<div class="tablewrap"><table>`+
