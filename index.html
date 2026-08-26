@@ -545,10 +545,11 @@ window.CAT_ATTR_JA={"색상": "色", "수량": "数量", "패션의류/잡화 �
     #view-cust .toolbar button, #view-sales .toolbar button{ flex:1 1 calc(50% - 4px); height:40px; padding:0 8px; font-size:12px; }
     #view-sales .seg{ display:flex; width:100%; }
     #view-sales .segbtn{ flex:1 1 0; min-width:0; height:auto; min-height:38px; padding:5px 6px; font-size:11.5px; line-height:1.3; white-space:normal; }
-    #view-sales #ctl-search, #view-sales #ctl-month, #view-sales #ctl-year, #view-sales #ctl-rate{ flex:1 1 100%; margin-left:0 !important; }
+    #view-sales #ctl-search, #view-sales #ctl-month, #view-sales #ctl-year, #view-sales #ctl-rate, #view-sales #ctl-cvt{ flex:1 1 100%; margin-left:0 !important; }
     #view-sales #sv-search{ flex:1; width:100%; min-width:0 !important; height:42px !important; font-size:16px !important; }
     #view-sales #sv-month, #view-sales #sv-year{ flex:1; height:42px; }
     #view-sales #sv-rate{ flex:1; width:auto !important; height:42px !important; }
+    #view-sales #sv-cvt-won{ flex:1; width:auto !important; height:42px !important; }
 
     /* 状態の絞り込み：折り返さず横に流す */
     #view-cust .chips, #view-sales .chips{ flex-wrap:nowrap; overflow-x:auto; }
@@ -804,6 +805,12 @@ window.CAT_ATTR_JA={"색상": "色", "수량": "数量", "패션의류/잡화 �
         <span id="ctl-rate" style="display:flex;gap:6px;align-items:center;margin-left:6px">
           <label style="font-weight:700;font-size:13px" title="リアルタイムの為替レートを自動表示します。取り込んだ時点で各注文に記録され、以後は変わりません（過去分は取込時のレートで計算）">取込レート ₩→¥</label>
           <input type="number" id="sv-rate" step="0.0001" class="cellinput" style="width:96px;height:36px" title="リアルタイムの為替レートを自動表示。取り込むとその時点のレートが各注文に固定記録されます（既存の注文は変わりません）。">
+        </span>
+        <span id="ctl-cvt" style="display:flex;gap:6px;align-items:center;margin-left:10px" title="取込レートで計算します（レートを書き換えるとここも変わります）">
+          <label style="font-weight:700;font-size:13px">ウォン→円</label>
+          <input type="number" id="sv-cvt-won" class="cellinput" style="width:104px;height:36px" placeholder="₩ 金額">
+          <span style="font-size:13px;white-space:nowrap">= <b id="sv-cvt-yen">¥0</b></span>
+          <button class="cbtn" id="sv-cvt-copy" onclick="copyBtn(this)" title="円をコピー" style="display:none">📋</button>
         </span>
         <div class="grow"></div>
         <button class="btn-ghost" id="btn-sexport">CSV出力</button>
@@ -3894,6 +3901,7 @@ function renderSales(){
   document.getElementById("tab-rank").classList.toggle("active",t==="rank");
   document.getElementById("tab-year").classList.toggle("active",t==="year");
   document.getElementById("sv-rate").value=curConvRate();   /* 取込レート＝ライブ（次の取込に適用）。取込時に各注文へ固定記録。レート未保存の既存注文は既定0.111で円換算 */
+  updateSvCvt();
   const _yr=(t==="year");   /* 年間サマリーでは取込ボタン・取込レートを隠す */
   document.getElementById("btn-import-ship").style.display=_yr?"none":"";
   document.getElementById("btn-import-sales").style.display=_yr?"none":"";
@@ -4432,6 +4440,8 @@ document.getElementById("sv-search").addEventListener("input",render);
 document.getElementById("sv-month").addEventListener("change",e=>{ svMonth=e.target.value; render(); });
 document.getElementById("sv-year").addEventListener("change",e=>{ svYear=e.target.value; render(); });
 document.getElementById("sv-rate").addEventListener("change",e=>{ setRate(parseFloat(e.target.value)||0.1087); render(); });
+document.getElementById("sv-rate").addEventListener("input",updateSvCvt);
+document.getElementById("sv-cvt-won").addEventListener("input",updateSvCvt);
 function applyStatus(s,val){ if(s.status!==val){ s.hist=s.hist||[]; s.hist.push({t:new Date().toISOString(),s:val}); if(s.hist.length>30)s.hist=s.hist.slice(-30); s.status=val; } }
 window.setNote=(id,val)=>{ const l=loadSales(); const s=l.find(x=>String(x.order)===String(id)); if(s){ s.note=val; saveSales(l); pushLedger([s]); } };
 window.setSaleField=(id,f,v)=>{ const l=loadSales(); const s=l.find(x=>String(x.order)===String(id)); if(!s) return;
@@ -5050,10 +5060,17 @@ function updateCvt(){ const el=document.getElementById("cvt-yen"); if(!el) retur
   const wonV=num(document.getElementById("cvt-won").value); const yen=Math.round(wonV*curConvRate());
   el.textContent="¥"+yen.toLocaleString("ja-JP");
   const cp=document.getElementById("cvt-copy"); if(cp){ if(wonV>0){ cp.dataset.copy=yen; cp.style.display=""; } else cp.style.display="none"; } }
+/* 売上管理：取込レートのとなりのウォン→円。左の取込レート欄の値で計算する（空なら現在レート） */
+function updateSvCvt(){ const el=document.getElementById("sv-cvt-yen"); if(!el) return;
+  const sr=document.getElementById("sv-rate"), rv=num(sr?sr.value:0);
+  const r=(rv>0)?rv:curConvRate();
+  const wonV=num(document.getElementById("sv-cvt-won").value), yen=Math.round(wonV*r);
+  el.textContent="¥"+yen.toLocaleString("ja-JP");
+  const cp=document.getElementById("sv-cvt-copy"); if(cp){ if(wonV>0){ cp.dataset.copy=yen; cp.style.display=""; } else cp.style.display="none"; } }
 function setLiveRateUI(r,at){ const el=document.getElementById("lv-rate"), t=document.getElementById("lv-time");
   if(el&&r>0) el.textContent="₩1 = ¥"+r.toFixed(4);
   if(t) t.textContent = at?("("+new Date(at).toLocaleString("ja-JP",{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'})+" 更新)"):"";
-  updateCvt(); }
+  updateCvt(); updateSvCvt(); }
 async function fetchLiveRate(){ const t=document.getElementById("lv-time"); if(t) t.textContent="取得中…";
   const tryF=async(u,pick)=>{ const r=await fetch(u); const j=await r.json(); const v=pick(j); if(v>0) return v; throw 0; };
   let rate=0;
