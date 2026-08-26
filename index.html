@@ -791,9 +791,6 @@ window.CAT_ATTR_JA={"색상": "色", "수량": "数量", "패션의류/잡화 �
           <button class="segbtn" id="tab-rank">月間売上ランキング</button>
           <button class="segbtn" id="tab-year">年間サマリー</button>
         </div>
-        <span id="ctl-search" style="display:flex;gap:10px;align-items:center">
-          <input type="text" id="sv-search" placeholder="🔍 韓国注文番号・国内注文番号・追跡番号・商品タイトル・備考などで検索" style="height:36px;border:1px solid var(--line);border-radius:7px;padding:0 10px;font-size:13px;min-width:250px">
-        </span>
         <span id="ctl-month" style="display:flex;gap:8px;align-items:center">
           <label style="font-weight:700;font-size:13px">対象月</label>
           <select id="sv-month" class="msel"></select>
@@ -811,6 +808,9 @@ window.CAT_ATTR_JA={"색상": "色", "수량": "数量", "패션의류/잡화 �
           <input type="number" id="sv-cvt-won" class="cellinput" style="width:104px;height:36px" placeholder="₩ 金額">
           <span style="font-size:13px;white-space:nowrap">= <b id="sv-cvt-yen">¥0</b></span>
           <button class="cbtn" id="sv-cvt-copy" onclick="copyBtn(this)" title="円をコピー" style="display:none">📋</button>
+        </span>
+        <span id="ctl-search" style="display:flex;gap:10px;align-items:center;margin-left:10px">
+          <input type="text" id="sv-search" placeholder="🔍 韓国注文番号・国内注文番号・追跡番号・商品タイトル・備考などで検索" style="height:36px;border:1px solid var(--line);border-radius:7px;padding:0 10px;font-size:13px;min-width:250px">
         </span>
         <div class="grow"></div>
         <button class="btn-ghost" id="btn-sexport">CSV出力</button>
