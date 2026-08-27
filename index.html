@@ -2572,6 +2572,15 @@ function renderHome(){
     `<div class="page-head">今日の状況 <small>${today} 現在。数字や日付をタップすると、その画面へ飛びます</small></div>`+
     `<div class="hm-sec">💼 売上ステータス <span class="hm-sec-s">台帳全体の件数。タップでその状態に絞り込み</span></div>`+
     `<div class="hm-grid">${cards}</div>`+
+    `<div class="hm-sec">📊 在庫管理 <span class="hm-sec-s">最後にチェックした日</span></div>`+
+    `<div class="hm-chips">`+
+      `<button class="hm-chip" onclick="homeGoNippo()"><span class="hm-chip-n">📝 日報</span><span class="hm-chip-s">›</span></button>`+
+      stock+
+    `</div>`+
+    `<div class="hm-sec">✍️ ブログ</div>`+
+    `<div class="hm-chips"><button class="hm-chip" onclick="homeGoBlog()">`+
+      `<span class="hm-chip-n">投稿確定日</span><b style="color:var(--accent-d)">${fdl}</b>`+
+      `<span class="hm-chip-s">ここまで1日3件揃っています ›</span></button></div>`+
     `<div class="hm-sec">📦 当月の新規出品 <span class="hm-sec-s">日報から集計（${+ym.slice(5,7)}月）</span></div>`+
     `<div class="hm-chips">`+
       `<button class="hm-chip" onclick="homeGoListCount('coupang')">`+
@@ -2580,14 +2589,7 @@ function renderHome(){
       `<button class="hm-chip" onclick="homeGoListCount('smart')">`+
         `<span class="hm-chip-n">スマートストア</span><b style="color:var(--accent-d)">${npSm.toLocaleString("ja-JP")}件</b>`+
         `<span class="hm-chip-s">月別グラフへ ›</span></button>`+
-      `<button class="hm-chip" onclick="homeGoNippo()"><span class="hm-chip-n">📝 日報</span><span class="hm-chip-s">›</span></button>`+
-    `</div>`+
-    `<div class="hm-sec">📊 在庫管理 <span class="hm-sec-s">最後にチェックした日</span></div>`+
-    `<div class="hm-chips">${stock}</div>`+
-    `<div class="hm-sec">✍️ ブログ</div>`+
-    `<div class="hm-chips"><button class="hm-chip" onclick="homeGoBlog()">`+
-      `<span class="hm-chip-n">投稿確定日</span><b style="color:var(--accent-d)">${fdl}</b>`+
-      `<span class="hm-chip-s">ここまで1日3件揃っています ›</span></button></div>`;
+    `</div>`;
 }
 window.homeGo=(sec,p,st)=>{ if(sec==="sales") salesStatusFilter=String(st||"");
   const a=document.querySelector(`.navsub a[data-sec="${sec}"][data-p="${p}"]`); if(a) a.click(); };
