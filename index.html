@@ -588,7 +588,7 @@ window.CAT_ATTR_JA={"색상": "色", "수량": "数量", "패션의류/잡화 �
     #view-faq .faq-cp{ width:100%; height:34px; }
   }
   /* ===== ホーム：状況ダッシュボード ===== */
-  #home-body{ max-width:980px; margin:0 auto; }
+  #home-body{ max-width:1200px; margin:0 auto; }
   .hm-sec{ font-size:13.5px; font-weight:800; color:#1e2a4a; margin:24px 2px 10px; display:flex; align-items:baseline; gap:8px; }
   .hm-sec-s{ font-weight:600; color:var(--muted); font-size:11.5px; }
   .hm-chips{ display:flex; gap:12px; flex-wrap:wrap; }
@@ -605,12 +605,12 @@ window.CAT_ATTR_JA={"색상": "色", "수량": "数量", "패션의류/잡화 �
   .hm-card-go{ margin-left:auto; font-size:11px; color:var(--accent-d); font-weight:800; white-space:nowrap; }
   .hm-card-h:hover .hm-card-go{ text-decoration:underline; }
   .hm-tiles{ display:grid; grid-template-columns:1fr 1fr; }
-  .hm-tile{ display:flex; flex-direction:column; align-items:center; gap:3px; padding:15px 6px 12px; background:#fff; border:0; border-top:1px solid var(--line-2); cursor:pointer; font:inherit; transition:background .15s; }
+  .hm-tile{ display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px; padding:16px 6px 13px; background:#fff; border:0; border-top:1px solid var(--line-2); cursor:pointer; font:inherit; text-align:center; transition:background .15s; }
   .hm-tiles .hm-tile:nth-child(-n+2){ border-top:0; }
   .hm-tile:nth-child(odd){ border-right:1px solid var(--line-2); }
   .hm-tile:hover{ background:#f6f9ff; }
-  .hm-tile-v{ font-size:25px; font-weight:800; line-height:1.05; }
-  .hm-tile-l{ font-size:12px; color:#43506b; font-weight:700; display:flex; align-items:center; gap:5px; }
+  .hm-tile-v{ font-size:26px; font-weight:800; line-height:1.05; width:100%; text-align:center; }
+  .hm-tile-l{ font-size:13px; color:#2b3652; font-weight:700; display:flex; align-items:center; justify-content:center; gap:6px; width:100%; }
 </style>
 </head>
 <body>
@@ -2547,7 +2547,7 @@ function renderHome(){
     const p=trio[0], n=trio[1], ico=trio[2];
     const c={}; (loadSales(platforms[p].salesKey)||[]).forEach(x=>{ const st=String(x.status||"").trim(); c[st]=(c[st]||0)+1; });
     const tiles=HOME_ST.map(st=>`<button class="hm-tile" onclick="homeGo('sales','${p}','${st}')">`+
-      `<span class="hm-tile-v" style="color:${STATUS_COLOR[st]}">${c[st]||0}</span>`+
+      `<span class="hm-tile-v" style="color:${(c[st]||0)>0?STATUS_COLOR[st]:"#1e2a4a"}">${c[st]||0}</span>`+
       `<span class="hm-tile-l"><span style="width:7px;height:7px;border-radius:50%;background:${STATUS_COLOR[st]};display:inline-block"></span>${st}</span></button>`).join("");
     return `<div class="hm-card">`+
       `<button class="hm-card-h" onclick="homeGo('sales','${p}','')">${ico} <b>${n}</b><span class="hm-card-go">売上管理 ›</span></button>`+
@@ -2556,15 +2556,15 @@ function renderHome(){
   const fd=blogFixedDay();
   const fdl=fd?`${md(fd)}（${BLOG_WD[jd(fd).getDay()]}）`:"—";
   el.innerHTML=
-    `<div class="page-head">きょうの状況 <small>${today} 現在。数字や日付をタップすると、その画面へ飛びます</small></div>`+
-    `<div class="hm-sec">💼 売上ステータス <span class="hm-sec-s">台帳ぜんたいの件数。タップでその状態に絞り込み</span></div>`+
+    `<div class="page-head">今日の状況 <small>${today} 現在。数字や日付をタップすると、その画面へ飛びます</small></div>`+
+    `<div class="hm-sec">💼 売上ステータス <span class="hm-sec-s">台帳全体の件数。タップでその状態に絞り込み</span></div>`+
     `<div class="hm-grid">${cards}</div>`+
     `<div class="hm-sec">📊 在庫管理 <span class="hm-sec-s">最後にチェックした日</span></div>`+
     `<div class="hm-chips">${stock}</div>`+
     `<div class="hm-sec">✍️ ブログ</div>`+
     `<div class="hm-chips"><button class="hm-chip" onclick="homeGoBlog()">`+
       `<span class="hm-chip-n">投稿確定日</span><b style="color:var(--accent-d)">${fdl}</b>`+
-      `<span class="hm-chip-s">ここまで1日3件そろっています ›</span></button></div>`;
+      `<span class="hm-chip-s">ここまで1日3件揃っています ›</span></button></div>`;
 }
 window.homeGo=(sec,p,st)=>{ if(sec==="sales") salesStatusFilter=String(st||"");
   const a=document.querySelector(`.navsub a[data-sec="${sec}"][data-p="${p}"]`); if(a) a.click(); };
@@ -2586,7 +2586,7 @@ const PROFIT_KEY="kr_profit_cfg_v1";
 function profitCfg(){ try{ const o=JSON.parse(localStorage.getItem(PROFIT_KEY)||"null");
     if(o&&typeof o==="object") return Object.assign({},PROFIT_DEF,o); }catch(e){}
   return Object.assign({},PROFIT_DEF); }
-let profitEdit=false, pcCost="", pcW="0.5", pcWon="", pcMall="smart";
+let profitEdit=false, pcCost="", pcW="0.5", pcWon="", pcMall="smart", pcLk="";
 function haniroFee(w){ const i=Math.max(1,Math.min(24,Math.ceil(num(w)/0.5))); return 950+(i-1)*100; }   /* 料金表と同じ式 */
 function profitRate(){ const c=profitCfg(); return num(c.rate)>0?num(c.rate):curConvRate(); }
 function pcMalls(){ const c=profitCfg();
@@ -2624,6 +2624,26 @@ function pcCalc(){
   else{ const sell=wv*rate, prof=sell*(1-x.f)-cost-ship, pr=sell>0?prof/sell*100:0;
     put("pc-rv",`<b style="color:${prof>=0?"#1e7e34":"#c0392b"}">${yen(prof)}</b> <span style="color:var(--muted)">（利益率 ${pr.toFixed(1)}%）</span>`); }
 }
+/* 管理番号→ASINの逆引き。ブログで発番した番号（M1043）やASINを入れると、どの商品かがその場で分かる */
+window.pcLookup=(el)=>{ pcLk=el.value; const out=document.getElementById("pc-lk-out"); if(!out) return;
+  const q=String(el.value||"").trim().toUpperCase();
+  if(!q){ out.innerHTML='<span style="color:var(--muted)">ブログの管理番号（M1043）か ASIN を入れると、商品を逆引きします</span>'; return; }
+  const mm=q.match(/^M?([0-9]{3,5})$/), hit=[];
+  ["coupang","smart"].forEach(pl=>{ const b=loadBlog(pl)||{};
+    Object.keys(b).forEach(asin=>{ const r=b[asin]||{};
+      if(mm){ if(num(r.no)>0&&String(num(r.no))===mm[1]) hit.push({pl:pl,asin:asin,r:r}); }
+      else if(asin.toUpperCase()===q&&num(r.no)>0) hit.push({pl:pl,asin:asin,r:r}); }); });
+  if(!hit.length){ out.innerHTML='<span style="color:#c0392b">見つかりませんでした。番号は「ブログ」の一覧に出ている M#### です</span>'; return; }
+  out.innerHTML=hit.map(h=>{
+    const led=(loadSales(platforms[h.pl].salesKey)||[]).find(x=>String(x.asin||"").trim().toUpperCase()===h.asin.toUpperCase());
+    const title=(led&&led.title)?esc(String(led.title).slice(0,42)):"";
+    return `<span style="display:inline-flex;gap:8px;align-items:center;flex-wrap:wrap">`+
+      `<b class="mono" style="font-size:14.5px">${esc(h.asin)}</b>`+
+      `<button class="btn-ghost btn-sm" onclick="pcCopyTxt('${esc(h.asin)}',this)" title="ASINをコピー">📋</button>`+
+      `<span style="font-size:12px;color:var(--muted)">M${num(h.r.no)}・${PNAME[h.pl]}${h.r.posted?("・"+esc(h.r.date||"")+" 投稿"):"・未投稿"}${title?("・"+title):""}</span></span>`;
+  }).join("<br>");
+};
+window.pcCopyTxt=(t,btn)=>{ copyText(t); flashBtn(btn); };
 window.pcSetMall=(m)=>{ pcMall=m; renderProfit(); };
 window.pcCopyWon=(btn)=>{ const v=btn.dataset.copy||""; if(!v) return; copyText(v); flashBtn(btn); };
 window.pcInput=(k,el)=>{ if(k==="cost") pcCost=el.value; else if(k==="won") pcWon=el.value; else if(k==="w") pcW=el.value; pcCalc(); };
@@ -2662,6 +2682,11 @@ function renderProfit(){
       `<button class="btn-ghost btn-sm" onclick="pcEdit()">✏️ 編集</button>`+
       `<button class="btn-ghost btn-sm" onclick="pcReset()">↺ リセット</button></div>`;
   document.getElementById("profit-body").innerHTML=
+    `<div class="panel" style="padding:13px 18px;margin-bottom:12px;display:flex;gap:12px;align-items:center;flex-wrap:wrap">`+
+      `<b style="font-size:13px">🔎 管理番号 → ASIN</b>`+
+      `<input id="pc-lk-in" style="${inSt};width:130px" placeholder="M1043" value="${esc(pcLk)}" oninput="pcLookup(this)">`+
+      `<span id="pc-lk-out" style="font-size:13px"></span>`+
+    `</div>`+
     `<div class="panel" style="padding:15px 18px">${setBox}</div>`+
     `<div class="panel" style="padding:18px;margin-top:12px">`+
       `<div class="seg" style="margin-bottom:16px">`+
@@ -2687,6 +2712,7 @@ function renderProfit(){
         `<span style="font-size:11.5px;color:var(--muted)">売値を直接入れると、いくら残るかを確認できます</span>`+
       `</div>`+
     `</div>`;
+  const lk=document.getElementById("pc-lk-in"); if(lk) pcLookup(lk);
   pcCalc();
 }
 /* ===== ショートカット50 一覧 ===== */
