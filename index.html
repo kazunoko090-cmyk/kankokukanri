@@ -632,6 +632,7 @@ window.CAT_ATTR_JA={"색상": "色", "수량": "数量", "패션의류/잡화 �
         <a data-sec="list" data-p="coupang"><span class="dot"></span>クーパン</a>
         <a data-sec="list" data-p="smart"><span class="dot"></span>スマートストア</a>
         <a data-sec="list" data-p="st11"><span class="dot"></span>11番街</a>
+        <a id="nav-profit"><span class="dot"></span>利益計算</a>
       </div>
     </div>
     <div class="navgroup" data-g="stock">
@@ -898,6 +899,11 @@ window.CAT_ATTR_JA={"색상": "色", "수량": "数量", "패션의류/잡화 �
   <div id="view-shipfee" style="display:none">
     <div class="page-head">配送料金 <small>HANIROLINE 重量別料金表</small></div>
     <div id="shipfee-body"></div>
+  </div>
+
+  <div id="view-profit" style="display:none">
+    <div class="page-head">利益計算 <small>仕入れ値と重量から、スマートストア・11番街の売値を逆算</small></div>
+    <div id="profit-body"></div>
   </div>
 
   <div id="view-shortcut" style="display:none">
@@ -1634,7 +1640,7 @@ function render(){
   const _locked = pwNeed();   /* 対象画面のみロック（ナビは操作可能・モール別の暗証番号） */
   document.getElementById("view-lock").style.display=_locked?"":"none";
   if(_locked){
-    ["view-home","view-cust","view-sales","view-research","view-list","view-banned","view-banlist","view-shortcut","view-blog","view-manual","view-tblman","view-cs","view-faq","view-shipfee","view-stock"].forEach(id=>{ const el=document.getElementById(id); if(el) el.style.display="none"; });
+    ["view-home","view-cust","view-sales","view-research","view-list","view-banned","view-banlist","view-shortcut","view-blog","view-manual","view-tblman","view-cs","view-faq","view-shipfee","view-stock","view-profit"].forEach(id=>{ const el=document.getElementById(id); if(el) el.style.display="none"; });
     const lm=document.getElementById("lockMsg"); if(lm) lm.textContent= (pwScope()==="hassou")
       ? "「管理表マニュアル 発送管理」を開くには暗証番号を入力してください"
       : "「"+(PW_PLATNAMES[current]||"")+" "+(PW_NAMES[section]||"")+"」を開くには暗証番号を入力してください";
@@ -1644,8 +1650,8 @@ function render(){
   const home=section==="home";
   document.getElementById("view-home").style.display=home?"":"none";
   if(home){ const c=document.getElementById("crumb"); if(c) c.innerHTML="ホーム"; }
-  const sales=section==="sales", research=section==="research", list=section==="list", banned=section==="banned", banlist=section==="banlist", shortcut=section==="shortcut", blog=section==="blog", manual=section==="manual", tblman=section==="tblman", shipfee=section==="shipfee", cs=section==="cs", faq=section==="faq", stock=section==="stock";
-  document.getElementById("view-cust").style.display=(home||sales||research||list||banned||banlist||shortcut||blog||manual||tblman||shipfee||cs||faq||stock)?"none":"";
+  const sales=section==="sales", research=section==="research", list=section==="list", banned=section==="banned", banlist=section==="banlist", shortcut=section==="shortcut", blog=section==="blog", manual=section==="manual", tblman=section==="tblman", shipfee=section==="shipfee", cs=section==="cs", faq=section==="faq", stock=section==="stock", profit=section==="profit";
+  document.getElementById("view-cust").style.display=(home||sales||research||list||banned||banlist||shortcut||blog||manual||tblman||shipfee||cs||faq||stock||profit)?"none":"";
   document.getElementById("view-faq").style.display=faq?"":"none";
   document.getElementById("view-sales").style.display=sales?"":"none";
   document.getElementById("view-research").style.display=research?"":"none";
@@ -1659,7 +1665,8 @@ function render(){
   document.getElementById("view-shipfee").style.display=shipfee?"":"none";
   document.getElementById("view-cs").style.display=cs?"":"none";
   document.getElementById("view-stock").style.display=stock?"":"none";
-  if(home){ /* ホームは何も描画しない */ } else if(faq) renderFaq(); else if(cs) renderCs(); else if(shipfee) renderShipfee(); else if(tblman) renderTblMan(); else if(manual) renderManual(); else if(blog) renderBlog(); else if(shortcut) renderShortcut(); else if(banlist) renderBanlist(); else if(banned) renderBanned(); else if(stock) renderStock(); else if(list) renderList(); else if(research) renderResearch(); else if(sales) renderSales(); else renderCust();
+  document.getElementById("view-profit").style.display=profit?"":"none";
+  if(home){ /* ホームは何も描画しない */ } else if(faq) renderFaq(); else if(cs) renderCs(); else if(shipfee) renderShipfee(); else if(profit) renderProfit(); else if(tblman) renderTblMan(); else if(manual) renderManual(); else if(blog) renderBlog(); else if(shortcut) renderShortcut(); else if(banlist) renderBanlist(); else if(banned) renderBanned(); else if(stock) renderStock(); else if(list) renderList(); else if(research) renderResearch(); else if(sales) renderSales(); else renderCust();
 }
 /* ===== 管理表マニュアル（ブログマニュアルと同じフォーマット・モール別） ===== */
 const TBLMAN_SEED=[{title:"",url:""},{title:"",url:""},{title:"",url:""},{title:"",url:""}];
@@ -2486,6 +2493,108 @@ function renderShipfee(){
   const rows=[]; for(let i=0;i<24;i++){ const w=((i+1)*0.5).toFixed(2); const pr=950+i*100; rows.push([w+" KG","¥"+pr.toLocaleString("ja-JP")]); }
   const body=rows.map(r=>`<tr><td class="mono">${r[0]}</td><td class="right mono">${r[1]}</td></tr>`).join("");
   document.getElementById("shipfee-body").innerHTML=`<div class="retnote" style="background:#fafbff;color:var(--muted)">HANIROLINE の重量別配送料金です（0.5kg刻み・12.0kgまで）。</div><div class="tablewrap" style="max-width:420px"><table><thead><tr><th>重量</th><th class="right">料金</th></tr></thead><tbody>${body}</tbody></table></div>`;
+}
+/* ===== 利益計算（スマートストア・11番街）＝仕入れ値と重量から売値を逆算 =====
+   ・送料は HANIROLINE の重量別料金（0.5kg刻み・左メニュー「配送料金」と同じ式）＋発送手数料200円で自動計算
+   ・手数料率は実測の既定値（スマートストア6.63%＝売上台帳、11番街13%＝商品リスト318件すべて）
+   ・目標利益率はほぼ固定（既定10%）。変えるときは「編集」、初期値に戻すときは「リセット」
+   ・設定はこの端末にだけ保存（クラウド同期なし）。クーパンは対象外 */
+const PROFIT_DEF={margin:10, feeSmart:6.63, feeSt11:13, shipAdd:200, rate:0};   /* rate 0=自動（現在レート） */
+const PROFIT_KEY="kr_profit_cfg_v1";
+function profitCfg(){ try{ const o=JSON.parse(localStorage.getItem(PROFIT_KEY)||"null");
+    if(o&&typeof o==="object") return Object.assign({},PROFIT_DEF,o); }catch(e){}
+  return Object.assign({},PROFIT_DEF); }
+let profitEdit=false, pcCost="", pcW="0.5", pcWon="";
+function haniroFee(w){ const i=Math.max(1,Math.min(24,Math.ceil(num(w)/0.5))); return 950+(i-1)*100; }   /* 料金表と同じ式 */
+function profitRate(){ const c=profitCfg(); return num(c.rate)>0?num(c.rate):curConvRate(); }
+function pcMalls(){ const c=profitCfg();
+  return [{k:"smart",n:"スマートストア",f:num(c.feeSmart)/100,fl:c.feeSmart},
+          {k:"st11",n:"11番街",f:num(c.feeSt11)/100,fl:c.feeSt11}]; }
+/* 入力のたびに結果セルだけ書き換える（全体を描き直すと入力中のフォーカスが外れるため） */
+function pcCalc(){
+  const c=profitCfg(), rate=profitRate(), cost=num(pcCost), ship=haniroFee(pcW)+num(c.shipAdd), m=num(c.margin)/100;
+  const put=(id,html)=>{ const el=document.getElementById(id); if(el) el.innerHTML=html; };
+  const yen=n=>"¥"+Math.round(n).toLocaleString("ja-JP");
+  put("pc-ship",`<b>${yen(ship)}</b> <span style="color:var(--muted);font-weight:400">（HANIROLINE ${yen(haniroFee(pcW))} ＋ 発送手数料 ${yen(num(c.shipAdd))}）</span>`);
+  pcMalls().forEach(x=>{
+    if(!(cost>0)){ ["won","yen","fee","prof"].forEach(t=>put("pc-"+t+"-"+x.k,'<span style="color:var(--muted)">—</span>')); }
+    else{
+      const denom=rate*(1-x.f-m);
+      if(denom<=0){ put("pc-won-"+x.k,'<span style="color:#c0392b">計算不可（手数料率＋利益率が100%以上）</span>');
+        put("pc-yen-"+x.k,"—"); put("pc-fee-"+x.k,"—"); put("pc-prof-"+x.k,"—"); }
+      else{
+        const w=Math.ceil(((cost+ship)/denom)/10)*10;                       /* 10ウォン単位に切り上げ */
+        const sell=w*rate, fee=w*x.f*rate, prof=sell-fee-cost-ship;
+        put("pc-won-"+x.k,`<b style="font-size:16px">${won(w)}</b>`);
+        put("pc-yen-"+x.k,yen(sell));
+        put("pc-fee-"+x.k,yen(fee));
+        put("pc-prof-"+x.k,`<b style="color:#1e7e34">${yen(prof)}</b> <span style="color:var(--muted)">（${sell>0?(prof/sell*100).toFixed(1):"0"}%）</span>`);
+      }
+    }
+    const wv=num(pcWon);                                                    /* 逆算：売値を直接入れたとき */
+    if(!(wv>0)||!(cost>0)) put("pc-rv-"+x.k,'<span style="color:var(--muted)">—</span>');
+    else{ const sell=wv*rate, prof=sell*(1-x.f)-cost-ship, pr=sell>0?prof/sell*100:0;
+      put("pc-rv-"+x.k,`<b style="color:${prof>=0?"#1e7e34":"#c0392b"}">${yen(prof)}</b> <span style="color:var(--muted)">（利益率 ${pr.toFixed(1)}%）</span>`); }
+  });
+}
+window.pcInput=(k,el)=>{ if(k==="cost") pcCost=el.value; else if(k==="won") pcWon=el.value; else if(k==="w") pcW=el.value; pcCalc(); };
+window.pcEdit=()=>{ profitEdit=true; renderProfit(); };
+window.pcCancel=()=>{ profitEdit=false; renderProfit(); };
+window.pcSave=()=>{ const g=id=>num((document.getElementById(id)||{}).value);
+  const margin=g("pe-margin"), fs=g("pe-fs"), f11=g("pe-f11"), add=g("pe-add"), rate=g("pe-rate");
+  if(!(margin>=0&&margin<90)){ alert("目標利益率は 0〜90% の範囲で入れてください。"); return; }
+  if(!(fs>=0&&fs<50)||!(f11>=0&&f11<50)){ alert("手数料率は 0〜50% の範囲で入れてください。"); return; }
+  localStorage.setItem(PROFIT_KEY,JSON.stringify({margin:margin,feeSmart:fs,feeSt11:f11,shipAdd:add,rate:(rate>0?rate:0)}));
+  profitEdit=false; renderProfit(); };
+window.pcReset=()=>{
+  if(!confirm("利益計算の設定を初期値に戻しますか？\n\n目標利益率 10%／手数料 スマートストア 6.63%・11番街 13%／発送手数料 +200円／レート 自動\n\n（今の設定値は消えますが、いつでも「編集」で入れ直せます）")) return;
+  localStorage.removeItem(PROFIT_KEY); profitEdit=false; renderProfit(); };
+function renderProfit(){
+  const c=profitCfg(), auto=!(num(c.rate)>0), rate=profitRate();
+  const inSt='height:34px;border:1px solid var(--line);border-radius:9px;padding:0 10px;font-size:13px;font-family:inherit;outline:none;background:#fff;color:var(--txt)';
+  const lb='font-size:11px;font-weight:700;color:var(--muted);display:block;margin-bottom:4px';
+  let wopts=""; for(let i=1;i<=24;i++){ const v=(i*0.5).toFixed(1); wopts+=`<option value="${v}"${v===pcW?" selected":""}>${v} kg</option>`; }
+  const setBox=profitEdit
+    ? `<div style="display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end">`+
+      `<div><span style="${lb}">目標利益率（%）</span><input id="pe-margin" style="${inSt};width:90px" inputmode="decimal" value="${esc(c.margin)}"></div>`+
+      `<div><span style="${lb}">スマートストア手数料（%）</span><input id="pe-fs" style="${inSt};width:110px" inputmode="decimal" value="${esc(c.feeSmart)}"></div>`+
+      `<div><span style="${lb}">11番街手数料（%）</span><input id="pe-f11" style="${inSt};width:110px" inputmode="decimal" value="${esc(c.feeSt11)}"></div>`+
+      `<div><span style="${lb}">発送手数料（円）</span><input id="pe-add" style="${inSt};width:90px" inputmode="numeric" value="${esc(c.shipAdd)}"></div>`+
+      `<div><span style="${lb}">レート（空＝自動）</span><input id="pe-rate" style="${inSt};width:100px" inputmode="decimal" value="${num(c.rate)>0?esc(c.rate):""}" placeholder="${esc(rate)}"></div>`+
+      `<button class="btn-primary btn-sm" onclick="pcSave()">保存</button>`+
+      `<button class="btn-ghost btn-sm" onclick="pcCancel()">キャンセル</button></div>`
+    : `<div style="display:flex;gap:8px 20px;flex-wrap:wrap;align-items:center">`+
+      `<b style="font-size:14px">設定</b>`+
+      `<span style="font-size:13px">目標利益率 <b>${esc(c.margin)}%</b></span>`+
+      `<span style="font-size:13px">手数料 スマートストア <b>${esc(c.feeSmart)}%</b>・11番街 <b>${esc(c.feeSt11)}%</b></span>`+
+      `<span style="font-size:13px">発送手数料 <b>+¥${num(c.shipAdd).toLocaleString("ja-JP")}</b></span>`+
+      `<span style="font-size:13px">レート <b>${auto?`自動（${rate}）`:esc(c.rate)}</b></span>`+
+      `<button class="btn-ghost btn-sm" onclick="pcEdit()">✏️ 編集</button>`+
+      `<button class="btn-ghost btn-sm" onclick="pcReset()">↺ リセット</button></div>`+
+      `<div style="font-size:11.5px;color:var(--muted);margin-top:6px">手数料率は実測から出した既定値です。ほぼ固定なので、普段は触らなくてOK。</div>`;
+  const rows=pcMalls().map(x=>`<tr><td><b>${x.n}</b></td><td class="mono">${esc(x.fl)}%</td>`+
+    `<td id="pc-won-${x.k}"></td><td id="pc-yen-${x.k}" class="mono"></td>`+
+    `<td id="pc-fee-${x.k}" class="mono"></td><td id="pc-prof-${x.k}"></td></tr>`).join("");
+  const rv=pcMalls().map(x=>`<span style="font-size:13px">${x.n}：<span id="pc-rv-${x.k}"></span></span>`).join("");
+  document.getElementById("profit-body").innerHTML=
+    `<div class="panel" style="padding:15px 18px">${setBox}</div>`+
+    `<div class="panel" style="padding:16px 18px;margin-top:12px">`+
+      `<div style="display:flex;gap:16px;flex-wrap:wrap;align-items:flex-end">`+
+        `<div><span style="${lb}">仕入れ値（円）</span><input id="pc-cost" style="${inSt};width:140px;font-size:15px;font-weight:700" inputmode="numeric" placeholder="12000" value="${esc(pcCost)}" oninput="pcInput('cost',this)"></div>`+
+        `<div><span style="${lb}">重量</span><select style="${inSt};width:110px" onchange="pcInput('w',this)">${wopts}</select></div>`+
+        `<div><span style="${lb}">送料（自動）</span><div id="pc-ship" style="height:34px;display:flex;align-items:center;font-size:13px"></div></div>`+
+      `</div>`+
+      `<div class="tablewrap" style="margin-top:14px"><table>`+
+      `<thead><tr><th>モール</th><th>手数料率</th><th>必要売値</th><th>売上（円換算）</th><th>手数料（円）</th><th>利益（円）</th></tr></thead>`+
+      `<tbody>${rows}</tbody></table></div>`+
+      `<div style="font-size:11.5px;color:var(--muted);margin-top:8px">必要売値は10ウォン単位に切り上げ。利益 = 売上 − 手数料 − 仕入れ − 送料。目標利益率は売上（円換算）に対する割合です。</div>`+
+      `<div style="margin-top:16px;padding-top:14px;border-top:1px dashed var(--line);display:flex;gap:10px 22px;flex-wrap:wrap;align-items:center">`+
+        `<b style="font-size:13px">売値から確認</b>`+
+        `<input id="pc-won-in" style="${inSt};width:140px" inputmode="numeric" placeholder="売値（₩）" value="${esc(pcWon)}" oninput="pcInput('won',this)">`+
+        rv+
+      `</div>`+
+    `</div>`;
+  pcCalc();
 }
 /* ===== ショートカット50 一覧 ===== */
 const SHORTCUTS=[
@@ -4494,6 +4603,14 @@ document.getElementById("nav-shipfee").addEventListener("click",()=>{
   document.querySelectorAll(".navsub a").forEach(x=>x.classList.remove("active"));
   document.getElementById("nav-shipfee").classList.add("active");
   document.getElementById("crumb").innerHTML=`HOME / <b>配送料金</b>`;
+  render();
+});
+document.getElementById("nav-profit").addEventListener("click",()=>{
+  section="profit";
+  document.querySelectorAll(".navsub a").forEach(x=>x.classList.remove("active"));
+  document.getElementById("nav-profit").classList.add("active");
+  document.getElementById("crumb").innerHTML=`HOME / <b>出品</b> / 利益計算`;
+  const sb=document.getElementById("search"); if(sb) sb.value="";
   render();
 });
 document.getElementById("nav-shortcut").addEventListener("click",()=>{
