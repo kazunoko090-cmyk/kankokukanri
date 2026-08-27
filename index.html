@@ -2504,39 +2504,46 @@ const PROFIT_KEY="kr_profit_cfg_v1";
 function profitCfg(){ try{ const o=JSON.parse(localStorage.getItem(PROFIT_KEY)||"null");
     if(o&&typeof o==="object") return Object.assign({},PROFIT_DEF,o); }catch(e){}
   return Object.assign({},PROFIT_DEF); }
-let profitEdit=false, pcCost="", pcW="0.5", pcWon="";
+let profitEdit=false, pcCost="", pcW="0.5", pcWon="", pcMall="smart";
 function haniroFee(w){ const i=Math.max(1,Math.min(24,Math.ceil(num(w)/0.5))); return 950+(i-1)*100; }   /* 料金表と同じ式 */
 function profitRate(){ const c=profitCfg(); return num(c.rate)>0?num(c.rate):curConvRate(); }
 function pcMalls(){ const c=profitCfg();
   return [{k:"smart",n:"スマートストア",f:num(c.feeSmart)/100,fl:c.feeSmart},
           {k:"st11",n:"11番街",f:num(c.feeSt11)/100,fl:c.feeSt11}]; }
-/* 入力のたびに結果セルだけ書き換える（全体を描き直すと入力中のフォーカスが外れるため） */
+/* 入力のたびに結果の数字だけ書き換える（全体を描き直すと入力中のフォーカスが外れるため） */
 function pcCalc(){
   const c=profitCfg(), rate=profitRate(), cost=num(pcCost), ship=haniroFee(pcW)+num(c.shipAdd), m=num(c.margin)/100;
+  const x=pcMalls().find(v=>v.k===pcMall)||pcMalls()[0];
   const put=(id,html)=>{ const el=document.getElementById(id); if(el) el.innerHTML=html; };
   const yen=n=>"¥"+Math.round(n).toLocaleString("ja-JP");
   put("pc-ship",`<b>${yen(ship)}</b> <span style="color:var(--muted);font-weight:400">（HANIROLINE ${yen(haniroFee(pcW))} ＋ 発送手数料 ${yen(num(c.shipAdd))}）</span>`);
-  pcMalls().forEach(x=>{
-    if(!(cost>0)){ ["won","yen","fee","prof"].forEach(t=>put("pc-"+t+"-"+x.k,'<span style="color:var(--muted)">—</span>')); }
+  const cp=document.getElementById("pc-copy");
+  if(!(cost>0)){
+    put("pc-won",'<span style="color:var(--muted);font-size:18px;font-weight:600">仕入れ値を入れると、ここに出ます</span>');
+    put("pc-detail",""); if(cp) cp.style.display="none";
+  }else{
+    const denom=rate*(1-x.f-m);
+    if(denom<=0){ put("pc-won",'<span style="color:#c0392b;font-size:16px">計算不可（手数料率＋利益率が100%以上）</span>'); put("pc-detail",""); if(cp) cp.style.display="none"; }
     else{
-      const denom=rate*(1-x.f-m);
-      if(denom<=0){ put("pc-won-"+x.k,'<span style="color:#c0392b">計算不可（手数料率＋利益率が100%以上）</span>');
-        put("pc-yen-"+x.k,"—"); put("pc-fee-"+x.k,"—"); put("pc-prof-"+x.k,"—"); }
-      else{
-        const w=Math.ceil(((cost+ship)/denom)/10)*10;                       /* 10ウォン単位に切り上げ */
-        const sell=w*rate, fee=w*x.f*rate, prof=sell-fee-cost-ship;
-        put("pc-won-"+x.k,`<b style="font-size:16px">${won(w)}</b>`);
-        put("pc-yen-"+x.k,yen(sell));
-        put("pc-fee-"+x.k,yen(fee));
-        put("pc-prof-"+x.k,`<b style="color:#1e7e34">${yen(prof)}</b> <span style="color:var(--muted)">（${sell>0?(prof/sell*100).toFixed(1):"0"}%）</span>`);
-      }
+      const w=Math.ceil(((cost+ship)/denom)/10)*10;                    /* 10ウォン単位に切り上げ */
+      const sell=w*rate, fee=w*x.f*rate, prof=sell-fee-cost-ship;
+      put("pc-won",won(w));
+      if(cp){ cp.style.display=""; cp.dataset.copy=String(w); }        /* コピーは数字だけ＝そのまま価格欄に貼れる */
+      put("pc-detail",
+        `<span>売上（円換算）<b>${yen(sell)}</b></span>`+
+        `<span>手数料 ${esc(x.fl)}% <b>${yen(fee)}</b></span>`+
+        `<span>仕入れ <b>${yen(cost)}</b></span>`+
+        `<span>送料 <b>${yen(ship)}</b></span>`+
+        `<span style="color:#1e7e34">利益 <b>${yen(prof)}</b>（${sell>0?(prof/sell*100).toFixed(1):"0"}%）</span>`);
     }
-    const wv=num(pcWon);                                                    /* 逆算：売値を直接入れたとき */
-    if(!(wv>0)||!(cost>0)) put("pc-rv-"+x.k,'<span style="color:var(--muted)">—</span>');
-    else{ const sell=wv*rate, prof=sell*(1-x.f)-cost-ship, pr=sell>0?prof/sell*100:0;
-      put("pc-rv-"+x.k,`<b style="color:${prof>=0?"#1e7e34":"#c0392b"}">${yen(prof)}</b> <span style="color:var(--muted)">（利益率 ${pr.toFixed(1)}%）</span>`); }
-  });
+  }
+  const wv=num(pcWon);                                                 /* 逆算：売値を直接入れたとき */
+  if(!(wv>0)||!(cost>0)) put("pc-rv",'<span style="color:var(--muted)">—</span>');
+  else{ const sell=wv*rate, prof=sell*(1-x.f)-cost-ship, pr=sell>0?prof/sell*100:0;
+    put("pc-rv",`<b style="color:${prof>=0?"#1e7e34":"#c0392b"}">${yen(prof)}</b> <span style="color:var(--muted)">（利益率 ${pr.toFixed(1)}%）</span>`); }
 }
+window.pcSetMall=(m)=>{ pcMall=m; renderProfit(); };
+window.pcCopyWon=(btn)=>{ const v=btn.dataset.copy||""; if(!v) return; copyText(v); flashBtn(btn); };
 window.pcInput=(k,el)=>{ if(k==="cost") pcCost=el.value; else if(k==="won") pcWon=el.value; else if(k==="w") pcW=el.value; pcCalc(); };
 window.pcEdit=()=>{ profitEdit=true; renderProfit(); };
 window.pcCancel=()=>{ profitEdit=false; renderProfit(); };
@@ -2551,6 +2558,7 @@ window.pcReset=()=>{
   localStorage.removeItem(PROFIT_KEY); profitEdit=false; renderProfit(); };
 function renderProfit(){
   const c=profitCfg(), auto=!(num(c.rate)>0), rate=profitRate();
+  const x=pcMalls().find(v=>v.k===pcMall)||pcMalls()[0];
   const inSt='height:34px;border:1px solid var(--line);border-radius:9px;padding:0 10px;font-size:13px;font-family:inherit;outline:none;background:#fff;color:var(--txt)';
   const lb='font-size:11px;font-weight:700;color:var(--muted);display:block;margin-bottom:4px';
   let wopts=""; for(let i=1;i<=24;i++){ const v=(i*0.5).toFixed(1); wopts+=`<option value="${v}"${v===pcW?" selected":""}>${v} kg</option>`; }
@@ -2570,28 +2578,31 @@ function renderProfit(){
       `<span style="font-size:13px">発送手数料 <b>+¥${num(c.shipAdd).toLocaleString("ja-JP")}</b></span>`+
       `<span style="font-size:13px">レート <b>${auto?`自動（${rate}）`:esc(c.rate)}</b></span>`+
       `<button class="btn-ghost btn-sm" onclick="pcEdit()">✏️ 編集</button>`+
-      `<button class="btn-ghost btn-sm" onclick="pcReset()">↺ リセット</button></div>`+
-      `<div style="font-size:11.5px;color:var(--muted);margin-top:6px">手数料率は実測から出した既定値です。ほぼ固定なので、普段は触らなくてOK。</div>`;
-  const rows=pcMalls().map(x=>`<tr><td><b>${x.n}</b></td><td class="mono">${esc(x.fl)}%</td>`+
-    `<td id="pc-won-${x.k}"></td><td id="pc-yen-${x.k}" class="mono"></td>`+
-    `<td id="pc-fee-${x.k}" class="mono"></td><td id="pc-prof-${x.k}"></td></tr>`).join("");
-  const rv=pcMalls().map(x=>`<span style="font-size:13px">${x.n}：<span id="pc-rv-${x.k}"></span></span>`).join("");
+      `<button class="btn-ghost btn-sm" onclick="pcReset()">↺ リセット</button></div>`;
   document.getElementById("profit-body").innerHTML=
     `<div class="panel" style="padding:15px 18px">${setBox}</div>`+
-    `<div class="panel" style="padding:16px 18px;margin-top:12px">`+
-      `<div style="display:flex;gap:16px;flex-wrap:wrap;align-items:flex-end">`+
-        `<div><span style="${lb}">仕入れ値（円）</span><input id="pc-cost" style="${inSt};width:140px;font-size:15px;font-weight:700" inputmode="numeric" placeholder="12000" value="${esc(pcCost)}" oninput="pcInput('cost',this)"></div>`+
-        `<div><span style="${lb}">重量</span><select style="${inSt};width:110px" onchange="pcInput('w',this)">${wopts}</select></div>`+
-        `<div><span style="${lb}">送料（自動）</span><div id="pc-ship" style="height:34px;display:flex;align-items:center;font-size:13px"></div></div>`+
+    `<div class="panel" style="padding:18px;margin-top:12px">`+
+      `<div class="seg" style="margin-bottom:16px">`+
+        pcMalls().map(v=>`<button class="segbtn${v.k===pcMall?" active":""}" onclick="pcSetMall('${v.k}')">${v.n}</button>`).join("")+
       `</div>`+
-      `<div class="tablewrap" style="margin-top:14px"><table>`+
-      `<thead><tr><th>モール</th><th>手数料率</th><th>必要売値</th><th>売上（円換算）</th><th>手数料（円）</th><th>利益（円）</th></tr></thead>`+
-      `<tbody>${rows}</tbody></table></div>`+
-      `<div style="font-size:11.5px;color:var(--muted);margin-top:8px">必要売値は10ウォン単位に切り上げ。利益 = 売上 − 手数料 − 仕入れ − 送料。目標利益率は売上（円換算）に対する割合です。</div>`+
-      `<div style="margin-top:16px;padding-top:14px;border-top:1px dashed var(--line);display:flex;gap:10px 22px;flex-wrap:wrap;align-items:center">`+
+      `<div style="display:flex;gap:16px;flex-wrap:wrap;align-items:flex-end">`+
+        `<div><span style="${lb}">仕入れ値（円）</span><input id="pc-cost" style="${inSt};width:150px;height:40px;font-size:16px;font-weight:700" inputmode="numeric" placeholder="12000" value="${esc(pcCost)}" oninput="pcInput('cost',this)"></div>`+
+        `<div><span style="${lb}">重量</span><select style="${inSt};height:40px;width:110px" onchange="pcInput('w',this)">${wopts}</select></div>`+
+        `<div><span style="${lb}">送料（自動）</span><div id="pc-ship" style="height:40px;display:flex;align-items:center;font-size:13px"></div></div>`+
+      `</div>`+
+      `<div style="margin-top:18px;padding:16px 20px;border:1px solid #cfe3f7;border-radius:12px;background:#f5faff">`+
+        `<div style="font-size:11px;font-weight:800;color:var(--muted);letter-spacing:.06em">必要売値（${x.n}／手数料 ${esc(x.fl)}%と利益 ${esc(c.margin)}%を含む・10ウォン単位）</div>`+
+        `<div style="display:flex;gap:14px;align-items:center;flex-wrap:wrap;margin-top:4px">`+
+          `<span id="pc-won" style="font-size:32px;font-weight:800;color:var(--accent-d);letter-spacing:.01em"></span>`+
+          `<button id="pc-copy" class="btn-primary btn-sm" style="display:none" onclick="pcCopyWon(this)">📋 コピー</button>`+
+        `</div>`+
+        `<div id="pc-detail" style="display:flex;gap:8px 20px;flex-wrap:wrap;font-size:12.5px;margin-top:10px"></div>`+
+      `</div>`+
+      `<div style="margin-top:16px;display:flex;gap:10px 18px;flex-wrap:wrap;align-items:center">`+
         `<b style="font-size:13px">売値から確認</b>`+
-        `<input id="pc-won-in" style="${inSt};width:140px" inputmode="numeric" placeholder="売値（₩）" value="${esc(pcWon)}" oninput="pcInput('won',this)">`+
-        rv+
+        `<input id="pc-won-in" style="${inSt};width:150px" inputmode="numeric" placeholder="売値（₩）" value="${esc(pcWon)}" oninput="pcInput('won',this)">`+
+        `<span id="pc-rv"></span>`+
+        `<span style="font-size:11.5px;color:var(--muted)">売値を直接入れると、いくら残るかを確認できます</span>`+
       `</div>`+
     `</div>`;
   pcCalc();
