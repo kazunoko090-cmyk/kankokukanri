@@ -2566,16 +2566,22 @@ function renderHome(){
   }).join("");
   const fd=blogFixedDay();
   const fdl=fd?`${md(fd)}（${BLOG_WD[jd(fd).getDay()]}）`:"—";
-  const npd=nippoLoad();
-  const npDone=NIPPO_WHO.filter(w=>npd[today+"|"+w.k]!=null).length;
+  const ym=today.slice(0,7);
+  const npCp=nippoMonthTotal("fukumura",ym), npSm=nippoMonthTotal("nakajima",ym);
   el.innerHTML=
     `<div class="page-head">今日の状況 <small>${today} 現在。数字や日付をタップすると、その画面へ飛びます</small></div>`+
     `<div class="hm-sec">💼 売上ステータス <span class="hm-sec-s">台帳全体の件数。タップでその状態に絞り込み</span></div>`+
     `<div class="hm-grid">${cards}</div>`+
-    `<div class="hm-sec">📝 日報 <span class="hm-sec-s">担当者ごとの作業件数</span></div>`+
-    `<div class="hm-chips"><button class="hm-chip" onclick="homeGoNippo()">`+
-      `<span class="hm-chip-n">作業日報</span><b style="color:var(--accent-d)">今日 ${npDone}/${NIPPO_WHO.length}人 入力済み</b>`+
-      `<span class="hm-chip-s">タップでカレンダーへ ›</span></button></div>`+
+    `<div class="hm-sec">📦 当月の新規出品 <span class="hm-sec-s">日報から集計（${+ym.slice(5,7)}月）</span></div>`+
+    `<div class="hm-chips">`+
+      `<button class="hm-chip" onclick="homeGoListCount('coupang')">`+
+        `<span class="hm-chip-n">クーパン</span><b style="color:var(--accent-d)">${npCp.toLocaleString("ja-JP")}件</b>`+
+        `<span class="hm-chip-s">月別グラフへ ›</span></button>`+
+      `<button class="hm-chip" onclick="homeGoListCount('smart')">`+
+        `<span class="hm-chip-n">スマートストア</span><b style="color:var(--accent-d)">${npSm.toLocaleString("ja-JP")}件</b>`+
+        `<span class="hm-chip-s">月別グラフへ ›</span></button>`+
+      `<button class="hm-chip" onclick="homeGoNippo()"><span class="hm-chip-n">📝 日報</span><span class="hm-chip-s">›</span></button>`+
+    `</div>`+
     `<div class="hm-sec">📊 在庫管理 <span class="hm-sec-s">最後にチェックした日</span></div>`+
     `<div class="hm-chips">${stock}</div>`+
     `<div class="hm-sec">✍️ ブログ</div>`+
@@ -2588,6 +2594,8 @@ window.homeGo=(sec,p,st)=>{ if(sec==="sales") salesStatusFilter=String(st||"");
 window.homeGoBlog=()=>{ blogTab="stats";
   const a=document.querySelector('.navsub a[data-sec="blog"][data-p="coupang"]'); if(a) a.click(); };
 window.homeGoNippo=()=>{ const a=document.getElementById("nav-nippo"); if(a) a.click(); };
+window.homeGoListCount=p=>{ if(p==="coupang") coupangListTab="count"; else smartListTab="count";
+  const a=document.querySelector(`.navsub a[data-sec="list"][data-p="${p}"]`); if(a) a.click(); };
 /* ===== 配送料金（HANIROLINE 重量別料金表） ===== */
 function renderShipfee(){
   const rows=[]; for(let i=0;i<24;i++){ const w=((i+1)*0.5).toFixed(2); const pr=950+i*100; rows.push([w+" KG","¥"+pr.toLocaleString("ja-JP")]); }
@@ -2792,8 +2800,7 @@ function renderNippo(){
           months.map(m=>`<option value="${m}"${m===nippoMonth?" selected":""}>${mlabel(m)}</option>`).join("")+`</select>`+
         `<span style="font-size:13px;color:var(--muted)">${esc(who.n)}さんの${esc(who.job)}：この月の合計 <b style="color:var(--accent-d);font-size:16px">${mtot.toLocaleString("ja-JP")}件</b></span>`+
       `</div>`+
-      `<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:6px">${head}${cells}</div>`+
-      `<div style="display:flex;gap:12px 18px;flex-wrap:wrap;align-items:center;margin-top:18px;padding:14px 16px;border:1px solid #cfe3f7;border-radius:12px;background:#f5faff">`+
+      `<div style="display:flex;gap:12px 18px;flex-wrap:wrap;align-items:center;margin-bottom:14px;padding:14px 16px;border:1px solid #cfe3f7;border-radius:12px;background:#f5faff">`+
         `<b style="font-size:14px">${esc(nippoDate)}${wd}</b>`+
         `<span style="font-size:12.5px;color:var(--muted)">${esc(who.n)}さんの${esc(who.job)}件数</span>`+
         `<input id="np-n" style="${inSt};width:120px;font-size:16px;font-weight:700" inputmode="numeric" placeholder="0" value="${cur==null?"":esc(cur)}">`+
@@ -2801,7 +2808,53 @@ function renderNippo(){
         (nippoFlash?`<span style="color:#12a866;font-weight:700;font-size:13px">✔ 保存しました</span>`
           :(cur!=null?`<span style="font-size:12.5px;color:var(--muted)">記録済み（保存すると上書き）</span>`:""))+
       `</div>`+
-      `<div style="margin-top:10px;font-size:11.5px;color:var(--muted)">カレンダーの日を押すと下の入力欄に呼び出せます。件数を入れて「保存する」を押してください。</div>`+
+      `<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:6px">${head}${cells}</div>`+
+      `<div style="margin-top:10px;font-size:11.5px;color:var(--muted)">カレンダーの日を押すと上の入力欄に呼び出せます。件数を入れて「保存する」を押してください。</div>`+
+    `</div>`;
+}
+/* ===== 出品数の月別集計（日報から換算。福村さん＝クーパン、中島さん＝スマートストア） ===== */
+const NIPPO_MALL={ coupang:{who:"fukumura",label:"福村"}, smart:{who:"nakajima",label:"中島"} };
+function nippoMonthTotal(whoKey,ym){ const d=nippoLoad(); let t=0;
+  Object.keys(d).forEach(k=>{ const i=k.lastIndexOf("|"); if(i<0) return;
+    if(k.slice(i+1)===whoKey && k.slice(0,7)===ym) t+=num(d[k]); });
+  return t; }
+function renderNippoStats(host,mall){
+  const mp=NIPPO_MALL[mall]; if(!host||!mp) return;
+  const d=nippoLoad(), by={};
+  Object.keys(d).forEach(k=>{ const i=k.lastIndexOf("|"); if(i<0) return;
+    if(k.slice(i+1)!==mp.who) return; const m=k.slice(0,7); if(!/^\d{4}-\d{2}$/.test(m)) return;
+    by[m]=(by[m]||0)+num(d[k]); });
+  const cur=todayStr().slice(0,7);
+  const all=Object.keys(by).sort();
+  let total=0; all.forEach(m=>total+=by[m]);
+  /* 最初の記録月〜今月をすき間なく並べる（直近12か月まで表示） */
+  let months=[];
+  if(all.length){ let y=+all[0].slice(0,4), mo=+all[0].slice(5,7);
+    const ey=+cur.slice(0,4), em=+cur.slice(5,7);
+    while(y<ey||(y===ey&&mo<=em)){ months.push(y+"-"+String(mo).padStart(2,"0")); mo++; if(mo>12){ mo=1; y++; } } }
+  else months=[cur];
+  const cut=months.length-12; months=months.slice(-12);
+  const mx=Math.max(1,...months.map(m=>by[m]||0));
+  const bars=months.map(m=>{
+    const v=by[m]||0, h=Math.max(Math.round(v/mx*170),3), on=(m===cur);
+    return `<div style="flex:1 1 0;min-width:0;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;gap:6px">`+
+      `<span style="font-size:${on?16:13.5}px;font-weight:800;color:${v>0?"var(--accent-d)":"#c3c9da"}">${v.toLocaleString("ja-JP")}</span>`+
+      `<div style="width:68%;max-width:46px;height:${h}px;border-radius:6px 6px 0 0;background:${v>0?(on?"linear-gradient(180deg,var(--accent),var(--accent-2))":"#c5d0f4"):"#eef0f7"}"></div>`+
+    `</div>`; }).join("");
+  const labs=months.map(m=>{
+    const on=(m===cur);
+    return `<div style="flex:1 1 0;min-width:0;text-align:center;font-size:11.5px;font-weight:${on?"800":"700"};color:${on?"var(--accent-d)":"var(--muted)"};line-height:1.4">${+m.slice(5,7)}月<br><small style="font-weight:600;color:var(--muted)">${m.slice(0,4)}</small></div>`; }).join("");
+  host.innerHTML=
+    `<div class="panel" style="padding:20px 22px">`+
+      `<div style="display:flex;gap:10px 26px;flex-wrap:wrap;align-items:center;margin-bottom:20px">`+
+        `<b style="font-size:14px">月別の新規出品数</b>`+
+        `<span style="font-size:12.5px;color:var(--muted)">日報（${mp.label}さんの出品件数）から集計</span>`+
+        `<span style="font-size:13px;color:var(--muted)">今月 <b style="color:var(--accent-d);font-size:17px">${(by[cur]||0).toLocaleString("ja-JP")}件</b>　累計 <b style="color:var(--accent-d);font-size:17px">${total.toLocaleString("ja-JP")}件</b></span>`+
+        `<button class="btn-ghost btn-sm" style="margin-left:auto" onclick="homeGoNippo()">📝 日報を開く</button>`+
+      `</div>`+
+      `<div style="display:flex;align-items:flex-end;gap:6px;border-bottom:2px solid var(--line);padding:0 2px">${bars}</div>`+
+      `<div style="display:flex;gap:6px;margin-top:6px;padding:0 2px">${labs}</div>`+
+      `<div style="margin-top:14px;font-size:11.5px;color:var(--muted)">数字は日報の入力がもとです。日報を直すとここも自動で変わります。${cut>0?`（${cut}か月前より古い分はグラフに出していませんが、累計には入っています）`:""}</div>`+
     `</div>`;
 }
 /* ===== ショートカット50 一覧 ===== */
@@ -3273,20 +3326,22 @@ window.setBruTab=(t)=>{ bruTab=t; renderList(); };
 function renderList(){
   const head=document.getElementById("list-head"), body=document.getElementById("list-body");
   if(current==="coupang"){
-    const clbl=coupangListTab==="cat"?"カテゴリー":(coupangListTab==="brand"?"ブランド（韓国語・ブランドID・日本語）":"Attributes（出品時の参考・コピペ用）");
+    const clbl=coupangListTab==="cat"?"カテゴリー":(coupangListTab==="brand"?"ブランド（韓国語・ブランドID・日本語）":(coupangListTab==="count"?"出品数（日報からの月別集計）":"Attributes（出品時の参考・コピペ用）"));
     head.innerHTML=`出品：クーパン <small>${clbl}</small>`;
-    const toggle=`<div class="seg" style="margin-bottom:14px"><button class="segbtn ${coupangListTab==="attr"?"active":""}" onclick="setCoupangListTab('attr')">Attributes</button><button class="segbtn ${coupangListTab==="cat"?"active":""}" onclick="setCoupangListTab('cat')">カテゴリー</button><button class="segbtn ${coupangListTab==="brand"?"active":""}" onclick="setCoupangListTab('brand')">ブランド</button></div>`;
+    const toggle=`<div class="seg" style="margin-bottom:14px"><button class="segbtn ${coupangListTab==="attr"?"active":""}" onclick="setCoupangListTab('attr')">Attributes</button><button class="segbtn ${coupangListTab==="cat"?"active":""}" onclick="setCoupangListTab('cat')">カテゴリー</button><button class="segbtn ${coupangListTab==="brand"?"active":""}" onclick="setCoupangListTab('brand')">ブランド</button><button class="segbtn ${coupangListTab==="count"?"active":""}" onclick="setCoupangListTab('count')">出品数</button></div>`;
     body.innerHTML=toggle+`<div id="attr-host"></div>`;
     if(coupangListTab==="cat"){ renderCatDB(document.getElementById("attr-host")); }
     else if(coupangListTab==="brand"){ attrStore=BRAND_KEY; renderBrand(document.getElementById("attr-host")); }
+    else if(coupangListTab==="count"){ renderNippoStats(document.getElementById("attr-host"),"coupang"); }
     else { attrStore=ATTR_KEY; renderAttr(document.getElementById("attr-host")); }
   } else if(current==="smart"){
-    const lbl=smartListTab==="cat"?"カテゴリー":(smartListTab==="tebiki"?"手出品（販売済み＋任意商品を投稿）":(smartListTab==="shingan"?"真贋調査（正品販売確約書とメールの作成）":"ブラッシュアップ（販売済み商品を投稿）"));
+    const lbl=smartListTab==="cat"?"カテゴリー":(smartListTab==="tebiki"?"手出品（販売済み＋任意商品を投稿）":(smartListTab==="shingan"?"真贋調査（正品販売確約書とメールの作成）":(smartListTab==="count"?"出品数（日報からの月別集計）":"ブラッシュアップ（販売済み商品を投稿）")));
     head.innerHTML=`出品：スマートストア <small>${lbl}</small>`;
-    const toggle=`<div class="seg" style="margin-bottom:14px"><button class="segbtn ${smartListTab==="brushup"?"active":""}" onclick="setSmartListTab('brushup')">ブラッシュアップ</button><button class="segbtn ${smartListTab==="cat"?"active":""}" onclick="setSmartListTab('cat')">カテゴリー</button><button class="segbtn ${smartListTab==="tebiki"?"active":""}" onclick="setSmartListTab('tebiki')">手出品</button><button class="segbtn ${smartListTab==="shingan"?"active":""}" onclick="setSmartListTab('shingan')">真贋調査</button></div>`;
+    const toggle=`<div class="seg" style="margin-bottom:14px"><button class="segbtn ${smartListTab==="brushup"?"active":""}" onclick="setSmartListTab('brushup')">ブラッシュアップ</button><button class="segbtn ${smartListTab==="cat"?"active":""}" onclick="setSmartListTab('cat')">カテゴリー</button><button class="segbtn ${smartListTab==="tebiki"?"active":""}" onclick="setSmartListTab('tebiki')">手出品</button><button class="segbtn ${smartListTab==="shingan"?"active":""}" onclick="setSmartListTab('shingan')">真贋調査</button><button class="segbtn ${smartListTab==="count"?"active":""}" onclick="setSmartListTab('count')">出品数</button></div>`;
     body.innerHTML=toggle+`<div id="smart-list-host"></div>`;
     const host=document.getElementById("smart-list-host");
     if(smartListTab==="shingan"){ renderShingan(host); }
+    else if(smartListTab==="count"){ renderNippoStats(host,"smart"); }
     else if(smartListTab==="cat"){ renderSmartCat(host); }
     else if(smartListTab==="tebiki"){ renderTebiki(host); } else { bruMode="brushup"; renderBrushup(host); }
   } else if(current==="st11"){
