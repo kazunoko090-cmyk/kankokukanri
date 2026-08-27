@@ -665,6 +665,12 @@ window.CAT_ATTR_JA={"색상": "色", "수량": "数量", "패션의류/잡화 �
         <a data-sec="stock" data-p="st11"><span class="dot"></span>11番街</a>
       </div>
     </div>
+    <div class="navgroup" data-g="nippo">
+      <div class="navhead" title="日報"><span class="nav-ico">📝</span><span class="nav-txt">日報</span><span class="arw">▶</span></div>
+      <div class="navsub" data-label="日報">
+        <a id="nav-nippo"><span class="dot"></span>作業日報</a>
+      </div>
+    </div>
     <div class="navgroup" data-g="cs">
       <div class="navhead" title="顧客対応"><span class="nav-ico">💬</span><span class="nav-txt">顧客対応</span><span class="arw">▶</span></div>
       <div class="navsub" data-label="顧客対応">
@@ -896,6 +902,11 @@ window.CAT_ATTR_JA={"색상": "色", "수량": "数量", "패션의류/잡화 �
   <div id="view-stock" style="display:none">
     <div class="page-head" id="stock-head">在庫管理</div>
     <div id="stock-body"></div>
+  </div>
+
+  <div id="view-nippo" style="display:none">
+    <div class="page-head">日報 <small>担当者ごとの1日の作業件数を記録します</small></div>
+    <div id="nippo-body"></div>
   </div>
 
   <div id="view-banned" style="display:none">
@@ -1500,7 +1511,7 @@ async function cloudDelete(order){ const u=cloudURL(); if(!u) return;
 /* ===== その他データの同期（マニュアル・顧客・出品・ブログ等）：key-value方式 ===== */
 /* kr_hi_（黄色の選択）は同期しない＝端末ごとの目印。
    共有すると①和集合で選択が溜まる②複数人で1つの選択を奪い合う、の両方が起きるため。 */
-const KV_SYNC_PREFIXES=["kr_teb_","kr_bru_","kr_manual_v2","kr_manual_urls","kr_tblman_","kr_cust_","kr_list_attr_","kr_list_cat_","kr_list_brand_","kr_attr_cat_","kr_blog_","kr_catseg_ja","kr_shinfix","kr_tomb"];
+const KV_SYNC_PREFIXES=["kr_teb_","kr_bru_","kr_manual_v2","kr_manual_urls","kr_tblman_","kr_cust_","kr_list_attr_","kr_list_cat_","kr_list_brand_","kr_attr_cat_","kr_blog_","kr_catseg_ja","kr_shinfix","kr_tomb","kr_nippo_"];
 function isKvSyncKey(k){ return KV_SYNC_PREFIXES.some(p=> k===p || k.indexOf(p)===0 ); }
 let kvReady=false;                 // 初回プル完了まで送信しない（初期シードの誤送信防止）
 const _kvSetItem=localStorage.setItem.bind(localStorage);
@@ -1659,7 +1670,7 @@ function render(){
   const _locked = pwNeed();   /* 対象画面のみロック（ナビは操作可能・モール別の暗証番号） */
   document.getElementById("view-lock").style.display=_locked?"":"none";
   if(_locked){
-    ["view-home","view-cust","view-sales","view-research","view-list","view-banned","view-banlist","view-shortcut","view-blog","view-manual","view-tblman","view-cs","view-faq","view-shipfee","view-stock","view-profit"].forEach(id=>{ const el=document.getElementById(id); if(el) el.style.display="none"; });
+    ["view-home","view-cust","view-sales","view-research","view-list","view-banned","view-banlist","view-shortcut","view-blog","view-manual","view-tblman","view-cs","view-faq","view-shipfee","view-stock","view-profit","view-nippo"].forEach(id=>{ const el=document.getElementById(id); if(el) el.style.display="none"; });
     const lm=document.getElementById("lockMsg"); if(lm) lm.textContent= (pwScope()==="hassou")
       ? "「管理表マニュアル 発送管理」を開くには暗証番号を入力してください"
       : "「"+(PW_PLATNAMES[current]||"")+" "+(PW_NAMES[section]||"")+"」を開くには暗証番号を入力してください";
@@ -1669,8 +1680,8 @@ function render(){
   const home=section==="home";
   document.getElementById("view-home").style.display=home?"":"none";
   if(home){ const c=document.getElementById("crumb"); if(c) c.innerHTML="ホーム"; }
-  const sales=section==="sales", research=section==="research", list=section==="list", banned=section==="banned", banlist=section==="banlist", shortcut=section==="shortcut", blog=section==="blog", manual=section==="manual", tblman=section==="tblman", shipfee=section==="shipfee", cs=section==="cs", faq=section==="faq", stock=section==="stock", profit=section==="profit";
-  document.getElementById("view-cust").style.display=(home||sales||research||list||banned||banlist||shortcut||blog||manual||tblman||shipfee||cs||faq||stock||profit)?"none":"";
+  const sales=section==="sales", research=section==="research", list=section==="list", banned=section==="banned", banlist=section==="banlist", shortcut=section==="shortcut", blog=section==="blog", manual=section==="manual", tblman=section==="tblman", shipfee=section==="shipfee", cs=section==="cs", faq=section==="faq", stock=section==="stock", profit=section==="profit", nippo=section==="nippo";
+  document.getElementById("view-cust").style.display=(home||sales||research||list||banned||banlist||shortcut||blog||manual||tblman||shipfee||cs||faq||stock||profit||nippo)?"none":"";
   document.getElementById("view-faq").style.display=faq?"":"none";
   document.getElementById("view-sales").style.display=sales?"":"none";
   document.getElementById("view-research").style.display=research?"":"none";
@@ -1685,7 +1696,8 @@ function render(){
   document.getElementById("view-cs").style.display=cs?"":"none";
   document.getElementById("view-stock").style.display=stock?"":"none";
   document.getElementById("view-profit").style.display=profit?"":"none";
-  if(home){ renderHome(); } else if(faq) renderFaq(); else if(cs) renderCs(); else if(shipfee) renderShipfee(); else if(profit) renderProfit(); else if(tblman) renderTblMan(); else if(manual) renderManual(); else if(blog) renderBlog(); else if(shortcut) renderShortcut(); else if(banlist) renderBanlist(); else if(banned) renderBanned(); else if(stock) renderStock(); else if(list) renderList(); else if(research) renderResearch(); else if(sales) renderSales(); else renderCust();
+  document.getElementById("view-nippo").style.display=nippo?"":"none";
+  if(home){ renderHome(); } else if(faq) renderFaq(); else if(cs) renderCs(); else if(shipfee) renderShipfee(); else if(nippo) renderNippo(); else if(profit) renderProfit(); else if(tblman) renderTblMan(); else if(manual) renderManual(); else if(blog) renderBlog(); else if(shortcut) renderShortcut(); else if(banlist) renderBanlist(); else if(banned) renderBanned(); else if(stock) renderStock(); else if(list) renderList(); else if(research) renderResearch(); else if(sales) renderSales(); else renderCust();
 }
 /* ===== 管理表マニュアル（ブログマニュアルと同じフォーマット・モール別） ===== */
 const TBLMAN_SEED=[{title:"",url:""},{title:"",url:""},{title:"",url:""},{title:"",url:""}];
@@ -2713,6 +2725,65 @@ function renderProfit(){
     `</div>`;
   const lk=document.getElementById("pc-lk-in"); if(lk) pcLookup(lk);
   pcCalc();
+}
+/* ===== 日報（担当者ごとの1日の作業件数。kr_nippo_v1 はクラウド同期＝どの端末でも同じ表が見える） ===== */
+const NIPPO_KEY="kr_nippo_v1";
+const NIPPO_WHO=[ {k:"fukumura",n:"福村",job:"出品"}, {k:"nakajima",n:"中島",job:"出品"}, {k:"miyago",n:"宮後",job:"配送手配"} ];
+let nippoDate="", nippoWho="fukumura", nippoFlash=false;
+function nippoLoad(){ try{ const d=JSON.parse(localStorage.getItem(NIPPO_KEY)); if(d&&typeof d==="object"&&!Array.isArray(d)) return d; }catch(e){} return {}; }
+window.nippoSetDate=el=>{ nippoDate=el.value||todayStr(); nippoFlash=false; renderNippo(); };
+window.nippoSetWho=el=>{ nippoWho=el.value; nippoFlash=false; renderNippo(); };
+window.nippoPick=(dt,who)=>{ nippoDate=dt; nippoWho=who; nippoFlash=false; renderNippo();
+  const el=document.getElementById("np-n"); if(el){ el.focus(); try{ el.select(); }catch(e){} } };
+window.nippoSave=()=>{ const el=document.getElementById("np-n"); const v=el?String(el.value).trim():"";
+  const n=Math.floor(num(v));
+  if(v===""||!(n>=0)){ alert("件数を入れてください（半角の数字）"); return; }
+  const d=nippoLoad(); d[nippoDate+"|"+nippoWho]=n; localStorage.setItem(NIPPO_KEY,JSON.stringify(d));
+  nippoFlash=true; renderNippo(); };
+function renderNippo(){
+  if(!nippoDate) nippoDate=todayStr();
+  const d=nippoLoad(), who=NIPPO_WHO.find(w=>w.k===nippoWho)||NIPPO_WHO[0];
+  const cur=d[nippoDate+"|"+who.k];
+  const inSt='height:40px;border:1px solid var(--line);border-radius:9px;padding:0 10px;font-size:14px;font-family:inherit;outline:none;background:#fff;color:var(--txt)';
+  const lb='font-size:11px;font-weight:700;color:var(--muted);display:block;margin-bottom:4px';
+  const ym=todayStr().slice(0,7);
+  const tot={}; NIPPO_WHO.forEach(w=>tot[w.k]=0);
+  Object.keys(d).forEach(k=>{ const i=k.lastIndexOf("|"); if(i<0) return; const dt=k.slice(0,i), wk=k.slice(i+1);
+    if(dt.slice(0,7)===ym && tot[wk]!=null) tot[wk]+=num(d[k]); });
+  const days=[...new Set(Object.keys(d).map(k=>k.slice(0,k.lastIndexOf("|"))).filter(x=>/^\d{4}-\d{2}-\d{2}$/.test(x)))].sort().reverse().slice(0,60);
+  const wd=dt=>{ try{ return "（"+"日月火水木金土"[new Date(dt+"T00:00:00").getDay()]+"）"; }catch(e){ return ""; } };
+  const rows=days.map(dt=>{
+    const tds=NIPPO_WHO.map(w=>{ const v=d[dt+"|"+w.k];
+      const on=(dt===nippoDate&&w.k===nippoWho);
+      return `<td style="text-align:center;padding:10px 8px;border-bottom:1px solid var(--line-2);cursor:pointer;font-weight:700;font-size:14px;${on?"background:#eef2ff;":""}${v==null?"color:#c3c9da;font-weight:400;":""}" onclick="nippoPick('${dt}','${w.k}')">${v==null?"−":esc(v)+" 件"}</td>`; }).join("");
+    return `<tr><td style="padding:10px 12px;border-bottom:1px solid var(--line-2);font-size:13px;white-space:nowrap">${esc(dt)}${wd(dt)}</td>${tds}</tr>`;
+  }).join("");
+  document.getElementById("nippo-body").innerHTML=
+    `<div class="panel" style="padding:20px;margin-bottom:14px">`+
+      `<div style="display:flex;gap:16px;flex-wrap:wrap;align-items:flex-end">`+
+        `<div><span style="${lb}">日付</span><input type="date" style="${inSt};width:170px" value="${esc(nippoDate)}" onchange="nippoSetDate(this)"></div>`+
+        `<div><span style="${lb}">担当者</span><select style="${inSt};width:190px;font-weight:700" onchange="nippoSetWho(this)">`+
+          NIPPO_WHO.map(w=>`<option value="${w.k}"${w.k===nippoWho?" selected":""}>${w.n}（${w.job}）</option>`).join("")+`</select></div>`+
+        `<div><span style="${lb}">${esc(who.job)}件数</span><input id="np-n" style="${inSt};width:130px;font-size:16px;font-weight:700" inputmode="numeric" placeholder="0" value="${cur==null?"":esc(cur)}"></div>`+
+        `<button class="btn-primary" style="height:40px;padding:0 22px" onclick="nippoSave()">保存する</button>`+
+        (nippoFlash?`<span style="color:#12a866;font-weight:700;font-size:13px">✔ 保存しました</span>`
+          :(cur!=null?`<span style="font-size:12.5px;color:var(--muted)">この日はすでに <b>${esc(cur)}件</b> で記録済み（保存すると上書き）</span>`:""))+
+      `</div>`+
+    `</div>`+
+    `<div class="panel" style="padding:18px 20px">`+
+      `<div style="display:flex;gap:10px 22px;flex-wrap:wrap;align-items:center;margin-bottom:14px">`+
+        `<b style="font-size:14px">これまでの記録</b>`+
+        `<span style="font-size:12.5px;color:var(--muted)">今月の合計：`+
+          NIPPO_WHO.map(w=>`${w.n} <b style="color:var(--accent-d)">${tot[w.k].toLocaleString("ja-JP")}件</b>`).join("・")+`</span>`+
+      `</div>`+
+      (days.length? `<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;min-width:520px">`+
+        `<thead><tr>`+
+          `<th style="text-align:left;padding:8px 12px;font-size:11.5px;color:var(--muted);border-bottom:2px solid var(--line)">日付</th>`+
+          NIPPO_WHO.map(w=>`<th style="text-align:center;padding:8px;font-size:11.5px;color:var(--muted);border-bottom:2px solid var(--line)">${w.n}（${w.job}）</th>`).join("")+
+        `</tr></thead><tbody>${rows}</tbody></table></div>`+
+        `<div style="margin-top:10px;font-size:11.5px;color:var(--muted)">表の数字を押すと、その日・その担当者を上の入力欄に呼び出せます（記録を直したい時に）</div>`
+        : `<div style="color:var(--muted);font-size:13px">まだ記録がありません。上で日付と担当者を選んで、件数を入れて「保存する」を押してください。</div>`)+
+    `</div>`;
 }
 /* ===== ショートカット50 一覧 ===== */
 const SHORTCUTS=[
@@ -4745,6 +4816,14 @@ document.getElementById("nav-profit").addEventListener("click",()=>{
   document.querySelectorAll(".navsub a").forEach(x=>x.classList.remove("active"));
   document.getElementById("nav-profit").classList.add("active");
   document.getElementById("crumb").innerHTML=`HOME / <b>出品</b> / 利益計算`;
+  const sb=document.getElementById("search"); if(sb) sb.value="";
+  render();
+});
+document.getElementById("nav-nippo").addEventListener("click",()=>{
+  section="nippo";
+  document.querySelectorAll(".navsub a").forEach(x=>x.classList.remove("active"));
+  document.getElementById("nav-nippo").classList.add("active");
+  document.getElementById("crumb").innerHTML=`HOME / <b>日報</b> / 作業日報`;
   const sb=document.getElementById("search"); if(sb) sb.value="";
   render();
 });
