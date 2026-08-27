@@ -2566,10 +2566,16 @@ function renderHome(){
   }).join("");
   const fd=blogFixedDay();
   const fdl=fd?`${md(fd)}（${BLOG_WD[jd(fd).getDay()]}）`:"—";
+  const npd=nippoLoad();
+  const npDone=NIPPO_WHO.filter(w=>npd[today+"|"+w.k]!=null).length;
   el.innerHTML=
     `<div class="page-head">今日の状況 <small>${today} 現在。数字や日付をタップすると、その画面へ飛びます</small></div>`+
     `<div class="hm-sec">💼 売上ステータス <span class="hm-sec-s">台帳全体の件数。タップでその状態に絞り込み</span></div>`+
     `<div class="hm-grid">${cards}</div>`+
+    `<div class="hm-sec">📝 日報 <span class="hm-sec-s">担当者ごとの作業件数</span></div>`+
+    `<div class="hm-chips"><button class="hm-chip" onclick="homeGoNippo()">`+
+      `<span class="hm-chip-n">作業日報</span><b style="color:var(--accent-d)">今日 ${npDone}/${NIPPO_WHO.length}人 入力済み</b>`+
+      `<span class="hm-chip-s">タップでカレンダーへ ›</span></button></div>`+
     `<div class="hm-sec">📊 在庫管理 <span class="hm-sec-s">最後にチェックした日</span></div>`+
     `<div class="hm-chips">${stock}</div>`+
     `<div class="hm-sec">✍️ ブログ</div>`+
@@ -2581,6 +2587,7 @@ window.homeGo=(sec,p,st)=>{ if(sec==="sales") salesStatusFilter=String(st||"");
   const a=document.querySelector(`.navsub a[data-sec="${sec}"][data-p="${p}"]`); if(a) a.click(); };
 window.homeGoBlog=()=>{ blogTab="stats";
   const a=document.querySelector('.navsub a[data-sec="blog"][data-p="coupang"]'); if(a) a.click(); };
+window.homeGoNippo=()=>{ const a=document.getElementById("nav-nippo"); if(a) a.click(); };
 /* ===== 配送料金（HANIROLINE 重量別料金表） ===== */
 function renderShipfee(){
   const rows=[]; for(let i=0;i<24;i++){ const w=((i+1)*0.5).toFixed(2); const pr=950+i*100; rows.push([w+" KG","¥"+pr.toLocaleString("ja-JP")]); }
@@ -2729,11 +2736,11 @@ function renderProfit(){
 /* ===== 日報（担当者ごとの1日の作業件数。kr_nippo_v1 はクラウド同期＝どの端末でも同じ表が見える） ===== */
 const NIPPO_KEY="kr_nippo_v1";
 const NIPPO_WHO=[ {k:"fukumura",n:"福村",job:"出品"}, {k:"nakajima",n:"中島",job:"出品"}, {k:"miyago",n:"宮後",job:"配送手配"} ];
-let nippoDate="", nippoWho="fukumura", nippoFlash=false;
+let nippoWho="fukumura", nippoMonth="", nippoDate="", nippoFlash=false;
 function nippoLoad(){ try{ const d=JSON.parse(localStorage.getItem(NIPPO_KEY)); if(d&&typeof d==="object"&&!Array.isArray(d)) return d; }catch(e){} return {}; }
-window.nippoSetDate=el=>{ nippoDate=el.value||todayStr(); nippoFlash=false; renderNippo(); };
-window.nippoSetWho=el=>{ nippoWho=el.value; nippoFlash=false; renderNippo(); };
-window.nippoPick=(dt,who)=>{ nippoDate=dt; nippoWho=who; nippoFlash=false; renderNippo();
+window.nippoTab=k=>{ nippoWho=k; nippoDate=""; nippoFlash=false; renderNippo(); };
+window.nippoSetMonth=el=>{ nippoMonth=el.value; nippoDate=""; nippoFlash=false; renderNippo(); };
+window.nippoPickDay=dt=>{ nippoDate=dt; nippoFlash=false; renderNippo();
   const el=document.getElementById("np-n"); if(el){ el.focus(); try{ el.select(); }catch(e){} } };
 window.nippoSave=()=>{ const el=document.getElementById("np-n"); const v=el?String(el.value).trim():"";
   const n=Math.floor(num(v));
@@ -2741,48 +2748,60 @@ window.nippoSave=()=>{ const el=document.getElementById("np-n"); const v=el?Stri
   const d=nippoLoad(); d[nippoDate+"|"+nippoWho]=n; localStorage.setItem(NIPPO_KEY,JSON.stringify(d));
   nippoFlash=true; renderNippo(); };
 function renderNippo(){
-  if(!nippoDate) nippoDate=todayStr();
+  const today=todayStr();
+  if(!nippoMonth) nippoMonth=today.slice(0,7);
+  if(!nippoDate) nippoDate=(nippoMonth===today.slice(0,7))?today:(nippoMonth+"-01");
   const d=nippoLoad(), who=NIPPO_WHO.find(w=>w.k===nippoWho)||NIPPO_WHO[0];
   const cur=d[nippoDate+"|"+who.k];
   const inSt='height:40px;border:1px solid var(--line);border-radius:9px;padding:0 10px;font-size:14px;font-family:inherit;outline:none;background:#fff;color:var(--txt)';
-  const lb='font-size:11px;font-weight:700;color:var(--muted);display:block;margin-bottom:4px';
-  const ym=todayStr().slice(0,7);
-  const tot={}; NIPPO_WHO.forEach(w=>tot[w.k]=0);
-  Object.keys(d).forEach(k=>{ const i=k.lastIndexOf("|"); if(i<0) return; const dt=k.slice(0,i), wk=k.slice(i+1);
-    if(dt.slice(0,7)===ym && tot[wk]!=null) tot[wk]+=num(d[k]); });
-  const days=[...new Set(Object.keys(d).map(k=>k.slice(0,k.lastIndexOf("|"))).filter(x=>/^\d{4}-\d{2}-\d{2}$/.test(x)))].sort().reverse().slice(0,60);
-  const wd=dt=>{ try{ return "（"+"日月火水木金土"[new Date(dt+"T00:00:00").getDay()]+"）"; }catch(e){ return ""; } };
-  const rows=days.map(dt=>{
-    const tds=NIPPO_WHO.map(w=>{ const v=d[dt+"|"+w.k];
-      const on=(dt===nippoDate&&w.k===nippoWho);
-      return `<td style="text-align:center;padding:10px 8px;border-bottom:1px solid var(--line-2);cursor:pointer;font-weight:700;font-size:14px;${on?"background:#eef2ff;":""}${v==null?"color:#c3c9da;font-weight:400;":""}" onclick="nippoPick('${dt}','${w.k}')">${v==null?"−":esc(v)+" 件"}</td>`; }).join("");
-    return `<tr><td style="padding:10px 12px;border-bottom:1px solid var(--line-2);font-size:13px;white-space:nowrap">${esc(dt)}${wd(dt)}</td>${tds}</tr>`;
-  }).join("");
+  /* 月プルダウン：記録のある月＋直近12か月 */
+  const mset=new Set([nippoMonth, today.slice(0,7)]);
+  { const t=new Date(); for(let i=0;i<12;i++){ mset.add(t.getFullYear()+"-"+String(t.getMonth()+1).padStart(2,"0")); t.setMonth(t.getMonth()-1); } }
+  Object.keys(d).forEach(k=>{ const m=k.slice(0,7); if(/^\d{4}-\d{2}$/.test(m)) mset.add(m); });
+  const months=[...mset].sort().reverse();
+  const mlabel=m=>(+m.slice(0,4))+"年"+(+m.slice(5,7))+"月";
+  /* この月の合計（表示中の担当者） */
+  let mtot=0;
+  Object.keys(d).forEach(k=>{ const i=k.lastIndexOf("|"); if(i<0) return;
+    if(k.slice(i+1)===who.k && k.slice(0,7)===nippoMonth) mtot+=num(d[k]); });
+  /* カレンダー（日曜はじまり） */
+  const yy=+nippoMonth.slice(0,4), mm=+nippoMonth.slice(5,7);
+  const lead=new Date(yy,mm-1,1).getDay(), last=new Date(yy,mm,0).getDate();
+  const WDH=["日","月","火","水","木","金","土"];
+  const head=WDH.map((w,i)=>`<div style="text-align:center;font-size:11.5px;font-weight:800;color:${i===0?"#e5453c":(i===6?"#4f6bef":"var(--muted)")};padding:4px 0">${w}</div>`).join("");
+  let cells="";
+  for(let i=0;i<lead;i++) cells+=`<div></div>`;
+  for(let dd=1;dd<=last;dd++){
+    const dt=nippoMonth+"-"+String(dd).padStart(2,"0");
+    const v=d[dt+"|"+who.k];
+    const sel=(dt===nippoDate), isToday=(dt===today);
+    const wdi=(lead+dd-1)%7;
+    cells+=`<button onclick="nippoPickDay('${dt}')" style="height:auto;min-height:64px;border:1.5px solid ${sel?"var(--accent)":"var(--line)"};border-radius:10px;background:${sel?"#eef2ff":"#fff"};padding:6px 4px 8px;display:flex;flex-direction:column;align-items:center;gap:3px;cursor:pointer;font:inherit">`+
+      `<span style="font-size:11.5px;font-weight:${isToday?"800":"600"};color:${isToday?"var(--accent-d)":(wdi===0?"#e5453c":(wdi===6?"#4f6bef":"var(--muted)"))}">${dd}${isToday?" 今日":""}</span>`+
+      (v!=null?`<span style="font-size:17px;font-weight:800;color:var(--accent-d);line-height:1">${esc(v)}<small style="font-size:10px;font-weight:700;color:var(--muted)"> 件</small></span>`:`<span style="font-size:13px;color:#dfe3ef;line-height:1">−</span>`)+
+      `</button>`;
+  }
+  const wd="（"+"日月火水木金土"[new Date(nippoDate+"T00:00:00").getDay()]+"）";
   document.getElementById("nippo-body").innerHTML=
-    `<div class="panel" style="padding:20px;margin-bottom:14px">`+
-      `<div style="display:flex;gap:16px;flex-wrap:wrap;align-items:flex-end">`+
-        `<div><span style="${lb}">日付</span><input type="date" style="${inSt};width:170px" value="${esc(nippoDate)}" onchange="nippoSetDate(this)"></div>`+
-        `<div><span style="${lb}">担当者</span><select style="${inSt};width:190px;font-weight:700" onchange="nippoSetWho(this)">`+
-          NIPPO_WHO.map(w=>`<option value="${w.k}"${w.k===nippoWho?" selected":""}>${w.n}（${w.job}）</option>`).join("")+`</select></div>`+
-        `<div><span style="${lb}">${esc(who.job)}件数</span><input id="np-n" style="${inSt};width:130px;font-size:16px;font-weight:700" inputmode="numeric" placeholder="0" value="${cur==null?"":esc(cur)}"></div>`+
+    `<div class="panel" style="padding:18px 20px 22px">`+
+      `<div class="seg" style="margin-bottom:16px">`+
+        NIPPO_WHO.map(w=>`<button class="segbtn${w.k===nippoWho?" active":""}" onclick="nippoTab('${w.k}')">${w.n}（${w.job}）</button>`).join("")+
+      `</div>`+
+      `<div style="display:flex;gap:10px 20px;flex-wrap:wrap;align-items:center;margin-bottom:14px">`+
+        `<select style="${inSt};width:140px;font-weight:700" onchange="nippoSetMonth(this)">`+
+          months.map(m=>`<option value="${m}"${m===nippoMonth?" selected":""}>${mlabel(m)}</option>`).join("")+`</select>`+
+        `<span style="font-size:13px;color:var(--muted)">${esc(who.n)}さんの${esc(who.job)}：この月の合計 <b style="color:var(--accent-d);font-size:16px">${mtot.toLocaleString("ja-JP")}件</b></span>`+
+      `</div>`+
+      `<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:6px">${head}${cells}</div>`+
+      `<div style="display:flex;gap:12px 18px;flex-wrap:wrap;align-items:center;margin-top:18px;padding:14px 16px;border:1px solid #cfe3f7;border-radius:12px;background:#f5faff">`+
+        `<b style="font-size:14px">${esc(nippoDate)}${wd}</b>`+
+        `<span style="font-size:12.5px;color:var(--muted)">${esc(who.n)}さんの${esc(who.job)}件数</span>`+
+        `<input id="np-n" style="${inSt};width:120px;font-size:16px;font-weight:700" inputmode="numeric" placeholder="0" value="${cur==null?"":esc(cur)}">`+
         `<button class="btn-primary" style="height:40px;padding:0 22px" onclick="nippoSave()">保存する</button>`+
         (nippoFlash?`<span style="color:#12a866;font-weight:700;font-size:13px">✔ 保存しました</span>`
-          :(cur!=null?`<span style="font-size:12.5px;color:var(--muted)">この日はすでに <b>${esc(cur)}件</b> で記録済み（保存すると上書き）</span>`:""))+
+          :(cur!=null?`<span style="font-size:12.5px;color:var(--muted)">記録済み（保存すると上書き）</span>`:""))+
       `</div>`+
-    `</div>`+
-    `<div class="panel" style="padding:18px 20px">`+
-      `<div style="display:flex;gap:10px 22px;flex-wrap:wrap;align-items:center;margin-bottom:14px">`+
-        `<b style="font-size:14px">これまでの記録</b>`+
-        `<span style="font-size:12.5px;color:var(--muted)">今月の合計：`+
-          NIPPO_WHO.map(w=>`${w.n} <b style="color:var(--accent-d)">${tot[w.k].toLocaleString("ja-JP")}件</b>`).join("・")+`</span>`+
-      `</div>`+
-      (days.length? `<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;min-width:520px">`+
-        `<thead><tr>`+
-          `<th style="text-align:left;padding:8px 12px;font-size:11.5px;color:var(--muted);border-bottom:2px solid var(--line)">日付</th>`+
-          NIPPO_WHO.map(w=>`<th style="text-align:center;padding:8px;font-size:11.5px;color:var(--muted);border-bottom:2px solid var(--line)">${w.n}（${w.job}）</th>`).join("")+
-        `</tr></thead><tbody>${rows}</tbody></table></div>`+
-        `<div style="margin-top:10px;font-size:11.5px;color:var(--muted)">表の数字を押すと、その日・その担当者を上の入力欄に呼び出せます（記録を直したい時に）</div>`
-        : `<div style="color:var(--muted);font-size:13px">まだ記録がありません。上で日付と担当者を選んで、件数を入れて「保存する」を押してください。</div>`)+
+      `<div style="margin-top:10px;font-size:11.5px;color:var(--muted)">カレンダーの日を押すと下の入力欄に呼び出せます。件数を入れて「保存する」を押してください。</div>`+
     `</div>`;
 }
 /* ===== ショートカット50 一覧 ===== */
