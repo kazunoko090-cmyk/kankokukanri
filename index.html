@@ -920,11 +920,11 @@ window.CAT_ATTR_JA={"색상": "色", "수량": "数量", "패션의류/잡화 �
           <button class="segbtn" data-bt="done">投稿済み</button>
           <button class="segbtn" data-bt="stats">累計</button>
         </div>
-        <input type="text" id="blog-search" placeholder="🔍 ASIN・商品タイトルで検索" style="height:36px;border:1px solid var(--line);border-radius:7px;padding:0 10px;font-size:13px;min-width:230px">
+        <input type="text" id="blog-search" placeholder="🔍 ASIN・商品名・管理番号・記事URLで検索" style="height:36px;border:1px solid var(--line);border-radius:7px;padding:0 10px;font-size:13px;min-width:230px">
         <div class="grow"></div>
         <button class="btn-ghost" id="blog-export">CSV出力</button>
       </div>
-      <div class="retnote" id="blog-note" style="background:#fafbff;color:var(--muted)">販売した商品のASINを一覧にしています。投稿日を選んで「投稿する」を押すと「投稿済み」に移動します（クーパン／スマートストアは別々に管理）。</div>
+      <div class="retnote" id="blog-note" style="background:#fafbff;color:var(--muted)">販売した商品のASINを一覧にしています。投稿日を選んで「投稿する」を押すと「投稿済み」に移動します（クーパン／スマートストアは別々に管理）。<br>各商品の<b>管理番号（M1001〜）</b>を記事の最後に貼っておくと、問い合わせが来たときにこの検索窓の番号ひとつで商品を引けます。投稿済みの行に<b>記事URL</b>も貼っておけば、商品から記事へすぐ飛べます（URLでの検索も可）。</div>
       <div class="tablewrap" id="blog-tablewrap"><table id="blogtbl"><thead id="bloghead"></thead><tbody id="blogbody"></tbody></table></div>
       <div id="blog-stats" style="display:none"></div>
       <div class="count" id="blogcount"></div>
@@ -2632,6 +2632,8 @@ let blogMonth="";    // 累計タブで見ている月（YYYY-MM）
 function loadBlog(p){ try{ const d=JSON.parse(localStorage.getItem("kr_blog_"+p)); if(d&&typeof d==="object") return d; }catch(e){} return {}; }
 function saveBlog(p,d){ localStorage.setItem("kr_blog_"+p, JSON.stringify(d)); }
 window.blogSetDate=(asin,val)=>{ const b=loadBlog(current); if(!b[asin]) b[asin]={posted:false,date:""}; b[asin].date=val; saveBlog(current,b); };
+window.blogSetUrl=(asin,val)=>{ const b=loadBlog(current); if(!b[asin]) b[asin]={posted:false,date:""}; b[asin].url=String(val||"").trim(); saveBlog(current,b); renderBlog(); };
+window.blogCopyNo=(t,btn)=>{ copyText(t); flashBtn(btn); };
 window.blogPost=(asin)=>{ const b=loadBlog(current); if(!b[asin]) b[asin]={date:""}; if(!b[asin].date) b[asin].date=todayStr(); b[asin].posted=true;
   const t=new Date(), z=n=>String(n).padStart(2,"0");
   b[asin].at=todayStr()+" "+z(t.getHours())+":"+z(t.getMinutes());   /* 最終投稿の時刻表示用。これ以前の投稿には入っていない */
@@ -2654,8 +2656,23 @@ function renderBlog(){
   if(st){ renderBlogStats(); return; }
   document.getElementById("blog-head").innerHTML=`ブログ：${PNAME[p]||p} <small>販売済み商品のASINを投稿管理</small>`;
   let arr=blogData(p);
+  /* 管理番号：一覧に出た商品へ通し番号（M1001〜）を振る。両モール横断で重複せず、一度振ったら変えない。
+     外注さんはこの番号を記事の最後に貼る＝ネイバーブログの検索でも、この検索窓でも、番号ひとつで商品と記事がつながる */
+  (function(){ let mx=1000, chg=false;
+    ["coupang","smart"].forEach(pl=>{ const d=(pl===p)?blog:loadBlog(pl);
+      Object.keys(d).forEach(k=>{ const n2=num(d[k]&&d[k].no); if(n2>mx) mx=n2; }); });
+    arr.forEach(x=>{ const k=x.asin; if(!blog[k]) blog[k]={posted:false,date:""};
+      if(!(num(blog[k].no)>0)){ blog[k].no=++mx; chg=true; } });
+    if(chg) saveBlog(p,blog); })();
+  const noCell=x=>{ const n2=num((blog[x.asin]||{}).no);
+    return n2>0?`<td><button class="rowbtn btn-sm mono" title="コピーして記事の最後に貼る" onclick="blogCopyNo('M${n2}',this)">M${n2} 📋</button></td>`:`<td></td>`; };
+  const urlCell=x=>{ const u=String((blog[x.asin]||{}).url||""), a2=esc(x.asin);
+    return `<td style="white-space:nowrap"><input class="rvdate" style="width:150px" placeholder="記事URLを貼る" value="${esc(u)}" onchange="blogSetUrl('${a2}',this.value)">`+(/^https?:\/\//i.test(u)?` <a class="srclink" href="${esc(u)}" target="_blank">開く</a>`:``)+`</td>`; };
   const q=(document.getElementById("blog-search").value||"").trim().toLowerCase();
-  if(q) arr=arr.filter(x=>x.asin.toLowerCase().includes(q)||String(x.title).toLowerCase().includes(q));
+  const qlog=(q.match(/([0-9]{9,})/)||[])[1]||"";                    /* 記事URLの글번호（9桁以上の数字）でも探せる */
+  if(q) arr=arr.filter(x=>{ const bb=blog[x.asin]||{}, code="m"+num(bb.no), u=String(bb.url||"").toLowerCase();
+    return x.asin.toLowerCase().includes(q)||String(x.title).toLowerCase().includes(q)
+      ||code.includes(q)||(qlog&&u.indexOf(qlog)>=0)||(u&&q.length>8&&u.indexOf(q)>=0); });
   const isDone=a=>!!(blog[a]&&blog[a].posted);
   const doneCount=arr.filter(x=>isDone(x.asin)).length, todoCount=arr.length-doneCount;
   let list=arr.filter(x=> blogTab==="done"?isDone(x.asin):!isDone(x.asin));
@@ -2665,18 +2682,18 @@ function renderBlog(){
   const amz=a=>`<a class="srclink" href="${esc(resolveUrl(a))}" target="_blank" title="${esc(resolveUrl(a))}">${esc(urlLabel(a))}</a>`;
   const titleCell=t=>`<td><span class="clip" title="${esc(t)}" onclick="toggleClip(this)">${esc(t)}</span></td>`;
   if(blogTab==="done"){
-    document.getElementById("bloghead").innerHTML="<tr><th>ASIN</th><th>商品タイトル</th><th>投稿日</th><th>操作</th></tr>";
+    document.getElementById("bloghead").innerHTML="<tr><th>ASIN</th><th>商品タイトル</th><th>管理番号</th><th>投稿日</th><th>記事URL</th><th>操作</th></tr>";
     document.getElementById("blogbody").innerHTML = list.length? list.map(x=>{ const a=esc(x.asin), d=(blog[x.asin]||{}).date||"";
-      return `<tr><td>${amz(x.asin)}</td>${titleCell(x.title)}<td class="mono">${esc(d)}</td>`+
+      return `<tr><td>${amz(x.asin)}</td>${titleCell(x.title)}${noCell(x)}<td class="mono">${esc(d)}</td>${urlCell(x)}`+
         `<td><button class="rowbtn btn-sm" onclick="blogUnpost('${a}')">未投稿に戻す</button></td></tr>`; }).join("")
-      : `<tr><td class="empty" colspan="4"><b>投稿済みはまだありません</b>「未投稿」で投稿日を選び「投稿する」を押すと、ここへ移動します。</td></tr>`;
+      : `<tr><td class="empty" colspan="6"><b>投稿済みはまだありません</b>「未投稿」で投稿日を選び「投稿する」を押すと、ここへ移動します。</td></tr>`;
   } else {
-    document.getElementById("bloghead").innerHTML="<tr><th>ASIN</th><th>商品タイトル</th><th>投稿日</th><th>操作</th></tr>";
+    document.getElementById("bloghead").innerHTML="<tr><th>ASIN</th><th>商品タイトル</th><th>管理番号</th><th>投稿日</th><th>操作</th></tr>";
     document.getElementById("blogbody").innerHTML = list.length? list.map(x=>{ const a=esc(x.asin), d=(blog[x.asin]||{}).date||"";
-      return `<tr><td>${amz(x.asin)}</td>${titleCell(x.title)}`+
+      return `<tr><td>${amz(x.asin)}</td>${titleCell(x.title)}${noCell(x)}`+
         `<td><input class="rvdate" type="date" value="${esc(d)}" onchange="blogSetDate('${a}',this.value)"></td>`+
         `<td><button class="btn-primary btn-sm" onclick="blogPost('${a}')">投稿する</button></td></tr>`; }).join("")
-      : `<tr><td class="empty" colspan="4"><b>未投稿のASINがありません</b>売上管理に販売データが入ると、ここへASINが並びます。</td></tr>`;
+      : `<tr><td class="empty" colspan="5"><b>未投稿のASINがありません</b>売上管理に販売データが入ると、ここへASINが並びます。</td></tr>`;
   }
   document.getElementById("blogcount").textContent=`${PNAME[p]} ・ 未投稿 ${todoCount}件 ／ 投稿済み ${doneCount}件`;
 }
