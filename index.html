@@ -587,6 +587,30 @@ window.CAT_ATTR_JA={"색상": "色", "수량": "数量", "패션의류/잡화 �
     #view-faq .faq-note{ font-size:12px; padding:9px 11px; }
     #view-faq .faq-cp{ width:100%; height:34px; }
   }
+  /* ===== ホーム：状況ダッシュボード ===== */
+  #home-body{ max-width:980px; margin:0 auto; }
+  .hm-sec{ font-size:13.5px; font-weight:800; color:#1e2a4a; margin:24px 2px 10px; display:flex; align-items:baseline; gap:8px; }
+  .hm-sec-s{ font-weight:600; color:var(--muted); font-size:11.5px; }
+  .hm-chips{ display:flex; gap:12px; flex-wrap:wrap; }
+  .hm-chip{ display:flex; align-items:center; gap:12px; background:#fff; border:1px solid var(--line); border-radius:13px; padding:13px 18px; cursor:pointer; font:inherit; text-align:left; box-shadow:var(--sh-sm); transition:border-color .15s, box-shadow .15s, transform .15s; }
+  .hm-chip:hover{ border-color:var(--accent); box-shadow:0 8px 22px rgba(79,107,239,.15); transform:translateY(-1px); }
+  .hm-chip-n{ font-size:12.5px; font-weight:700; color:#3b4560; }
+  .hm-chip b{ font-size:17px; letter-spacing:.01em; }
+  .hm-chip-s{ font-size:11px; color:var(--muted); }
+  .hm-grid{ display:grid; grid-template-columns:repeat(3,1fr); gap:14px; }
+  @media (max-width:900px){ .hm-grid{ grid-template-columns:1fr; } }
+  .hm-card{ background:#fff; border:1px solid var(--line); border-radius:15px; box-shadow:var(--sh-sm); overflow:hidden; }
+  .hm-card-h{ width:100%; display:flex; align-items:center; gap:9px; padding:13px 16px; background:linear-gradient(135deg,#f6f8ff,#eef2fd); border:0; border-bottom:1px solid var(--line-2); cursor:pointer; font:inherit; }
+  .hm-card-h b{ font-size:14.5px; color:#1e2a4a; }
+  .hm-card-go{ margin-left:auto; font-size:11px; color:var(--accent-d); font-weight:800; white-space:nowrap; }
+  .hm-card-h:hover .hm-card-go{ text-decoration:underline; }
+  .hm-tiles{ display:grid; grid-template-columns:1fr 1fr; }
+  .hm-tile{ display:flex; flex-direction:column; align-items:center; gap:3px; padding:15px 6px 12px; background:#fff; border:0; border-top:1px solid var(--line-2); cursor:pointer; font:inherit; transition:background .15s; }
+  .hm-tiles .hm-tile:nth-child(-n+2){ border-top:0; }
+  .hm-tile:nth-child(odd){ border-right:1px solid var(--line-2); }
+  .hm-tile:hover{ background:#f6f9ff; }
+  .hm-tile-v{ font-size:25px; font-weight:800; line-height:1.05; }
+  .hm-tile-l{ font-size:12px; color:#43506b; font-weight:700; display:flex; align-items:center; gap:5px; }
 </style>
 </head>
 <body>
@@ -718,11 +742,7 @@ window.CAT_ATTR_JA={"색상": "色", "수량": "数量", "패션의류/잡화 �
 
   <!-- ===== ホーム（起動時に表示・パスワード不要） ===== -->
   <div id="view-home" style="display:none">
-    <div style="max-width:560px;margin:7vh auto 0;text-align:center">
-      <div style="font-size:42px">🚢</div>
-      <div style="font-weight:800;font-size:21px;color:#1e2a4a;margin:10px 0 8px">韓国輸出管理表</div>
-      <div style="color:#8a93a6;font-size:13px;line-height:1.95">左のメニューから項目を選んでください。<br>顧客管理・売上管理・リサーチ・出品・管理表マニュアルは、<br>各モール（クーパン／スマートストア／11番街）ごとにパスワードが必要です。</div>
-    </div>
+    <div id="home-body"></div>
   </div>
 
   <div id="view-cust">
@@ -1666,7 +1686,7 @@ function render(){
   document.getElementById("view-cs").style.display=cs?"":"none";
   document.getElementById("view-stock").style.display=stock?"":"none";
   document.getElementById("view-profit").style.display=profit?"":"none";
-  if(home){ /* ホームは何も描画しない */ } else if(faq) renderFaq(); else if(cs) renderCs(); else if(shipfee) renderShipfee(); else if(profit) renderProfit(); else if(tblman) renderTblMan(); else if(manual) renderManual(); else if(blog) renderBlog(); else if(shortcut) renderShortcut(); else if(banlist) renderBanlist(); else if(banned) renderBanned(); else if(stock) renderStock(); else if(list) renderList(); else if(research) renderResearch(); else if(sales) renderSales(); else renderCust();
+  if(home){ renderHome(); } else if(faq) renderFaq(); else if(cs) renderCs(); else if(shipfee) renderShipfee(); else if(profit) renderProfit(); else if(tblman) renderTblMan(); else if(manual) renderManual(); else if(blog) renderBlog(); else if(shortcut) renderShortcut(); else if(banlist) renderBanlist(); else if(banned) renderBanned(); else if(stock) renderStock(); else if(list) renderList(); else if(research) renderResearch(); else if(sales) renderSales(); else renderCust();
 }
 /* ===== 管理表マニュアル（ブログマニュアルと同じフォーマット・モール別） ===== */
 const TBLMAN_SEED=[{title:"",url:""},{title:"",url:""},{title:"",url:""},{title:"",url:""}];
@@ -2488,6 +2508,68 @@ function renderFaq(){
   const el=document.getElementById("faq-q"); if(el){ el.value=faqQ; }
   faqRenderList();
 }
+/* ===== ホーム：今日の状況ダッシュボード =====
+   外注さんがトップを開いた瞬間に「今どういう状態か」が分かる画面。数字・日付はタップでその画面へ飛ぶ。
+   ・売上ステータス（入金済み→仕入れ済み→返品→トラブルの順）＝台帳全体の件数。タップで売上管理をその状態で絞り込み
+   ・在庫管理＝スマスト/11番街の最終チェック日（この端末での取込・リセット日）
+   ・ブログ＝投稿確定日（1日3件そろっている一番新しい日）。タップで累計へ */
+function blogFixedDay(){
+  try{
+    const got=blogAllPosted(), bs=blogBase(), cut=bs?bs.to:"";
+    const live=cut?got.list.filter(x=>x.date>cut):got.list;
+    const asg=blogAssign(live, cut?blogNextDay(cut):"");
+    const byDay={};
+    if(bs) blogEachDay(bs.from,bs.to,d=>{ byDay[d]=BLOG_PER_DAY; });
+    asg.forEach(x=>{ byDay[x.day]=(byDay[x.day]||0)+1; });
+    const full=Object.keys(byDay).filter(d=>byDay[d]>=BLOG_PER_DAY).sort();
+    return full.length?full[full.length-1]:"";
+  }catch(e){ return ""; }
+}
+const HOME_ST=["入金済み","仕入れ済み","返品","トラブル"];
+function renderHome(){
+  const el=document.getElementById("home-body"); if(!el) return;
+  const today=todayStr();
+  const jd=v=>{ const d=new Date(v+"T00:00:00"); return isNaN(d)?null:d; };
+  const daysAgo=v=>{ const d=jd(v); return d?Math.round((jd(today)-d)/86400000):null; };
+  const md=v=>(+v.slice(5,7))+"/"+(+v.slice(8,10));
+  const stock=[["smart","スマートストア"],["st11","11番街"]].map(pair=>{
+    const p=pair[0], n=pair[1], lc=String(loadStock(p).lc||"");
+    const ago=daysAgo(lc);
+    const none=(ago==null), ok=(ago===0), warn=(ago!=null&&ago>=3);
+    const col=none?"#e5453c":(ok?"#12a866":(warn?"#e29a1f":"#3b4560"));
+    const big=none?"未チェック":(ok?"今日":md(lc));
+    const sub=none?"取込かリセットで記録されます":(ok?"チェック済み":(ago===1?"昨日":ago+"日前"));
+    return `<button class="hm-chip" onclick="homeGo('stock','${p}')">`+
+      `<span class="hm-chip-n">${n}</span><b style="color:${col}">${big}</b>`+
+      `<span class="hm-chip-s">${sub} ›</span></button>`;
+  }).join("");
+  const cards=[["coupang","クーパン","🟠"],["smart","スマートストア","🟢"],["st11","11番街","🔴"]].map(trio=>{
+    const p=trio[0], n=trio[1], ico=trio[2];
+    const c={}; (loadSales(platforms[p].salesKey)||[]).forEach(x=>{ const st=String(x.status||"").trim(); c[st]=(c[st]||0)+1; });
+    const tiles=HOME_ST.map(st=>`<button class="hm-tile" onclick="homeGo('sales','${p}','${st}')">`+
+      `<span class="hm-tile-v" style="color:${STATUS_COLOR[st]}">${c[st]||0}</span>`+
+      `<span class="hm-tile-l"><span style="width:7px;height:7px;border-radius:50%;background:${STATUS_COLOR[st]};display:inline-block"></span>${st}</span></button>`).join("");
+    return `<div class="hm-card">`+
+      `<button class="hm-card-h" onclick="homeGo('sales','${p}','')">${ico} <b>${n}</b><span class="hm-card-go">売上管理 ›</span></button>`+
+      `<div class="hm-tiles">${tiles}</div></div>`;
+  }).join("");
+  const fd=blogFixedDay();
+  const fdl=fd?`${md(fd)}（${BLOG_WD[jd(fd).getDay()]}）`:"—";
+  el.innerHTML=
+    `<div class="page-head">きょうの状況 <small>${today} 現在。数字や日付をタップすると、その画面へ飛びます</small></div>`+
+    `<div class="hm-sec">💼 売上ステータス <span class="hm-sec-s">台帳ぜんたいの件数。タップでその状態に絞り込み</span></div>`+
+    `<div class="hm-grid">${cards}</div>`+
+    `<div class="hm-sec">📊 在庫管理 <span class="hm-sec-s">最後にチェックした日</span></div>`+
+    `<div class="hm-chips">${stock}</div>`+
+    `<div class="hm-sec">✍️ ブログ</div>`+
+    `<div class="hm-chips"><button class="hm-chip" onclick="homeGoBlog()">`+
+      `<span class="hm-chip-n">投稿確定日</span><b style="color:var(--accent-d)">${fdl}</b>`+
+      `<span class="hm-chip-s">ここまで1日3件そろっています ›</span></button></div>`;
+}
+window.homeGo=(sec,p,st)=>{ if(sec==="sales") salesStatusFilter=String(st||"");
+  const a=document.querySelector(`.navsub a[data-sec="${sec}"][data-p="${p}"]`); if(a) a.click(); };
+window.homeGoBlog=()=>{ blogTab="stats";
+  const a=document.querySelector('.navsub a[data-sec="blog"][data-p="coupang"]'); if(a) a.click(); };
 /* ===== 配送料金（HANIROLINE 重量別料金表） ===== */
 function renderShipfee(){
   const rows=[]; for(let i=0;i<24;i++){ const w=((i+1)*0.5).toFixed(2); const pr=950+i*100; rows.push([w+" KG","¥"+pr.toLocaleString("ja-JP")]); }
