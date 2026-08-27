@@ -1910,7 +1910,10 @@ window.stockReset=()=>{ const p=current, d=loadStock(p); if(!d.rows.length){ ale
   if(!confirm(`在庫管理（${PNAME[p]}）のリストをリセットします。よろしいですか？\n\n【消すもの】この一覧 ${d.rows.length}件（${PNAME[p]}のみ。もう一方のモールには触りません）\n【影響】この端末の表示だけです。ツール側のデータは消えません。最終チェック日が今日になります。\n【元に戻す】次の取込で、まだ残っている商品はまた入ってきます。\n【消さない】キャンセルを押してください。`)) return;
   const t=new Date(), z=n=>String(n).padStart(2,"0");
   const today=t.getFullYear()+"-"+z(t.getMonth()+1)+"-"+z(t.getDate());
-  localStorage.setItem(stockKey(p),JSON.stringify({t:"",rows:[],lc:today,fn:d.fn||""})); stockSel=new Set(); render(); };
+  localStorage.setItem(stockKey(p),JSON.stringify({t:"",rows:[],lc:today,fn:d.fn||""})); stockSel=new Set();
+  /* スマートストアの在庫チェック完了は、中島さんの日報カレンダーにも「在庫管理」と記録する（クラウド同期に乗る） */
+  if(p==="smart"){ try{ const nd=nippoLoad(); if(!nd[today+"|nakajima|stock"]){ nd[today+"|nakajima|stock"]=1; localStorage.setItem(NIPPO_KEY,JSON.stringify(nd)); } }catch(e){} }
+  render(); };
 /* 何日分かをまとめて選べる。ファイル名の日時で古い順に並べ、1つずつ順に取り込む＝新しいファイルの内容が最後に残る */
 window.stockImportFile=(el)=>{
   const files=Array.prototype.slice.call(el.files||[]); if(!files.length) return;
@@ -2572,10 +2575,12 @@ function renderHome(){
     `<div class="page-head">今日の状況 <small>${today} 現在。数字や日付をタップすると、その画面へ飛びます</small></div>`+
     `<div class="hm-sec">💼 売上ステータス <span class="hm-sec-s">台帳全体の件数。タップでその状態に絞り込み</span></div>`+
     `<div class="hm-grid">${cards}</div>`+
-    `<div class="hm-sec">📊 在庫管理 <span class="hm-sec-s">最後にチェックした日</span></div>`+
-    `<div class="hm-chips">`+
+    `<div style="display:flex;gap:16px;align-items:flex-end;flex-wrap:wrap;margin-top:36px">`+
       `<button class="hm-chip" onclick="homeGoNippo()"><span class="hm-chip-n">📝 日報</span><span class="hm-chip-s">›</span></button>`+
-      stock+
+      `<div>`+
+        `<div class="hm-sec" style="margin:0 2px 14px">📊 在庫管理 <span class="hm-sec-s">最後にチェックした日</span></div>`+
+        `<div class="hm-chips">${stock}</div>`+
+      `</div>`+
     `</div>`+
     `<div class="hm-sec">✍️ ブログ</div>`+
     `<div class="hm-chips"><button class="hm-chip" onclick="homeGoBlog()">`+
@@ -2783,12 +2788,13 @@ function renderNippo(){
   for(let i=0;i<lead;i++) cells+=`<div></div>`;
   for(let dd=1;dd<=last;dd++){
     const dt=nippoMonth+"-"+String(dd).padStart(2,"0");
-    const v=d[dt+"|"+who.k];
+    const v=d[dt+"|"+who.k], stk=d[dt+"|"+who.k+"|stock"];
     const sel=(dt===nippoDate), isToday=(dt===today);
     const wdi=(lead+dd-1)%7;
     cells+=`<button onclick="nippoPickDay('${dt}')" style="height:auto;min-height:64px;border:1.5px solid ${sel?"var(--accent)":"var(--line)"};border-radius:10px;background:${sel?"#eef2ff":"#fff"};padding:6px 4px 8px;display:flex;flex-direction:column;align-items:center;gap:3px;cursor:pointer;font:inherit">`+
       `<span style="font-size:11.5px;font-weight:${isToday?"800":"600"};color:${isToday?"var(--accent-d)":(wdi===0?"#e5453c":(wdi===6?"#4f6bef":"var(--muted)"))}">${dd}${isToday?" 今日":""}</span>`+
-      (v!=null?`<span style="font-size:17px;font-weight:800;color:var(--accent-d);line-height:1">${esc(v)}<small style="font-size:10px;font-weight:700;color:var(--muted)"> 件</small></span>`:`<span style="font-size:13px;color:#dfe3ef;line-height:1">−</span>`)+
+      (v!=null?`<span style="font-size:17px;font-weight:800;color:var(--accent-d);line-height:1">${esc(v)}<small style="font-size:10px;font-weight:700;color:var(--muted)"> 件</small></span>`:(stk?"":`<span style="font-size:13px;color:#dfe3ef;line-height:1">−</span>`))+
+      (stk?`<span style="font-size:9.5px;font-weight:800;color:#0e8a55;background:#e6f6ee;border-radius:5px;padding:1px 5px;line-height:1.5;white-space:nowrap">在庫管理</span>`:"")+
       `</button>`;
   }
   const wd="（"+"日月火水木金土"[new Date(nippoDate+"T00:00:00").getDay()]+"）";
