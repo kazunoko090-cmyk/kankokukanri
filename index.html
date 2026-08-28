@@ -2632,18 +2632,20 @@ function pcCalc(){
   const put=(id,html)=>{ const el=document.getElementById(id); if(el) el.innerHTML=html; };
   const yen=n=>"¥"+Math.round(n).toLocaleString("ja-JP");
   put("pc-ship",`<b>${yen(ship)}</b> <span style="color:var(--muted);font-weight:400">（HANIROLINE ${yen(haniroFee(pcW))} ＋ 発送手数料 ${yen(num(c.shipAdd))}）</span>`);
-  const cp=document.getElementById("pc-copy");
+  const cp=document.getElementById("pc-copy"), cpn0=document.getElementById("pc-copy-n");
+  const hideCp=()=>{ if(cp) cp.style.display="none"; if(cpn0) cpn0.style.display="none"; };
   if(!(cost>0)){
     put("pc-won",'<span style="color:var(--muted);font-size:18px;font-weight:600">仕入れ値を入れると、ここに出ます</span>');
-    put("pc-detail",""); if(cp) cp.style.display="none";
+    put("pc-detail",""); hideCp();
   }else{
     const denom=rate*(1-x.f-m);
-    if(denom<=0){ put("pc-won",'<span style="color:#c0392b;font-size:16px">計算不可（手数料率＋利益率が100%以上）</span>'); put("pc-detail",""); if(cp) cp.style.display="none"; }
+    if(denom<=0){ put("pc-won",'<span style="color:#c0392b;font-size:16px">計算不可（手数料率＋利益率が100%以上）</span>'); put("pc-detail",""); hideCp(); }
     else{
       const w=Math.ceil(((cost+ship)/denom)/10)*10;                    /* 10ウォン単位に切り上げ */
       const sell=w*rate, fee=w*x.f*rate, prof=sell-fee-cost-ship;
       put("pc-won",won(w));
-      if(cp){ cp.style.display=""; cp.dataset.copy=String(w); }        /* コピーは数字だけ＝そのまま価格欄に貼れる */
+      if(cp){ cp.style.display=""; cp.dataset.copy=won(w); }           /* ₩付き＝画面に出ている表記のままコピー */
+      if(cpn0){ cpn0.style.display=""; cpn0.dataset.copy=String(w); }  /* 数字だけ＝そのまま価格欄に貼れる */
       put("pc-detail",
         `<span>売上（円換算）<b>${yen(sell)}</b></span>`+
         `<span>手数料 ${esc(x.fl)}% <b>${yen(fee)}</b></span>`+
@@ -2734,7 +2736,8 @@ function renderProfit(){
         `<div style="font-size:11px;font-weight:800;color:var(--muted);letter-spacing:.06em">必要売値（${x.n}／手数料 ${esc(x.fl)}%と利益 ${esc(c.margin)}%を含む・10ウォン単位）</div>`+
         `<div style="display:flex;gap:14px;align-items:center;flex-wrap:wrap;margin-top:4px">`+
           `<span id="pc-won" style="font-size:32px;font-weight:800;color:var(--accent-d);letter-spacing:.01em"></span>`+
-          `<button id="pc-copy" class="btn-primary btn-sm" style="display:none" onclick="pcCopyWon(this)">📋 コピー</button>`+
+          `<button id="pc-copy" class="btn-primary btn-sm" style="display:none" onclick="pcCopyWon(this)" title="₩マーク付きでコピーします">📋 ₩付きでコピー</button>`+
+          `<button id="pc-copy-n" class="btn-ghost btn-sm" style="display:none" onclick="pcCopyWon(this)" title="数字だけコピーします（価格欄にそのまま貼れます）">📋 数字だけ</button>`+
         `</div>`+
         `<div id="pc-detail" style="display:flex;gap:8px 20px;flex-wrap:wrap;font-size:12.5px;margin-top:10px"></div>`+
       `</div>`+
