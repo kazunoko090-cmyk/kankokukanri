@@ -322,6 +322,12 @@ window.CAT_ATTR_JA={"색상": "色", "수량": "数量", "패션의류/잡화 �
   .man-no{ width:24px; height:24px; border-radius:7px; background:linear-gradient(135deg,var(--accent),var(--accent-2)); color:#fff; display:inline-flex; align-items:center; justify-content:center; font-size:12px; font-weight:800; flex:0 0 auto; }
   .man-video{ position:relative; padding-bottom:56.25%; height:0; border-radius:10px; overflow:hidden; background:#000; }
   .man-video iframe{ position:absolute; top:0; left:0; width:100%; height:100%; border:0; }
+  /* 動画はクリックするまで読み込まない（開いた瞬間に全プレーヤーを読むと重いため） */
+  .man-lazy{ cursor:pointer; background:linear-gradient(135deg,#141b30,#232c4a); }
+  .man-lazy-in{ position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:10px; }
+  .man-lazy-btn{ width:58px; height:58px; border-radius:50%; background:rgba(255,255,255,.92); display:flex; align-items:center; justify-content:center; font-size:22px; color:#232c4a; padding-left:5px; box-shadow:0 6px 18px rgba(0,0,0,.35); transition:transform .15s; }
+  .man-lazy:hover .man-lazy-btn{ transform:scale(1.08); }
+  .man-lazy-t{ color:#c9d2ea; font-size:12px; font-weight:700; }
   .man-empty{ border:2px dashed var(--line); border-radius:10px; padding:24px 12px; text-align:center; color:var(--muted); font-size:12.5px; background:#fafbff; }
   /* 並べ替え：⠿を押したまま動かすと入れ替わる。画面の上下端まで持っていくと自動でスクロールする */
   .man-grip{ flex:none; cursor:grab; user-select:none; touch-action:none; color:var(--muted); font-size:17px; line-height:1; padding:2px 4px; border-radius:6px; }
@@ -3248,7 +3254,7 @@ const UNDO_ORDER="元に戻せません。必要なときは管理者にバッ�
 window.manDel=(key,id)=>{ if(!askDel("マニュアル項目", delLabel(loadMan(key).find(x=>x.id===id),["title","url"]), UNDO_NG)) return; saveMan(key, loadMan(key).filter(x=>x.id!==id)); addTomb(key,id); render(); };
 window.manAdd=(key)=>{ const l=loadMan(key); l.push({id:uid(),title:"",url:""}); saveMan(key,l); render(); };
 function manCardHTML(it,i,key,sortable){ const emb=loomEmbed(it.url);
-  const video= emb ? `<div class="man-video"><iframe src="${esc(emb)}" allowfullscreen></iframe></div>`
+  const video= emb ? `<div class="man-video man-lazy" data-emb="${esc(emb)}" onclick="manPlay(this)" title="クリックすると、この場で動画を読み込んで再生できます"><div class="man-lazy-in"><div class="man-lazy-btn">▶</div><div class="man-lazy-t">クリックで再生</div></div></div>`
     : `<div class="man-empty">動画は後日追加予定<br>下の欄にURLを貼ると、ここに表示されます</div>`;
   return `<div class="man-card" data-id="${esc(it.id)}"><div class="man-h">`+
     (sortable?`<span class="man-grip" title="ここを押したまま動かすと、順番を入れ替えられます" onpointerdown="manSortStart(event,'${key}')">⠿</span>`:"")+
@@ -3258,6 +3264,13 @@ function manCardHTML(it,i,key,sortable){ const emb=loomEmbed(it.url);
     video+
     `<div class="man-url"><input type="text" placeholder="Loom等のURLを貼り付け" value="${esc(it.url)}" onchange="manEdit('${key}','${it.id}','url',this.value)">${it.url?`<a class="ctool-ext" href="${esc(it.url)}" target="_blank">開く↗</a>`:""}</div></div>`;
 }
+window.manPlay=(el)=>{
+  const emb=String((el&&el.dataset&&el.dataset.emb)||"");
+  if(!/^https:\/\/www\.loom\.com\/embed\/[a-z0-9]+$/i.test(emb)) return;   /* loomEmbed()由来の形だけ通す */
+  const wrap=document.createElement("div"); wrap.className="man-video";
+  const f=document.createElement("iframe"); f.src=emb; f.setAttribute("allowfullscreen",""); f.allowFullscreen=true;
+  wrap.appendChild(f); el.replaceWith(wrap);
+};
 function renderManInto(containerId,key,seed,sortable){ const l=loadMan(key,seed);
   document.getElementById(containerId).innerHTML=
     (sortable?`<div class="man-hint">並べ替え：カード左の <b>⠿</b> を押したまま動かすと、順番を入れ替えられます。画面の上端・下端まで持っていくと自動でスクロールします。順番はそのまま保存され、全員の画面に反映されます。</div>`:"")+
