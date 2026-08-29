@@ -2061,7 +2061,7 @@ window.tanaCalc=()=>{
   const A=tanaParse(ea.value), B=tanaParse(eb.value), sa=new Set(A), sb=new Set(B);
   tanaOnlyA=A.filter(x=>!sb.has(x)); tanaOnlyB=B.filter(x=>!sa.has(x));
   const both=A.filter(x=>sb.has(x)).length;
-  const nm=(current==="st11")?"11番街":"スマートストア";
+  const nm=PNAME[current]||"モール";
   if(!A.length&&!B.length){ out.innerHTML=`<div class="empty"><b>まだ貼られていません</b>上の2つにASINを貼ると、ここにズレが出ます。</div>`; return; }
   const box=(ttl,arr,who,color)=>
     `<div style="flex:1 1 320px;min-width:280px;border:1px solid ${arr.length?color:"var(--line)"};border-radius:12px;background:${arr.length?"#fff":"#fafbff"};padding:14px 16px">`+
@@ -2092,7 +2092,7 @@ window.tanaClear=()=>{
   if((ea.value.trim()||eb.value.trim()) && !confirm("棚卸しに貼った内容を両方とも消します。よろしいですか？\n\n【消すもの】この画面に貼ったASINだけ（在庫管理の一覧や他の画面には触りません）\n【戻せるか】戻せません。もう一度貼り直してください\n【消さない】キャンセルを押してください")) return;
   ea.value=""; eb.value=""; tanaSave(current,"",""); tanaCalc(); };
 function tanaPanel(p){
-  const t=tanaLoad(p), nm=(p==="st11")?"11番街":"スマートストア";
+  const t=tanaLoad(p), nm=PNAME[p]||"モール";
   const ta="width:100%;height:220px;box-sizing:border-box;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12.5px;line-height:1.6;border:1px solid var(--line);border-radius:8px;padding:8px;resize:vertical";
   return `<div class="panel" style="padding:18px 20px">`+
     `<div style="font-size:14px;font-weight:800">棚卸し（フロンティア ⇄ ${nm}）</div>`+
@@ -2111,6 +2111,171 @@ function tanaPanel(p){
       `<span style="font-size:11.5px;color:var(--muted)">貼った内容はこのPCにだけ残ります（次に開いても残っています）</span>`+
     `</div>`+
     `<div id="tana-out"></div>`+
+  `</div>`;
+}
+/* ===== 全体棚卸し（Excel/CSVを入れるだけで フロンティア⇄モール の全件を突合） =====
+   マニュアルの手順④⑤（両方のDLを合体→重複を抽出）を置き換える。
+   1行目の削除・ASIN列のコピーは不要＝ASINの列を自動で見つける。
+   1000件ずつのDLに対応するため、片側に何ファイルでも足し込める（同じ名前は入れ替え）。
+   DLとサイト側の削除は外部サイトの操作なので、ここは「消す候補を出す」ところまで。 */
+function tznKey(p){ return "kr_tanaz_"+p+"_v1"; }
+function tznLoad(p){ try{ const d=JSON.parse(localStorage.getItem(tznKey(p)));
+    if(d&&typeof d==="object") return {a:Array.isArray(d.a)?d.a:[], b:Array.isArray(d.b)?d.b:[]}; }catch(e){}
+  return {a:[],b:[]}; }
+function tznSave(p,d){ try{ localStorage.setItem(tznKey(p),JSON.stringify(d)); return true; }
+  catch(e){ alert("この端末に保存できませんでした（データが大きすぎるようです）。\n結果は画面に出ているので、そのままコピーして使えます。"); return false; } }
+function tznIsAsin(t){ return /^[A-Z0-9]{10}$/.test(t) && /[A-Z]/.test(t); }   /* 数字だけ＝商品番号なので拾わない */
+function tznUnion(files){ const seen=new Set(), out=[];
+  (files||[]).forEach(f=>(f.list||[]).forEach(a=>{ if(!seen.has(a)){ seen.add(a); out.push(a); } }));
+  return out; }
+/* ASINが最も多く入っている列を1つ選ぶ。見出し行が何行あっても影響しない */
+function tznPickCol(arr){
+  let w=0; for(const r of arr){ if(r && r.length>w) w=r.length; }
+  let best=-1, bestN=0;
+  for(let c=0;c<w;c++){ let n=0;
+    for(const r of arr){ const v=String((r&&r[c])!=null?r[c]:"").trim().toUpperCase(); if(tznIsAsin(v)) n++; }
+    if(n>bestN){ bestN=n; best=c; } }
+  if(best<0) return {header:"", list:[]};
+  const seen=new Set(), list=[];
+  for(const r of arr){ const v=String((r&&r[best])!=null?r[best]:"").trim().toUpperCase();
+    if(tznIsAsin(v) && !seen.has(v)){ seen.add(v); list.push(v); } }
+  /* 列名＝ASINが始まる直前の行の見出し（1行目のタイトル行を拾わないよう後ろから探す） */
+  let first=-1;
+  for(let i=0;i<arr.length;i++){ const v=String((arr[i]&&arr[i][best])!=null?arr[i][best]:"").trim().toUpperCase();
+    if(tznIsAsin(v)){ first=i; break; } }
+  let header="";
+  for(let i=first-1;i>=0&&i>=first-5;i--){ const v=String((arr[i]&&arr[i][best])!=null?arr[i][best]:"").trim();
+    if(v){ header=v; break; } }
+  return {header:header, list:list};
+}
+/* Excelが宣言している範囲(!ref)が実際より狭いことがある。
+   実例：クーパンの一括変更用ファイル price_inventory_*.xlsx は「A1:S3」と書いてあるのに中身は53行。
+   そのまま読むと3行で切れるので、実際に入っているセルから範囲を作り直す。 */
+function tznFixRef(sh){
+  let maxR=-1, maxC=-1;
+  for(const k in sh){ if(k.charAt(0)==="!") continue;
+    const m=/^([A-Z]+)(\d+)$/.exec(k); if(!m) continue;
+    const c=XLSX.utils.decode_col(m[1]), r=(+m[2])-1;
+    if(r>maxR) maxR=r; if(c>maxC) maxC=c; }
+  if(maxR>=0) sh["!ref"]=XLSX.utils.encode_range({s:{r:0,c:0},e:{r:maxR,c:maxC}});
+  return sh;
+}
+function tznReadOne(f,w){
+  return new Promise(ok=>{
+    const rd=new FileReader();
+    rd.onload=ev=>{
+      try{
+        const wb=readWB(ev.target.result);
+        const sh=tznFixRef(wb.Sheets[wb.SheetNames[0]]);
+        const arr=XLSX.utils.sheet_to_json(sh,{header:1,raw:false,defval:""});
+        const r=tznPickCol(arr);
+        ok(r.list.length ? {n:f.name, header:r.header, list:r.list} : {n:f.name, err:"ASINが見つかりません"});
+      }catch(err){ ok({n:f.name, err:err.message}); }
+    };
+    rd.onerror=()=>ok({n:f.name, err:"読み込めません"});
+    rd.readAsArrayBuffer(f);
+  });
+}
+async function tznAdd(fileList,w){
+  const fs=Array.from(fileList||[]); if(!fs.length) return;
+  const st=document.getElementById("tzn-st-"+w);
+  const plat=current, d=tznLoad(plat), bad=[];
+  for(let i=0;i<fs.length;i++){
+    if(st) st.textContent=`読み込み中… (${i+1}/${fs.length}) ${fs[i].name}`;
+    const r=await tznReadOne(fs[i],w);
+    if(r.err){ bad.push(r.n+"："+r.err); continue; }
+    const at=d[w].findIndex(x=>x.n===r.n);
+    if(at>=0) d[w][at]=r; else d[w].push(r);      /* 同じファイル名は入れ替え＝二重に数えない */
+  }
+  tznSave(plat,d); tznCalc();
+  if(bad.length) alert("読み込めなかったファイル:\n\n"+bad.join("\n")+"\n\n（ASINが10桁・英字入りで並んだ列が必要です）");
+}
+window.tznPick=(w)=>{ const i=document.createElement("input"); i.type="file"; i.accept=".xlsx,.xls,.csv"; i.multiple=true;
+  i.onchange=()=>tznAdd(i.files,w); i.click(); };
+window.tznDrop=(ev,w)=>{ ev.preventDefault(); tznAdd(ev.dataTransfer&&ev.dataTransfer.files,w); };
+window.tznDel=(w,n)=>{
+  const d=tznLoad(current), it=d[w].find(x=>x.n===n); if(!it) return;
+  if(!confirm(`このファイルの分を一覧から外します。よろしいですか？\n\n【外すもの】${n}（ASIN ${it.list.length}件）\n【戻せるか】同じファイルをもう一度入れれば戻ります（元のファイルは消えません）\n【外さない】キャンセルを押してください`)) return;
+  d[w]=d[w].filter(x=>x.n!==n); tznSave(current,d); render();
+};
+let tznOnlyA=[], tznOnlyB=[];
+window.tznCopy=(w,btn)=>{ const a=(w==="a")?tznOnlyA:tznOnlyB; if(!a.length) return; copyText(a.join("\n")); flashBtn(btn); };
+window.tznClear=()=>{
+  const d=tznLoad(current), n=d.a.length+d.b.length; if(!n) return;
+  if(!confirm(`全体棚卸しに読み込んだ ${n}ファイル分を全部消します。よろしいですか？\n\n【消すもの】この画面に読み込んだASINの一覧だけ（元のExcel・在庫管理・上の棚卸しには触りません）\n【戻せるか】戻せません。もう一度ファイルを入れ直してください\n【消さない】キャンセルを押してください`)) return;
+  try{ localStorage.removeItem(tznKey(current)); }catch(e){}
+  render();
+};
+window.tznCalc=()=>{
+  const out=document.getElementById("tzn-out"); if(!out) return;
+  const d=tznLoad(current), nm=PNAME[current]||"モール";
+  const A=tznUnion(d.a), B=tznUnion(d.b);
+  ["a","b"].forEach(w=>{ const el=document.getElementById("tzn-st-"+w); if(!el) return;
+    const fs=d[w], tot=(w==="a"?A:B).length;
+    el.innerHTML = fs.length
+      ? `<div style="font-weight:800;margin-bottom:3px">${fs.length}ファイル ・ ASIN ${tot.toLocaleString("ja-JP")}件${fs[0].header?`（列：${esc(fs[0].header)}）`:""}</div>`
+        + fs.map(f=>`<div style="display:flex;gap:6px;align-items:center;justify-content:center">`
+            +`<span style="color:var(--muted);word-break:break-all">${esc(f.n)}　${f.list.length.toLocaleString("ja-JP")}件</span>`
+            +`<button class="rowbtn btn-sm" title="このファイルの分を外す" onclick="event.stopPropagation();tznDel('${w}','${esc(f.n).replace(/'/g,"&#39;")}')">✕</button></div>`).join("")
+      : ""; });
+  if(!A.length||!B.length){
+    out.innerHTML=`<div class="empty"><b>まだ両方そろっていません</b>フロンティアと${nm}、両方のファイルを入れると、ここにズレが出ます（何ファイルでも足せます）。</div>`; return; }
+  const sa=new Set(A), sb=new Set(B);
+  tznOnlyA=A.filter(x=>!sb.has(x)); tznOnlyB=B.filter(x=>!sa.has(x));
+  const both=A.filter(x=>sb.has(x)).length;
+  const box=(ttl,note,arr,who,color)=>
+    `<div style="flex:1 1 320px;min-width:280px;border:1px solid ${arr.length?color:"var(--line)"};border-radius:12px;background:${arr.length?"#fff":"#fafbff"};padding:14px 16px">`+
+      `<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:4px">`+
+        `<b style="font-size:13px">${ttl}</b>`+
+        `<span style="font-size:20px;font-weight:800;color:${arr.length?color:"#c3c9da"}">${arr.length.toLocaleString("ja-JP")}<small style="font-size:11px;color:var(--muted);font-weight:700"> 件</small></span>`+
+        (arr.length?`<button class="btn-ghost btn-sm" style="margin-left:auto" onclick="tznCopy('${who}',this)">📋 コピー</button>`:"")+
+      `</div>`+
+      `<div style="font-size:11px;color:var(--muted);margin-bottom:8px">${note}</div>`+
+      (arr.length
+        ? `<div class="mono" style="font-size:12.5px;line-height:1.9;max-height:260px;overflow:auto;word-break:break-all">${arr.map(x=>esc(x)).join("<br>")}</div>`
+        : `<div style="font-size:12.5px;color:var(--muted)">ズレはありません</div>`)+
+    `</div>`;
+  out.innerHTML=
+    `<div style="display:flex;gap:8px 20px;flex-wrap:wrap;align-items:center;margin-bottom:12px;font-size:13px">`+
+      `<span>フロンティア <b>${A.length.toLocaleString("ja-JP")}件</b></span><span>${nm} <b>${B.length.toLocaleString("ja-JP")}件</b></span>`+
+      `<span style="color:var(--muted)">両方にある <b>${both.toLocaleString("ja-JP")}件</b></span>`+
+      (tznOnlyA.length||tznOnlyB.length
+        ? `<span style="color:#c0392b;font-weight:700">ズレ ${(tznOnlyA.length+tznOnlyB.length).toLocaleString("ja-JP")}件</span>`
+        : `<span style="color:#12a866;font-weight:700">✔ ぴったり一致</span>`)+
+    `</div>`+
+    `<div style="display:flex;gap:14px;flex-wrap:wrap">`+
+      box("フロンティアにしか無い","マニュアル⑦：ツール側で消す候補",tznOnlyA,"a","#e29a1f")+
+      box(nm+"にしか無い","マニュアル⑥："+nm+"側で消す候補",tznOnlyB,"b","#4f6bef")+
+    `</div>`;
+};
+function tznPanel(p){
+  const nm=PNAME[p]||"モール";
+  const zs="border:2px dashed var(--line);border-radius:12px;padding:16px;text-align:center;cursor:pointer;background:#fafbff";
+  const on="this.style.background='#eef3ff';this.style.borderColor='var(--brand)'";
+  const off="this.style.background='#fafbff';this.style.borderColor='var(--line)'";
+  const zone=(w,ttl,sub,color)=>
+    `<div><div style="font-size:12px;font-weight:800;color:${color};margin-bottom:5px">${ttl}</div>`+
+    `<div style="${zs}" onclick="tznPick('${w}')" ondragover="event.preventDefault();${on}" ondragleave="${off}" ondrop="${off};tznDrop(event,'${w}')">`+
+      `<div style="font-size:12.5px;font-weight:700">📄 ファイルをここにドロップ <span style="font-weight:400;color:var(--muted)">（クリックで選んでもOK・複数可）</span></div>`+
+      `<div style="font-size:11.5px;color:var(--muted);margin-top:3px">${sub}</div>`+
+      `<div id="tzn-st-${w}" style="font-size:11.5px;margin-top:7px;line-height:1.8"></div>`+
+    `</div></div>`;
+  return `<div class="panel" style="padding:18px 20px;margin-top:16px">`+
+    `<div style="font-size:14px;font-weight:800">全体棚卸し（ファイルで全件を突合）</div>`+
+    `<div style="font-size:11.5px;color:var(--muted);line-height:1.9;margin:4px 0 14px">`+
+      `ダウンロードした<b>ファイルを入れるだけ</b>で、全件を突き合わせます。1行目の削除もASIN列のコピーも要りません（ASINの列を自動で探します）。ExcelでもCSVでもOK。<br>`+
+      `<b>1000件ずつに分かれていても大丈夫です。</b>同じ側に何ファイルでも足せます（同じファイル名を入れ直したときは二重に数えず入れ替えます）。<br>`+
+      `結果は<b>消す候補</b>として両方向に分けて出ます。コピーしてそれぞれのサイトの検索欄に貼ってください。<b>このツールは何も消しません。</b>実際に消すのは、サイト側で中身を確かめてからにしてください。`+
+    `</div>`+
+    `<div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">`+
+      zone("a","フロンティア（出品ツール）","出品ステータス「出品中」で絞って一括DLしたExcel","#8a6100")+
+      zone("b",nm,"「販売中」の商品リストをダウンロードしたExcel／CSV","var(--accent-d)")+
+    `</div>`+
+    `<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:12px 0 16px">`+
+      `<button class="btn-ghost btn-sm" onclick="tznClear()">全部クリア</button>`+
+      `<span style="font-size:11.5px;color:var(--muted)">読み込んだASINはこのPCにだけ残ります（次に開いても残っています）</span>`+
+    `</div>`+
+    `<div id="tzn-out"></div>`+
   `</div>`;
 }
 function renderStock(){
@@ -2137,7 +2302,7 @@ function renderStock(){
   `</div>`;
   const chipsBar=`<div class="chips">`+STOCK_TABS.map(t=>
     `<button class="chip${stockTab===t.id?" active":""}" onclick="setStockTab('${t.id}')">${t.label}${t.id==="tana"?"":` <span class="n">${of(t.id).length}</span>`}</button>`).join("")+`</div>`;
-  if(stockTab==="tana"){ bd.innerHTML=chipsBar+tanaPanel(p); tanaCalc(); return; }   /* 棚卸しは取込が無くても使える */
+  if(stockTab==="tana"){ bd.innerHTML=chipsBar+tanaPanel(p)+tznPanel(p); tanaCalc(); tznCalc(); return; }   /* 棚卸しは取込が無くても使える */
   if(!rows.length){
     bd.innerHTML=chipsBar+`<div class="panel">${toolbar}<div class="empty"><b>データがありません</b>右上の「📥 修正必要リストを取り込む」から、ツールでダウンロードしたExcelを選んでください。何日分かをまとめて選べます。<br>マーケット列を見て、スマートストアと11番街へ自動で振り分けます（クーパンの行は取り込みません）。</div></div>`;
     return;
@@ -2668,7 +2833,7 @@ function renderHome(){
     const none=(ago==null), ok=(ago===0), warn=(ago!=null&&ago>=3);
     const col=none?"#e5453c":(ok?"#12a866":(warn?"#e29a1f":"#3b4560"));
     const big=none?"未チェック":(ok?"今日":md(lc));
-    const sub=none?"取込かリセットで記録されます":(ok?"チェック済み":(ago===1?"昨日":ago+"日前"));
+    const sub=none?"":(ok?"チェック済み":(ago===1?"昨日":ago+"日前"));
     return `<button class="hm-chip" onclick="homeGo('stock','${p}')">`+
       `<span class="hm-chip-n">${n}</span><b style="color:${col}">${big}</b>`+
       `<span class="hm-chip-s">${sub} ›</span></button>`;
@@ -2692,16 +2857,19 @@ function renderHome(){
     `<div class="hm-sec">💼 売上ステータス <span class="hm-sec-s">台帳全体の件数。タップでその状態に絞り込み</span></div>`+
     `<div class="hm-grid">${cards}</div>`+
     `<div style="display:flex;gap:16px;align-items:flex-end;flex-wrap:wrap;margin-top:36px">`+
-      `<button class="hm-chip" onclick="homeGoNippo()"><span class="hm-chip-n">📝 日報</span><span class="hm-chip-s">›</span></button>`+
+      `<button class="hm-chip" style="min-width:200px;justify-content:center;padding:18px 24px" onclick="homeGoNippo()">`+
+        `<span class="hm-chip-n" style="font-size:16px">📝 日報</span><span class="hm-chip-s">›</span></button>`+
       `<div>`+
         `<div class="hm-sec" style="margin:0 2px 14px">📊 在庫管理 <span class="hm-sec-s">最後にチェックした日</span></div>`+
         `<div class="hm-chips">${stock}</div>`+
       `</div>`+
+      `<div>`+
+        `<div class="hm-sec" style="margin:0 2px 14px">✍️ ブログ</div>`+
+        `<div class="hm-chips"><button class="hm-chip" onclick="homeGoBlog()">`+
+          `<span class="hm-chip-n">投稿確定日</span><b style="color:var(--accent-d)">${fdl}</b>`+
+          `<span class="hm-chip-s">ここまで1日3件揃っています ›</span></button></div>`+
+      `</div>`+
     `</div>`+
-    `<div class="hm-sec">✍️ ブログ</div>`+
-    `<div class="hm-chips"><button class="hm-chip" onclick="homeGoBlog()">`+
-      `<span class="hm-chip-n">投稿確定日</span><b style="color:var(--accent-d)">${fdl}</b>`+
-      `<span class="hm-chip-s">ここまで1日3件揃っています ›</span></button></div>`+
     `<div class="hm-sec">📦 当月の新規出品 <span class="hm-sec-s">日報から集計（${+ym.slice(5,7)}月）</span></div>`+
     `<div class="hm-chips">`+
       `<button class="hm-chip" onclick="homeGoListCount('coupang')">`+
@@ -2890,6 +3058,12 @@ function renderProfit(){
 /* ===== 日報（担当者ごとの1日の作業件数。kr_nippo_v1 はクラウド同期＝どの端末でも同じ表が見える） ===== */
 const NIPPO_KEY="kr_nippo_v1";
 const NIPPO_WHO=[ {k:"fukumura",n:"福村",job:"出品"}, {k:"nakajima",n:"中島",job:"出品"}, {k:"miyago",n:"宮後",job:"配送手配"} ];
+/* クーパンの入金日。福村さんのカレンダーにだけ「販売手数料」「配送料金」を出す。
+   実際は毎月16営業日目（土日だけなら22〜24日）だが、韓国の祝日が平日に入るとその分うしろへずれ、
+   祝日3日（설날・추석）の月は27日までずれる。必ず入金後になるよう27日で固定した。 */
+const NIPPO_FEE_DAY=27;
+const NIPPO_FEE_TAGS=["販売手数料","配送料金"];
+const NIPPO_FEE_WHO="fukumura";
 let nippoWho="fukumura", nippoMonth="", nippoDate="", nippoFlash=false;
 function nippoLoad(){ try{ const d=JSON.parse(localStorage.getItem(NIPPO_KEY)); if(d&&typeof d==="object"&&!Array.isArray(d)) return d; }catch(e){} return {}; }
 window.nippoTab=k=>{ nippoWho=k; nippoDate=""; nippoFlash=false; renderNippo(); };
@@ -2923,17 +3097,20 @@ function renderNippo(){
   const lead=new Date(yy,mm-1,1).getDay(), last=new Date(yy,mm,0).getDate();
   const WDH=["日","月","火","水","木","金","土"];
   const head=WDH.map((w,i)=>`<div style="text-align:center;font-size:11.5px;font-weight:800;color:${i===0?"#e5453c":(i===6?"#4f6bef":"var(--muted)")};padding:4px 0">${w}</div>`).join("");
+  const feeDay=(who.k===NIPPO_FEE_WHO)?(nippoMonth+"-"+String(NIPPO_FEE_DAY).padStart(2,"0")):"";
   let cells="";
   for(let i=0;i<lead;i++) cells+=`<div></div>`;
   for(let dd=1;dd<=last;dd++){
     const dt=nippoMonth+"-"+String(dd).padStart(2,"0");
     const v=d[dt+"|"+who.k], stk=d[dt+"|"+who.k+"|stock"];
     const sel=(dt===nippoDate), isToday=(dt===today);
+    const fee=(dt===feeDay);
     const wdi=(lead+dd-1)%7;
     cells+=`<button onclick="nippoPickDay('${dt}')" style="height:auto;min-height:64px;border:1.5px solid ${sel?"var(--accent)":"var(--line)"};border-radius:10px;background:${sel?"#eef2ff":"#fff"};padding:6px 4px 8px;display:flex;flex-direction:column;align-items:center;gap:3px;cursor:pointer;font:inherit">`+
       `<span style="font-size:11.5px;font-weight:${isToday?"800":"600"};color:${isToday?"var(--accent-d)":(wdi===0?"#e5453c":(wdi===6?"#4f6bef":"var(--muted)"))}">${dd}${isToday?" 今日":""}</span>`+
       (v!=null?`<span style="font-size:17px;font-weight:800;color:var(--accent-d);line-height:1">${esc(v)}<small style="font-size:10px;font-weight:700;color:var(--muted)"> 件</small></span>`:(stk?"":`<span style="font-size:13px;color:#dfe3ef;line-height:1">−</span>`))+
       (stk?`<span style="font-size:9.5px;font-weight:800;color:#0e8a55;background:#e6f6ee;border-radius:5px;padding:1px 5px;line-height:1.5;white-space:nowrap">在庫管理</span>`:"")+
+      (fee?NIPPO_FEE_TAGS.map(x=>`<span style="font-size:9.5px;font-weight:800;color:#8a5b00;background:#fdf0d5;border-radius:5px;padding:1px 5px;line-height:1.5;white-space:nowrap">${x}</span>`).join(""):"")+
       `</button>`;
   }
   const wd="（"+"日月火水木金土"[new Date(nippoDate+"T00:00:00").getDay()]+"）";
@@ -3480,12 +3657,13 @@ window.setBruTab=(t)=>{ bruTab=t; renderList(); };
 function renderList(){
   const head=document.getElementById("list-head"), body=document.getElementById("list-body");
   if(current==="coupang"){
-    const clbl=coupangListTab==="cat"?"カテゴリー":(coupangListTab==="brand"?"ブランド（韓国語・ブランドID・日本語）":(coupangListTab==="count"?"出品数（日報からの月別集計）":"Attributes（出品時の参考・コピペ用）"));
+    const clbl=coupangListTab==="cat"?"カテゴリー":(coupangListTab==="brand"?"ブランド（韓国語・ブランドID・日本語）":(coupangListTab==="tana"?"棚卸し（フロンティア ⇄ クーパンの突合）":(coupangListTab==="count"?"出品数（日報からの月別集計）":"Attributes（出品時の参考・コピペ用）")));
     head.innerHTML=`出品：クーパン <small>${clbl}</small>`;
-    const toggle=`<div class="seg" style="margin-bottom:14px"><button class="segbtn ${coupangListTab==="attr"?"active":""}" onclick="setCoupangListTab('attr')">Attributes</button><button class="segbtn ${coupangListTab==="cat"?"active":""}" onclick="setCoupangListTab('cat')">カテゴリー</button><button class="segbtn ${coupangListTab==="brand"?"active":""}" onclick="setCoupangListTab('brand')">ブランド</button><button class="segbtn ${coupangListTab==="count"?"active":""}" onclick="setCoupangListTab('count')">出品数</button></div>`;
+    const toggle=`<div class="seg" style="margin-bottom:14px"><button class="segbtn ${coupangListTab==="attr"?"active":""}" onclick="setCoupangListTab('attr')">Attributes</button><button class="segbtn ${coupangListTab==="cat"?"active":""}" onclick="setCoupangListTab('cat')">カテゴリー</button><button class="segbtn ${coupangListTab==="brand"?"active":""}" onclick="setCoupangListTab('brand')">ブランド</button><button class="segbtn ${coupangListTab==="tana"?"active":""}" onclick="setCoupangListTab('tana')">棚卸し</button><button class="segbtn ${coupangListTab==="count"?"active":""}" onclick="setCoupangListTab('count')">出品数</button></div>`;
     body.innerHTML=toggle+`<div id="attr-host"></div>`;
     if(coupangListTab==="cat"){ renderCatDB(document.getElementById("attr-host")); }
     else if(coupangListTab==="brand"){ attrStore=BRAND_KEY; renderBrand(document.getElementById("attr-host")); }
+    else if(coupangListTab==="tana"){ document.getElementById("attr-host").innerHTML=tanaPanel("coupang")+tznPanel("coupang"); tanaCalc(); tznCalc(); }
     else if(coupangListTab==="count"){ renderNippoStats(document.getElementById("attr-host"),"coupang"); }
     else { attrStore=ATTR_KEY; renderAttr(document.getElementById("attr-host")); }
   } else if(current==="smart"){
