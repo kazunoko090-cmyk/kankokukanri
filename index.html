@@ -2710,6 +2710,12 @@ function renderHome(){
       `<button class="hm-chip" onclick="homeGoListCount('smart')">`+
         `<span class="hm-chip-n">スマートストア</span><b style="color:var(--accent-d)">${npSm.toLocaleString("ja-JP")}件</b>`+
         `<span class="hm-chip-s">月別グラフへ ›</span></button>`+
+    `</div>`+
+    `<div class="hm-sec">✨ ブラッシュアップ <span class="hm-sec-s">スマートストアの未投稿</span></div>`+
+    `<div class="hm-chips">`+
+      `<button class="hm-chip" onclick="homeGoBrushup()">`+
+        `<span class="hm-chip-n">未投稿</span><b style="color:var(--accent-d)">${bruTodoCount("smart").toLocaleString("ja-JP")}件</b>`+
+        `<span class="hm-chip-s">ブラッシュアップへ ›</span></button>`+
     `</div>`;
 }
 window.homeGo=(sec,p,st)=>{ if(sec==="sales") salesStatusFilter=String(st||"");
@@ -2719,6 +2725,20 @@ window.homeGoBlog=()=>{ blogTab="stats";
 window.homeGoNippo=()=>{ const a=document.getElementById("nav-nippo"); if(a) a.click(); };
 window.homeGoListCount=p=>{ if(p==="coupang") coupangListTab="count"; else smartListTab="count";
   const a=document.querySelector(`.navsub a[data-sec="list"][data-p="${p}"]`); if(a) a.click(); };
+/* ブラッシュアップの未投稿件数。ホームから見るのでモール(current)に依存しないよう、キーを直に読む。
+   数え方は renderBrushup の絞り込みと同じ＝販売済みの未投稿＋任意商品の未投稿 */
+function bruTodoCount(plat){
+  let sold={}, custom=[];
+  try{ sold=JSON.parse(localStorage.getItem("kr_bru_"+plat+"_sold"))||{}; }catch(e){}
+  const raw=localStorage.getItem("kr_bru_"+plat+"_custom");
+  if(raw){ try{ const d=JSON.parse(raw); if(Array.isArray(d)) custom=d; }catch(e){} }
+  else if(plat==="smart") custom=BRU_DONE_SEED.map(x=>({asin:x.asin,posted:true}));   /* 未表示でも初期分は投稿済み扱い（画面と同じ） */
+  const done=new Set(custom.filter(x=>x.posted&&x.asin).map(x=>String(x.asin)));
+  let n=0;
+  try{ n=blogData(plat).filter(x=>!(sold[x.asin]&&sold[x.asin].posted) && !done.has(String(x.asin))).length; }catch(e){}
+  return n+custom.filter(x=>!x.posted).length; }
+window.homeGoBrushup=()=>{ smartListTab="brushup"; bruTab="sold";
+  const a=document.querySelector(`.navsub a[data-sec="list"][data-p="smart"]`); if(a) a.click(); };
 /* ===== 配送料金（HANIROLINE 重量別料金表） ===== */
 function renderShipfee(){
   const rows=[]; for(let i=0;i<24;i++){ const w=((i+1)*0.5).toFixed(2); const pr=950+i*100; rows.push([w+" KG","¥"+pr.toLocaleString("ja-JP")]); }
@@ -4335,9 +4355,9 @@ function renderBrushup(body){
     const postedAsins=new Set(custom.filter(x=>x.posted&&x.asin).map(x=>String(x.asin)));
     const list=soldAll.filter(x=>!soldDone(x.asin) && !postedAsins.has(String(x.asin))).sort((a,b)=>b.lastT-a.lastT);
     const rows=list.length?list.map(x=>{ const a=esc(x.asin), d=(soldMap[x.asin]||{}).date||"";
-      return `<tr><td>${amz(x.asin)}</td><td>${clip(x.title)}</td><td><input class="rvdate" type="date" value="${esc(d)}" onchange="bruDateSold('${a}',this.value)"></td><td><button class="btn-primary btn-sm" onclick="bruPostSold('${a}')">投稿する</button></td></tr>`;
-    }).join(""):`<tr><td class="empty" colspan="4"><b>未投稿の販売済み商品がありません</b>${esc(PNAME[current]||"")}の売上データが入ると、ここへASINが並びます。</td></tr>`;
-    inner=`<table><thead><tr><th>ASIN</th><th>商品タイトル</th><th>投稿日</th><th>操作</th></tr></thead><tbody>${rows}</tbody></table>`;
+      return `<tr><td>${amz(x.asin)}</td><td><input class="rvdate" type="date" value="${esc(d)}" onchange="bruDateSold('${a}',this.value)"></td><td><button class="btn-primary btn-sm" onclick="bruPostSold('${a}')">投稿する</button></td></tr>`;
+    }).join(""):`<tr><td class="empty" colspan="3"><b>未投稿の販売済み商品がありません</b>${esc(PNAME[current]||"")}の売上データが入ると、ここへASINが並びます。</td></tr>`;
+    inner=`<table><thead><tr><th>ASIN</th><th>投稿日</th><th>操作</th></tr></thead><tbody>${rows}</tbody></table>`;
   } else if(bruTab==="custom"){
     const list=custom.filter(x=>!x.posted);
     const rows=list.length?list.map(x=>{ const id=esc(x.id);
