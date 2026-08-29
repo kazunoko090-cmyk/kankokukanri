@@ -1725,7 +1725,7 @@ function renderTblMan(){
    ・データはこの端末のローカルにだけ保存（クラウド同期なし。共有したくなったら別途配線する） */
 const STOCK_MK2P={ "スマートストア":"smart", "11番街":"st11" };
 const STOCK_PLATS=["smart","st11"];
-const STOCK_TABS=[ {id:"all",label:"全体"}, {id:"stop",label:"出品停止"}, {id:"price",label:"値段調整"}, {id:"revive",label:"在庫復活"} ];
+const STOCK_TABS=[ {id:"all",label:"全体"}, {id:"stop",label:"出品停止"}, {id:"price",label:"値段調整"}, {id:"revive",label:"在庫復活"}, {id:"tana",label:"棚卸し"} ];
 let stockTab="stop", stockSel=new Set(), stockSelPlat="";
 function stockKey(p){ return "kr_stock_"+p+"_v1"; }
 function loadStock(p){ try{ const d=JSON.parse(localStorage.getItem(stockKey(p))); if(d&&Array.isArray(d.rows)) return {t:d.t||"",rows:d.rows,lc:d.lc||"",fn:d.fn||"",rs:d.rs||""}; }catch(e){} return {t:"",rows:[],lc:"",fn:"",rs:""}; }
@@ -2028,6 +2028,85 @@ function importStock(arr,stamp,opts){
     +"\n※たまった一覧は「🧹 リセット」で空にできます。");
   return res;
 }
+/* ===== 棚卸し（フロンティア ⇄ モールのASIN突き合わせ） =====
+   ・出品ツール「フロンティア」側のASINと、モール側のASINを貼って、どちらか片方にしか無いものを出す
+   ・貼り方は自由（改行・タブ・カンマ区切り、Excelから列ごと貼ってもよい）。ASINだけ拾う
+   ・商品番号（数字だけ）は拾わない＝10桁で英字を含むものだけをASINとみなす
+   ・貼った内容はこの端末にだけ残す（クラウド同期なし。作業用のメモなので共有しない） */
+function tanaKey(p){ return "kr_tana_"+p+"_v1"; }
+function tanaLoad(p){ try{ const d=JSON.parse(localStorage.getItem(tanaKey(p))); if(d&&typeof d==="object") return {a:String(d.a||""),b:String(d.b||"")}; }catch(e){} return {a:"",b:""}; }
+function tanaSave(p,a,b){ try{ localStorage.setItem(tanaKey(p),JSON.stringify({a:a,b:b})); }catch(e){} }
+function tanaParse(s){
+  const out=[], seen=new Set();
+  String(s||"").toUpperCase().split(/[^A-Z0-9]+/).forEach(t=>{
+    if(!/^[A-Z0-9]{10}$/.test(t)) return;      /* ASINは10桁 */
+    if(!/[A-Z]/.test(t)) return;               /* 数字だけ＝商品番号なので拾わない */
+    if(seen.has(t)) return; seen.add(t); out.push(t);
+  });
+  return out;
+}
+let tanaOnlyA=[], tanaOnlyB=[];
+window.tanaInput=()=>{ const ea=document.getElementById("tana-a"), eb=document.getElementById("tana-b");
+  if(ea&&eb) tanaSave(current,ea.value,eb.value);
+  tanaCalc(); };
+window.tanaCalc=()=>{
+  const ea=document.getElementById("tana-a"), eb=document.getElementById("tana-b"), out=document.getElementById("tana-out");
+  if(!ea||!eb||!out) return;
+  const A=tanaParse(ea.value), B=tanaParse(eb.value), sa=new Set(A), sb=new Set(B);
+  tanaOnlyA=A.filter(x=>!sb.has(x)); tanaOnlyB=B.filter(x=>!sa.has(x));
+  const both=A.filter(x=>sb.has(x)).length;
+  const nm=(current==="st11")?"11番街":"スマートストア";
+  if(!A.length&&!B.length){ out.innerHTML=`<div class="empty"><b>まだ貼られていません</b>上の2つにASINを貼ると、ここにズレが出ます。</div>`; return; }
+  const box=(ttl,arr,who,color)=>
+    `<div style="flex:1 1 320px;min-width:280px;border:1px solid ${arr.length?color:"var(--line)"};border-radius:12px;background:${arr.length?"#fff":"#fafbff"};padding:14px 16px">`+
+      `<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:8px">`+
+        `<b style="font-size:13px">${ttl}</b>`+
+        `<span style="font-size:20px;font-weight:800;color:${arr.length?color:"#c3c9da"}">${arr.length}<small style="font-size:11px;color:var(--muted);font-weight:700"> 件</small></span>`+
+        (arr.length?`<button class="btn-ghost btn-sm" style="margin-left:auto" onclick="tanaCopy('${who}',this)">📋 コピー</button>`:"")+
+      `</div>`+
+      (arr.length
+        ? `<div class="mono" style="font-size:12.5px;line-height:1.9;max-height:220px;overflow:auto;word-break:break-all">${arr.map(x=>esc(x)).join("<br>")}</div>`
+        : `<div style="font-size:12.5px;color:var(--muted)">ズレはありません</div>`)+
+    `</div>`;
+  out.innerHTML=
+    `<div style="display:flex;gap:8px 20px;flex-wrap:wrap;align-items:center;margin-bottom:12px;font-size:13px">`+
+      `<span>フロンティア <b>${A.length}件</b></span><span>${nm} <b>${B.length}件</b></span>`+
+      `<span style="color:var(--muted)">両方にある <b>${both}件</b></span>`+
+      (tanaOnlyA.length||tanaOnlyB.length?`<span style="color:#c0392b;font-weight:700">ズレ ${tanaOnlyA.length+tanaOnlyB.length}件</span>`:`<span style="color:#12a866;font-weight:700">✔ ぴったり一致</span>`)+
+    `</div>`+
+    `<div style="display:flex;gap:14px;flex-wrap:wrap">`+
+      box("フロンティアにしか無い",tanaOnlyA,"a","#e29a1f")+
+      box(nm+"にしか無い",tanaOnlyB,"b","#4f6bef")+
+    `</div>`;
+};
+window.tanaCopy=(w,btn)=>{ const arr=(w==="a")?tanaOnlyA:tanaOnlyB; if(!arr.length) return; copyText(arr.join("\n")); flashBtn(btn); };
+window.tanaClear=()=>{
+  const ea=document.getElementById("tana-a"), eb=document.getElementById("tana-b");
+  if(!ea||!eb) return;
+  if((ea.value.trim()||eb.value.trim()) && !confirm("棚卸しに貼った内容を両方とも消します。よろしいですか？\n\n【消すもの】この画面に貼ったASINだけ（在庫管理の一覧や他の画面には触りません）\n【戻せるか】戻せません。もう一度貼り直してください\n【消さない】キャンセルを押してください")) return;
+  ea.value=""; eb.value=""; tanaSave(current,"",""); tanaCalc(); };
+function tanaPanel(p){
+  const t=tanaLoad(p), nm=(p==="st11")?"11番街":"スマートストア";
+  const ta="width:100%;height:220px;box-sizing:border-box;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12.5px;line-height:1.6;border:1px solid var(--line);border-radius:8px;padding:8px;resize:vertical";
+  return `<div class="panel" style="padding:18px 20px">`+
+    `<div style="font-size:14px;font-weight:800">棚卸し（フロンティア ⇄ ${nm}）</div>`+
+    `<div style="font-size:11.5px;color:var(--muted);line-height:1.9;margin:4px 0 14px">`+
+      `両方のASINを貼ると、<b>どちらか片方にしか無いもの</b>を出します。貼り方は自由です（改行・カンマ・Excelから列ごと貼ってもOK）。<br>`+
+      `ASIN（10桁・英字入り）だけを拾うので、商品番号や商品名が混ざっていても大丈夫です。同じASINが重複していても1件として数えます。`+
+    `</div>`+
+    `<div style="display:grid;grid-template-columns:1fr 1fr;gap:14px" id="tana-grid">`+
+      `<div><div style="font-size:12px;font-weight:800;color:#8a6100;margin-bottom:5px">フロンティア（出品ツール）</div>`+
+        `<textarea id="tana-a" style="${ta}" placeholder="ここにフロンティア側のASINを貼る" oninput="tanaInput()">${esc(t.a)}</textarea></div>`+
+      `<div><div style="font-size:12px;font-weight:800;color:var(--accent-d);margin-bottom:5px">${nm}</div>`+
+        `<textarea id="tana-b" style="${ta}" placeholder="ここに${nm}側のASINを貼る" oninput="tanaInput()">${esc(t.b)}</textarea></div>`+
+    `</div>`+
+    `<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:12px 0 16px">`+
+      `<button class="btn-ghost btn-sm" onclick="tanaClear()">クリア</button>`+
+      `<span style="font-size:11.5px;color:var(--muted)">貼った内容はこのPCにだけ残ります（次に開いても残っています）</span>`+
+    `</div>`+
+    `<div id="tana-out"></div>`+
+  `</div>`;
+}
 function renderStock(){
   const p=current, hd=document.getElementById("stock-head"), bd=document.getElementById("stock-body");
   if(STOCK_PLATS.indexOf(p)<0){
@@ -2050,8 +2129,11 @@ function renderStock(){
     `<button class="btn-ghost" onclick="document.getElementById('stock-file').click()" title="何日分かをまとめて選べます（ファイル名の日時で古い順に取り込みます）">📥 修正必要リストを取り込む<small style="color:var(--muted);font-weight:600">（複数可）</small></button>`+
     `<input type="file" id="stock-file" accept=".xlsx,.xls,.csv" multiple style="display:none" onchange="stockImportFile(this)">`+
   `</div>`;
+  const chipsBar=`<div class="chips">`+STOCK_TABS.map(t=>
+    `<button class="chip${stockTab===t.id?" active":""}" onclick="setStockTab('${t.id}')">${t.label}${t.id==="tana"?"":` <span class="n">${of(t.id).length}</span>`}</button>`).join("")+`</div>`;
+  if(stockTab==="tana"){ bd.innerHTML=chipsBar+tanaPanel(p); tanaCalc(); return; }   /* 棚卸しは取込が無くても使える */
   if(!rows.length){
-    bd.innerHTML=`<div class="panel">${toolbar}<div class="empty"><b>データがありません</b>右上の「📥 修正必要リストを取り込む」から、ツールでダウンロードしたExcelを選んでください。何日分かをまとめて選べます。<br>マーケット列を見て、スマートストアと11番街へ自動で振り分けます（クーパンの行は取り込みません）。</div></div>`;
+    bd.innerHTML=chipsBar+`<div class="panel">${toolbar}<div class="empty"><b>データがありません</b>右上の「📥 修正必要リストを取り込む」から、ツールでダウンロードしたExcelを選んでください。何日分かをまとめて選べます。<br>マーケット列を見て、スマートストアと11番街へ自動で振り分けます（クーパンの行は取り込みません）。</div></div>`;
     return;
   }
   const cards=`<div class="stats s4">`+
@@ -2060,8 +2142,7 @@ function renderStock(){
     `<div class="card"><div class="label">値段調整（適正価格へ）</div><div class="num">${of("price").length}<small> 件</small></div></div>`+
     `<div class="card"><div class="label">在庫復活</div><div class="num">${of("revive").length}<small> 件</small></div></div>`+
   `</div>`;
-  const chips=`<div class="chips">`+STOCK_TABS.map(t=>
-    `<button class="chip${stockTab===t.id?" active":""}" onclick="setStockTab('${t.id}')">${t.label} <span class="n">${of(t.id).length}</span></button>`).join("")+`</div>`;
+  const chips=chipsBar;
   const view=of(stockTab).slice().sort((a,b)=>(b.isNew?1:0)-(a.isNew?1:0));   /* 今回入ったNEWを上に */
   const CATLB={stop:"出品停止",price:"値段調整",revive:"在庫復活"};
   const trs=view.map(r=>{
