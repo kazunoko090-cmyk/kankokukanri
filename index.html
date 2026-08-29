@@ -3657,13 +3657,12 @@ window.setBruTab=(t)=>{ bruTab=t; renderList(); };
 function renderList(){
   const head=document.getElementById("list-head"), body=document.getElementById("list-body");
   if(current==="coupang"){
-    const clbl=coupangListTab==="cat"?"カテゴリー":(coupangListTab==="brand"?"ブランド（韓国語・ブランドID・日本語）":(coupangListTab==="tana"?"棚卸し（フロンティア ⇄ クーパンの突合）":(coupangListTab==="count"?"出品数（日報からの月別集計）":"Attributes（出品時の参考・コピペ用）")));
+    const clbl=coupangListTab==="cat"?"カテゴリー":(coupangListTab==="brand"?"ブランド（韓国語・ブランドID・日本語）":(coupangListTab==="count"?"出品数（日報からの月別集計）":"Attributes（出品時の参考・コピペ用）"));
     head.innerHTML=`出品：クーパン <small>${clbl}</small>`;
-    const toggle=`<div class="seg" style="margin-bottom:14px"><button class="segbtn ${coupangListTab==="attr"?"active":""}" onclick="setCoupangListTab('attr')">Attributes</button><button class="segbtn ${coupangListTab==="cat"?"active":""}" onclick="setCoupangListTab('cat')">カテゴリー</button><button class="segbtn ${coupangListTab==="brand"?"active":""}" onclick="setCoupangListTab('brand')">ブランド</button><button class="segbtn ${coupangListTab==="tana"?"active":""}" onclick="setCoupangListTab('tana')">棚卸し</button><button class="segbtn ${coupangListTab==="count"?"active":""}" onclick="setCoupangListTab('count')">出品数</button></div>`;
+    const toggle=`<div class="seg" style="margin-bottom:14px"><button class="segbtn ${coupangListTab==="attr"?"active":""}" onclick="setCoupangListTab('attr')">Attributes</button><button class="segbtn ${coupangListTab==="cat"?"active":""}" onclick="setCoupangListTab('cat')">カテゴリー</button><button class="segbtn ${coupangListTab==="brand"?"active":""}" onclick="setCoupangListTab('brand')">ブランド</button><button class="segbtn ${coupangListTab==="count"?"active":""}" onclick="setCoupangListTab('count')">出品数</button></div>`;
     body.innerHTML=toggle+`<div id="attr-host"></div>`;
     if(coupangListTab==="cat"){ renderCatDB(document.getElementById("attr-host")); }
     else if(coupangListTab==="brand"){ attrStore=BRAND_KEY; renderBrand(document.getElementById("attr-host")); }
-    else if(coupangListTab==="tana"){ document.getElementById("attr-host").innerHTML=tanaPanel("coupang")+tznPanel("coupang"); tanaCalc(); tznCalc(); }
     else if(coupangListTab==="count"){ renderNippoStats(document.getElementById("attr-host"),"coupang"); }
     else { attrStore=ATTR_KEY; renderAttr(document.getElementById("attr-host")); }
   } else if(current==="smart"){
