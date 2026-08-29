@@ -1511,7 +1511,7 @@ async function cloudDelete(order){ const u=cloudURL(); if(!u) return;
 /* ===== その他データの同期（マニュアル・顧客・出品・ブログ等）：key-value方式 ===== */
 /* kr_hi_（黄色の選択）は同期しない＝端末ごとの目印。
    共有すると①和集合で選択が溜まる②複数人で1つの選択を奪い合う、の両方が起きるため。 */
-const KV_SYNC_PREFIXES=["kr_teb_","kr_bru_","kr_manual_v2","kr_manual_urls","kr_tblman_","kr_cust_","kr_list_attr_","kr_list_cat_","kr_list_brand_","kr_attr_cat_","kr_blog_","kr_catseg_ja","kr_shinfix","kr_tomb","kr_nippo_"];
+const KV_SYNC_PREFIXES=["kr_teb_","kr_bru_","kr_manual_v2","kr_manual_urls","kr_tblman_","kr_cust_","kr_list_attr_","kr_list_cat_","kr_list_brand_","kr_attr_cat_","kr_blog_","kr_catseg_ja","kr_shinfix","kr_tomb","kr_nippo_","kr_stockmeta_"];
 function isKvSyncKey(k){ return KV_SYNC_PREFIXES.some(p=> k===p || k.indexOf(p)===0 ); }
 let kvReady=false;                 // 初回プル完了まで送信しない（初期シードの誤送信防止）
 const _kvSetItem=localStorage.setItem.bind(localStorage);
@@ -1725,6 +1725,32 @@ const STOCK_TABS=[ {id:"all",label:"全体"}, {id:"stop",label:"出品停止"}, 
 let stockTab="stop", stockSel=new Set(), stockSelPlat="";
 function stockKey(p){ return "kr_stock_"+p+"_v1"; }
 function loadStock(p){ try{ const d=JSON.parse(localStorage.getItem(stockKey(p))); if(d&&Array.isArray(d.rows)) return {t:d.t||"",rows:d.rows,lc:d.lc||"",fn:d.fn||""}; }catch(e){} return {t:"",rows:[],lc:"",fn:""}; }
+/* ===== 在庫チェックの「いつやったか」だけをモール別にクラウド共有する =====
+   ・一覧そのもの（kr_stock_*）は数百行あるので送らない＝この端末のローカルのまま
+   ・共有するのは kr_stockmeta_v1 だけ ＝ {モール:{lc:最終チェック日, rs:リセット印}}
+   ・相手の端末でリセットされたら、こちらの同じモールの一覧も次に開いたときに空にそろえる
+   ・スマートストアと11番街は別々に持つので、片方のリセットがもう片方に影響することはない */
+const STOCKMETA_KEY="kr_stockmeta_v1";   /* ← これはクラウド同期する */
+const STOCKRSA_KEY="kr_stockrsa_v1";     /* ← この端末で適用済みのリセット印。同期しない */
+function stockMetaLoad(){ try{ const o=JSON.parse(localStorage.getItem(STOCKMETA_KEY)); if(o&&typeof o==="object"&&!Array.isArray(o)) return o; }catch(e){} return {}; }
+function stockRsaLoad(){ try{ const o=JSON.parse(localStorage.getItem(STOCKRSA_KEY)); if(o&&typeof o==="object"&&!Array.isArray(o)) return o; }catch(e){} return {}; }
+function stockMetaMark(p,today,rs){ const m=stockMetaLoad(); m[p]={lc:today,rs:rs}; localStorage.setItem(STOCKMETA_KEY,JSON.stringify(m));
+  const a=stockRsaLoad(); a[p]=rs; localStorage.setItem(STOCKRSA_KEY,JSON.stringify(a)); }
+/* クラウドから届いた「いつやったか」をこの端末に反映する。在庫管理とホームを描く直前に呼ぶ */
+function stockMetaApply(){
+  const m=stockMetaLoad(), a=stockRsaLoad(); let aChanged=false;
+  STOCK_PLATS.forEach(p=>{
+    const e=m[p]; if(!e||typeof e!=="object") return;
+    const d=loadStock(p);
+    if(e.rs && a[p]!==e.rs){                                    /* 相手の端末でリセット済み → こちらも同じ状態にそろえる */
+      localStorage.setItem(stockKey(p),JSON.stringify({t:"",rows:[],lc:e.lc||d.lc||"",fn:d.fn||""}));
+      a[p]=e.rs; aChanged=true;
+    }else if(e.lc && String(e.lc)>String(d.lc||"")){            /* 日付だけ新しいとき */
+      localStorage.setItem(stockKey(p),JSON.stringify({t:d.t,rows:d.rows,lc:e.lc,fn:d.fn}));
+    }
+  });
+  if(aChanged) localStorage.setItem(STOCKRSA_KEY,JSON.stringify(a));
+}
 /* ファイル名の日時（修正必要商品リスト表_20260825_144112.xlsx）を取り出す。取れた時だけ新旧を判定する */
 function stockStamp(name){ const m=String(name||"").match(/(\d{8})[_-](\d{6})/); return m?(m[1]+"_"+m[2]):""; }
 function stockStampLabel(s){ return /^\d{8}_\d{6}$/.test(s||"")?(s.slice(0,4)+"-"+s.slice(4,6)+"-"+s.slice(6,8)+" "+s.slice(9,11)+":"+s.slice(11,13)):""; }
@@ -1907,10 +1933,11 @@ window.stockCopySel=(btn,kind)=>{ if(!stockSel.size){ alert("コピーする商�
     return; }
   copyText(picked.map(r=>r.id).join("\n")); flashBtn(btn); };
 window.stockReset=()=>{ const p=current, d=loadStock(p); if(!d.rows.length){ alert("消すデータがありません。"); return; }
-  if(!confirm(`在庫管理（${PNAME[p]}）のリストをリセットします。よろしいですか？\n\n【消すもの】この一覧 ${d.rows.length}件（${PNAME[p]}のみ。もう一方のモールには触りません）\n【影響】この端末の表示だけです。ツール側のデータは消えません。最終チェック日が今日になります。\n【元に戻す】次の取込で、まだ残っている商品はまた入ってきます。\n【消さない】キャンセルを押してください。`)) return;
+  if(!confirm(`在庫管理（${PNAME[p]}）のリストをリセットします。よろしいですか？\n\n【消すもの】この一覧 ${d.rows.length}件（${PNAME[p]}のみ。もう一方のモールには触りません）\n【影響】最終チェック日が今日になり、共有データにも記録されます（もう一方の端末の同じモールの一覧も、次に開いたときに同じように空になります）。ツール側のデータは消えません。\n【元に戻す】次の取込で、まだ残っている商品はまた入ってきます。\n【消さない】キャンセルを押してください。`)) return;
   const t=new Date(), z=n=>String(n).padStart(2,"0");
   const today=t.getFullYear()+"-"+z(t.getMonth()+1)+"-"+z(t.getDate());
   localStorage.setItem(stockKey(p),JSON.stringify({t:"",rows:[],lc:today,fn:d.fn||""})); stockSel=new Set();
+  stockMetaMark(p,today,today+" "+z(t.getHours())+":"+z(t.getMinutes())+":"+z(t.getSeconds()));   /* 「いつやったか」を共有（相手の端末も同じように空になる） */
   /* スマートストアの在庫チェック完了は、中島さんの日報カレンダーにも「在庫管理」と記録する（クラウド同期に乗る） */
   if(p==="smart"){ try{ const nd=nippoLoad(); if(!nd[today+"|nakajima|stock"]){ nd[today+"|nakajima|stock"]=1; localStorage.setItem(NIPPO_KEY,JSON.stringify(nd)); } }catch(e){} }
   render(); };
@@ -2000,6 +2027,7 @@ function importStock(arr,stamp,opts){
   return res;
 }
 function renderStock(){
+  stockMetaApply();
   const p=current, hd=document.getElementById("stock-head"), bd=document.getElementById("stock-body");
   if(STOCK_PLATS.indexOf(p)<0){
     hd.innerHTML=`在庫管理`;
@@ -2542,6 +2570,7 @@ function blogFixedDay(){
 const HOME_ST=["入金済み","仕入れ済み","トラブル"];   /* 返品はずくの指示で外した（売上管理で見る）。2026-08-27 */
 function renderHome(){
   const el=document.getElementById("home-body"); if(!el) return;
+  stockMetaApply();
   const today=todayStr();
   const jd=v=>{ const d=new Date(v+"T00:00:00"); return isNaN(d)?null:d; };
   const daysAgo=v=>{ const d=jd(v); return d?Math.round((jd(today)-d)/86400000):null; };
