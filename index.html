@@ -1239,12 +1239,12 @@ const COUPANG_COLS = [
 /* ===== 表示する12列（ご指定順）。head=見出しに出す韓国語、jp=日本語補足 ===== */
 const VIEW = [
   {jpord:true, jp:"国内注文番号"},
+  {en:"Vendor product code", head:"ASIN", jp:"ASIN", asin:true},
   {en:"Order number", head:"注文番号", jp:"韓国注文番号", copy:true},
   {track:true, jp:"追跡番号"},
   {en:"Order date", head:"주문일", jp:"購入日"},
   {en:"Expected shipment date upon order", head:"출고예정일", jp:"発送期日", deadline:true},
   {en:"Registered product name", head:"상품명", jp:"商品タイトル", clip:true},
-  {en:"Vendor product code", head:"ASIN", jp:"ASIN", asin:true},
   {en:"paid amount", head:"결제액", jp:"販売価格(1個)", money:true, copy:true, unit:true},
   {en:"Purchased qty", head:"구매수", jp:"購入数", qty:true},
   {en:"Zipcode", head:"우편번호", jp:"郵便番号", copy:true},
@@ -1258,12 +1258,12 @@ const VIEW_KEYS = new Set(VIEW.map(v=>v.en));
 /* ===== スマートストア（発注発送管理）表示列。key=Excelの韓国語見出しをそのまま使用 ===== */
 const SMART_VIEW = [
   {jpord:true, jp:"国内注文番号"},
+  {key:"판매자 상품코드", jp:"ASIN", asin:true},
   {key:"주문번호", jp:"韓国注文番号", copy:true},
   {track:true, jp:"追跡番号"},
   {key:"주문일시", jp:"購入日"},
   {key:"발송기한", jp:"発送期日", deadline:true},
   {key:"상품명", jp:"商品タイトル", clip:true},
-  {key:"판매자 상품코드", jp:"ASIN", asin:true},
   {key:"최종 상품별 총 주문금액", jp:"販売価格(1個)", money:true, copy:true, unit:true},
   {key:"최종 상품별 할인액", jp:"割引額（クーポン等）", money:true},
   {key:"수량", jp:"購入数", qty:true},
@@ -1298,12 +1298,12 @@ function msgOf(s){ return (s&&s.msg)?s.msg:autoMsg(s?s.won:0); }
 /* ===== 11番街（注文確認ファイル）表示列。key=Excelの韓国語見出しをそのまま使用 ===== */
 const ST11_VIEW = [
   {jpord:true, jp:"国内注文番号"},
+  {key:"판매자 상품코드", jp:"ASIN", asin:true},
   {key:"주문번호", jp:"韓国注文番号", copy:true},
   {track:true, jp:"追跡番号"},
   {key:"주문일시", jp:"購入日"},
   {key:"발송마감일", jp:"発送期日", deadline:true},
   {key:"상품명", jp:"商品タイトル", clip:true},
-  {key:"판매자 상품코드", jp:"ASIN", asin:true},
   {key:"주문금액", jp:"販売価格(1個)", money:true, copy:true, unit:true},
   {key:"수량", jp:"購入数", qty:true},
   {key:"우편번호", jp:"郵便番号", copy:true},
