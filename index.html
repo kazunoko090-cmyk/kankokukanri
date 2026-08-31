@@ -811,8 +811,9 @@ window.CAT_ATTR_JA={"색상": "色", "수량": "数量", "패션의류/잡화 �
     <div class="page-head" id="sv-head"></div>
     <div class="stats" id="sv-stats">
       <div class="card"><div class="label">利益額</div><div class="num" id="sv-profit">¥0</div></div>
-      <div class="card"><div class="label">売上（ウォン）</div><div class="num" id="sv-won">₩0</div></div>
       <div class="card"><div class="label">還付金込み利益 <small style="color:var(--muted);font-weight:600">仕入れ+9%</small></div><div class="num" id="sv-refund">¥0</div></div>
+      <div class="card"><div class="label">売上（ウォン）</div><div class="num" id="sv-won">₩0</div></div>
+      <div class="card"><div class="label">売上（円）</div><div class="num" id="sv-yen">¥0</div></div>
       <div class="card"><div class="label">発送件数</div><div class="num" id="sv-ship">0<small> 件</small></div></div>
       <div class="card"><div class="label">キャンセル件数</div><div class="num" id="sv-cancel">0<small> 件</small></div></div>
       <div class="card"><div class="label">返品件数</div><div class="num" id="sv-return">0<small> 件</small></div></div>
@@ -1238,8 +1239,8 @@ const COUPANG_COLS = [
 
 /* ===== 表示する12列（ご指定順）。head=見出しに出す韓国語、jp=日本語補足 ===== */
 const VIEW = [
-  {jpord:true, jp:"国内注文番号"},
   {en:"Vendor product code", head:"ASIN", jp:"ASIN", asin:true},
+  {jpord:true, jp:"国内注文番号"},
   {en:"Order number", head:"注文番号", jp:"韓国注文番号", copy:true},
   {track:true, jp:"追跡番号"},
   {en:"Order date", head:"주문일", jp:"購入日"},
@@ -1257,8 +1258,8 @@ const VIEW_KEYS = new Set(VIEW.map(v=>v.en));
 
 /* ===== スマートストア（発注発送管理）表示列。key=Excelの韓国語見出しをそのまま使用 ===== */
 const SMART_VIEW = [
-  {jpord:true, jp:"国内注文番号"},
   {key:"판매자 상품코드", jp:"ASIN", asin:true},
+  {jpord:true, jp:"国内注文番号"},
   {key:"주문번호", jp:"韓国注文番号", copy:true},
   {track:true, jp:"追跡番号"},
   {key:"주문일시", jp:"購入日"},
@@ -1297,8 +1298,8 @@ function msgOf(s){ return (s&&s.msg)?s.msg:autoMsg(s?s.won:0); }
 
 /* ===== 11番街（注文確認ファイル）表示列。key=Excelの韓国語見出しをそのまま使用 ===== */
 const ST11_VIEW = [
-  {jpord:true, jp:"国内注文番号"},
   {key:"판매자 상품코드", jp:"ASIN", asin:true},
+  {jpord:true, jp:"国内注文番号"},
   {key:"주문번호", jp:"韓国注文番号", copy:true},
   {track:true, jp:"追跡番号"},
   {key:"주문일시", jp:"購入日"},
@@ -4893,32 +4894,34 @@ function ycSvg(vals, opt){
 }
 /* ===== 売上管理：年間サマリー（数字＋グラフ） ===== */
 function renderSalesYear(){
-  const rate=curConvRate(), l=loadSales(); const yen=n=>"¥"+Math.round(n).toLocaleString("ja-JP");   /* レート未保存の注文は「現在レート（ライブ）」で円換算。取込時レートを持つ注文はそれを優先 */
+  const rate=curConvRate(), l=loadSales(); const yen=n=>"¥"+Math.round(n).toLocaleString("ja-JP");
+  const won$=n=>"₩"+Math.round(n).toLocaleString("ja-JP");   /* レート未保存の注文は「現在レート（ライブ）」で円換算。取込時レートを持つ注文はそれを優先 */
   const years=[...new Set(l.map(s=>{const p=parseDate(s.date);return p?String(p.getFullYear()):null;}).filter(Boolean))].sort((a,b)=>b.localeCompare(a));
   if(!years.length) years.push(String(new Date().getFullYear()));
   if(!svYear||!years.includes(svYear)) svYear=years[0];
   document.getElementById("sv-year").innerHTML=years.map(y=>`<option value="${y}" ${y===svYear?"selected":""}>${y}年</option>`).join("");
-  const H=["月","売上高","仕入れ額","利益額","還付金込み利益","発送件数","キャンセル件数","返品件数","注文件数"];
+  const H=["月","仕入れ額","利益額","還付金込み利益","売上（ウォン）","売上高（円）","発送件数","キャンセル件数","返品件数","注文件数"];
   document.getElementById("ythead").innerHTML="<tr>"+H.map((h,i)=>`<th${i===0?"":' class="right"'}>${h}</th>`).join("")+"</tr>";
-  const T={rev:0,cost:0,prof:0,ref:0,ship:0,can:0,ret:0,cnt:0}; const rowsD=[];
+  const T={rev:0,cost:0,prof:0,ref:0,won:0,ship:0,can:0,ret:0,cnt:0}; const rowsD=[];
   for(let m=1;m<=12;m++){ const mkk=svYear+"-"+String(m).padStart(2,"0"); const g=l.filter(s=>monthKey(s.date)===mkk);
-    let rev=0,cost=0,prof=0,units=0; g.forEach(s=>{const c=calcSale(s,rate);rev+=c.saleTotal;cost+=c.costTotal;prof+=c.profit; if(s.status!=="キャンセル"&&s.status!=="返品") units+=num(s.qty)||1;});
+    let rev=0,cost=0,prof=0,units=0,won=0; g.forEach(s=>{const c=calcSale(s,rate);rev+=c.saleTotal;cost+=c.costTotal;prof+=c.profit;won+=c.won; if(s.status!=="キャンセル"&&s.status!=="返品") units+=num(s.qty)||1;});
     const ref=prof+cost*REFUND_RATE, ship=g.filter(s=>s.status==="発送済み").length, can=g.filter(s=>s.status==="キャンセル").length, ret=g.filter(s=>s.status==="返品").length, cnt=g.length;
-    T.rev+=rev;T.cost+=cost;T.prof+=prof;T.ref+=ref;T.ship+=ship;T.can+=can;T.ret+=ret;T.cnt+=cnt;
-    rowsD.push({m,rev,cost,prof,ref,ship,can,ret,cnt,units}); }
+    T.rev+=rev;T.cost+=cost;T.prof+=prof;T.ref+=ref;T.won+=won;T.ship+=ship;T.can+=can;T.ret+=ret;T.cnt+=cnt;
+    rowsD.push({m,rev,cost,prof,ref,won,ship,can,ret,cnt,units}); }
   const maxRev=Math.max(1,...rowsD.map(r=>r.rev)), maxProf=Math.max(1,...rowsD.map(r=>Math.abs(r.prof)));
   let bestM=0,bestV=0; rowsD.forEach(r=>{ if(r.rev>bestV){ bestV=r.rev; bestM=r.m; } });
   const body=rowsD.map(r=>{
     const revW=Math.round(r.rev/maxRev*100), profW=Math.round(Math.abs(r.prof)/maxProf*100);
     const hot = (r.rev>0 && r.m===bestM);
     return `<tr><td>${r.m}月${hot?' <span title="今年の最高月">🔝</span>':''}</td>`+
-      `<td class="right mono barcell"><div class="bar" style="width:${revW}%"></div><span class="v">${yen(r.rev)}</span></td>`+
       `<td class="right mono">${yen(r.cost)}</td>`+
       `<td class="right mono barcell"><div class="bar ${r.prof<0?'loss':'prof'}" style="width:${profW}%"></div><span class="v ${r.prof<0?'neg':''}">${yen(r.prof)}</span></td>`+
       `<td class="right mono">${yen(r.ref)}</td>`+
+      `<td class="right mono">${won$(r.won)}</td>`+
+      `<td class="right mono barcell"><div class="bar" style="width:${revW}%"></div><span class="v">${yen(r.rev)}</span></td>`+
       `<td class="right mono">${r.ship}</td><td class="right mono">${r.can}</td><td class="right mono">${r.ret}</td><td class="right mono">${r.cnt}</td></tr>`;
   });
-  body.push(`<tr class="total-row"><td>合計</td><td class="right mono">${yen(T.rev)}</td><td class="right mono">${yen(T.cost)}</td><td class="right mono ${T.prof<0?'neg':''}">${yen(T.prof)}</td><td class="right mono">${yen(T.ref)}</td><td class="right mono">${T.ship}</td><td class="right mono">${T.can}</td><td class="right mono">${T.ret}</td><td class="right mono">${T.cnt}</td></tr>`);
+  body.push(`<tr class="total-row"><td>合計</td><td class="right mono">${yen(T.cost)}</td><td class="right mono ${T.prof<0?'neg':''}">${yen(T.prof)}</td><td class="right mono">${yen(T.ref)}</td><td class="right mono">${won$(T.won)}</td><td class="right mono">${yen(T.rev)}</td><td class="right mono">${T.ship}</td><td class="right mono">${T.can}</td><td class="right mono">${T.ret}</td><td class="right mono">${T.cnt}</td></tr>`);
   document.getElementById("ytbody").innerHTML=body.join("");
   /* ===== グラフ（月別・一目でわかる棒グラフ） ===== */
   const yc=document.getElementById("year-charts");
@@ -4972,7 +4975,7 @@ function renderSalesDetail(){
   document.getElementById("sales-chips").innerHTML=statusChips(cc,salesStatusFilter,"setSalesStatus");
   const vrows = salesStatusFilter? rows.filter(s=>s.status===salesStatusFilter): rows;
   /* 上部カードは当月全体で集計（絞り込みに左右されない） */
-  let pSum=0,cSum=0,wSum=0; rows.forEach(s=>{ const c=calcSale(s,rate); pSum+=c.profit; cSum+=c.costTotal; wSum+=c.won; });
+  let pSum=0,cSum=0,wSum=0,ySum=0; rows.forEach(s=>{ const c=calcSale(s,rate); pSum+=c.profit; cSum+=c.costTotal; wSum+=c.won; ySum+=c.saleTotal; });
   const hi=hiSet();
   const md=s=>String(s||"").slice(5,10).replace("-","/");
   document.getElementById("stbody").innerHTML = vrows.length ? vrows.map(s=>{
@@ -5026,6 +5029,7 @@ function renderSalesDetail(){
   document.getElementById("scount").textContent= salesStatusFilter? `${scope} ・ ${vrows.length}/${rows.length}件（${salesStatusFilter}）` : `${scope} ・ ${rows.length}件`;
   document.getElementById("sv-profit").textContent=yen(pSum);
   document.getElementById("sv-won").textContent="₩"+Math.round(wSum).toLocaleString("ja-JP");
+  document.getElementById("sv-yen").textContent=yen(ySum);
   document.getElementById("sv-refund").textContent=yen(pSum+cSum*REFUND_RATE);
   document.getElementById("sv-ship").innerHTML=rows.filter(s=>s.status==="発送済み").length+'<small> 件</small>';
   document.getElementById("sv-cancel").innerHTML=rows.filter(s=>s.status==="キャンセル").length+'<small> 件</small>';
@@ -5439,10 +5443,10 @@ function dl(name,csv){ const blob=new Blob(["﻿"+csv],{type:"text/csv;charset=u
 document.getElementById("btn-sexport").onclick=()=>{
   const rate=getRate(), l=loadSales();
   if(salesTab==="year"){
-    const H=["月","売上高","仕入れ額","利益額","還付金込み利益","発送件数","キャンセル件数","返品件数","注文件数"]; const lines=[];
+    const H=["月","仕入れ額","利益額","還付金込み利益","売上（ウォン）","売上高（円）","発送件数","キャンセル件数","返品件数","注文件数"]; const lines=[];
     for(let m=1;m<=12;m++){ const mkk=svYear+"-"+String(m).padStart(2,"0"); const g=l.filter(s=>monthKey(s.date)===mkk);
-      let rev=0,cost=0,prof=0; g.forEach(s=>{const c=calcSale(s,rate);rev+=c.saleTotal;cost+=c.costTotal;prof+=c.profit;});
-      lines.push([m+"月",Math.round(rev),Math.round(cost),Math.round(prof),Math.round(prof+cost*REFUND_RATE),g.filter(s=>s.status==="発送済み").length,g.filter(s=>s.status==="キャンセル").length,g.filter(s=>s.status==="返品").length,g.length].join(",")); }
+      let rev=0,cost=0,prof=0,won=0; g.forEach(s=>{const c=calcSale(s,rate);rev+=c.saleTotal;cost+=c.costTotal;prof+=c.profit;won+=c.won;});
+      lines.push([m+"月",Math.round(cost),Math.round(prof),Math.round(prof+cost*REFUND_RATE),Math.round(won),Math.round(rev),g.filter(s=>s.status==="発送済み").length,g.filter(s=>s.status==="キャンセル").length,g.filter(s=>s.status==="返品").length,g.length].join(",")); }
     dl("売上管理_クーパン_"+svYear+"年.csv", H.join(",")+"\n"+lines.join("\n")); return;
   }
   if(salesTab==="rank"){
