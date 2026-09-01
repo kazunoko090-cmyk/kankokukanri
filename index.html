@@ -3816,10 +3816,17 @@ window.oosOpen=()=>{ const s=oosSelCur();
   let blocked=false;
   urls.forEach(u=>{ if(!window.open(u,"_blank","noopener")) blocked=true; });
   if(blocked) alert("ブラウザにポップアップ（新しいタブ）がブロックされました。\nアドレスバー右のブロック表示から「このサイトのポップアップとリダイレクトを常に許可」を選び、もう一度押してください。"); };
+/* リセット：在庫切れは全部消す。SOLD商品は「補充済み」だけ消して、まだ補充していないものは残す。
+   過去の販売ASIN（SOLD判定のもと）は消さない＝消すとSOLDが在庫切れに落ちてしまうため。 */
 window.oosReset=()=>{
   const d=oosLoad(); if(!d.rows.length){ alert("消すデータがありません。"); return; }
-  if(!confirm(`在庫切れのリストをリセットします。よろしいですか？\n\n【消すもの】この一覧 ${d.rows.length}件（SOLD商品・在庫切れの両方）と、取り込んだ過去の販売ASIN ${Object.keys(d.past||{}).length}件\n【影響】共有データからも消えます。外注さんの画面でも空になります\n【戻せるか】戻せません。もう一度Excelを取り込んでください（売上台帳・他の画面には触りません）\n【消さない】キャンセルを押してください`)) return;
-  oosSave({t:"",fn:"",rows:[],past:{}}); oosSelBy={}; render(); };
+  const sm=oosSoldMap(), isSold=r=>num(sm[r.id])>0;
+  const oosN=d.rows.filter(r=>!isSold(r)).length;
+  const doneN=d.rows.filter(r=>isSold(r)&&r.done).length;
+  const keep=d.rows.filter(r=>isSold(r)&&!r.done);
+  if(!oosN && !doneN){ alert("消す対象がありません。\n（在庫切れが0件で、補充済みのSOLD商品もありません）"); return; }
+  if(!confirm(`在庫切れのリストをリセットします。よろしいですか？\n\n【消すもの】在庫切れ ${oosN}件 ／ 補充済みのSOLD商品 ${doneN}件\n【残すもの】まだ補充していないSOLD商品 ${keep.length}件（チェック日もそのまま）と、取り込んだ過去の販売ASIN ${Object.keys(d.past||{}).length}件\n【影響】共有データにも反映されます（外注さんの画面でも同じように消えます）\n【戻せるか】戻せません。もう一度Excelを取り込んでください（売上台帳・他の画面には触りません）\n【消さない】キャンセルを押してください`)) return;
+  d.rows=keep; oosSave(d); oosSelBy={}; render(); };
 function oosRows(tab){
   const sm=oosSoldMap(), rows=oosLoad().rows.filter(r=>!r.done);   /* 補充済みは一覧に出さない */
   const sold=rows.filter(r=>num(sm[r.id])>0).map(r=>Object.assign({},r,{sold:num(sm[r.id])})).sort((a,b)=>b.sold-a.sold);
@@ -3853,7 +3860,7 @@ function oosPanel(){
   return `<div class="toolbar">`+
       `<span style="font-size:12px;color:var(--muted);font-weight:600">${d.t?("最終取込："+esc(d.t)+(d.fn?("（"+esc(d.fn)+"）"):"")):"まだ取り込みがありません"}</span>`+
       `<div class="grow"></div>`+
-      `<button class="btn-ghost" onclick="oosReset()" title="この一覧を空にします（確認が出ます）">🧹 リセット</button>`+
+      `<button class="btn-ghost" onclick="oosReset()" title="在庫切れを全部と、補充済みのSOLD商品を消します（確認が出ます）">🧹 リセット</button>`+
       `<button class="btn-ghost" onclick="oosPick()">📥 Excelを取り込む<small style="color:var(--muted);font-weight:600">（複数可）</small></button>`+
     `</div>`+
     `<div class="chips" style="margin:10px 0 4px">`+
@@ -3866,6 +3873,7 @@ function oosPanel(){
       `<b>フロンティアの商品データ</b>も同じボタンで取り込めます（自動で見分けます）。台帳に無いASINだけ「販売数1」として足します（件数は当てにならないので必ず1・かぶりはスルー）。<br>`+
       `SOLD商品は、仕入れ直せたら<b>「補充済み」</b>で一覧から外れます。<b>見たけど在庫が無かったときは「チェック日」に日付</b>を入れておくと、次に見るときの目印になります（行は残ります）。`+
       (doneN?`　いま補充済み：<b>${doneN}件</b>（取り込み直すと、まだ在庫切れなら戻ってきます）`:"")+
+      `<br><b>🧹 リセット</b>は、<b>在庫切れを全部</b>と<b>補充済みのSOLD商品</b>だけを消します。まだ補充していないSOLD商品は残ります。`+
       (Object.keys(d.past||{}).length?`　いま登録ずみの過去の販売ASIN：<b>${Object.keys(d.past).length}件</b>`:"")+
     `</div>`+
     (d.rows.length?"":`<div style="${zs};margin:10px 0" onclick="oosPick()" ondragover="event.preventDefault();${on}" ondragleave="${off}" ondrop="${off};oosDrop(event)">`+
