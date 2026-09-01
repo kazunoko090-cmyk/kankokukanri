@@ -1733,7 +1733,10 @@ function renderTblMan(){
 const STOCK_MK2P={ "スマートストア":"smart", "11番街":"st11" };
 const STOCK_PLATS=["smart","st11"];
 const STOCK_TABS=[ {id:"all",label:"全体"}, {id:"stop",label:"出品停止"}, {id:"price",label:"値段調整"}, {id:"revive",label:"在庫復活"}, {id:"tana",label:"棚卸し"} ];
-let stockTab="stop", stockSel=new Set(), stockSelPlat="";
+let stockTab="stop", stockSelBy={}, stockSelPlat="";
+/* チェックはタブごとに別々に持つ。全体でまとめてチェックしても、値段調整・在庫復活には移らない。
+   コピーも「今開いているタブの分だけ」になる。 */
+function stockSelCur(){ if(!stockSelBy[stockTab]) stockSelBy[stockTab]=new Set(); return stockSelBy[stockTab]; }
 function stockKey(p){ return "kr_stock_"+p+"_v1"; }
 function loadStock(p){ try{ const d=JSON.parse(localStorage.getItem(stockKey(p))); if(d&&Array.isArray(d.rows)) return {t:d.t||"",rows:d.rows,lc:d.lc||"",fn:d.fn||"",rs:d.rs||""}; }catch(e){} return {t:"",rows:[],lc:"",fn:"",rs:""}; }
 /* ===== 在庫の一覧はクラウドで共有し、リセットするまで貯める =====
@@ -1924,18 +1927,22 @@ window.stockXlsxFile=(el)=>{
   rd.readAsArrayBuffer(f); };
 /* 行チェック＝コピー対象の選択。画面は描き直さず、ボタンの件数と全選択の状態だけ更新する */
 function stockSelSync(){
-  const b1=document.getElementById("stock-copyid"); if(b1) b1.textContent=`📋 ASINをまとめてコピー（${stockSel.size}件）`;
-  const b2=document.getElementById("stock-copyfair"); if(b2) b2.textContent=`📋 適正価格をまとめてコピー（${stockSel.size}件）`;
+  const sel=stockSelCur();
+  const b1=document.getElementById("stock-copyid"); if(b1) b1.textContent=`📋 ASINをまとめてコピー（${sel.size}件）`;
+  const b2=document.getElementById("stock-copyfair"); if(b2) b2.textContent=`📋 適正価格をまとめてコピー（${sel.size}件）`;
   const all=document.getElementById("stock-selall");
   if(all){ const boxes=[...document.querySelectorAll("#stock-body tbody .stock-chk")];
     all.checked=boxes.length>0&&boxes.every(b=>b.checked); }
 }
-window.stockChk=(id,el)=>{ if(el.checked) stockSel.add(id); else stockSel.delete(id); stockSelSync(); };
-window.stockSelAll=(el)=>{ document.querySelectorAll("#stock-body tbody .stock-chk").forEach(b=>{ b.checked=el.checked;
-    const id=b.getAttribute("data-id"); if(el.checked) stockSel.add(id); else stockSel.delete(id); }); stockSelSync(); };
+window.stockChk=(id,el)=>{ const s=stockSelCur(); if(el.checked) s.add(id); else s.delete(id); stockSelSync(); };
+window.stockSelAll=(el)=>{ const s=stockSelCur(); document.querySelectorAll("#stock-body tbody .stock-chk").forEach(b=>{ b.checked=el.checked;
+    const id=b.getAttribute("data-id"); if(el.checked) s.add(id); else s.delete(id); }); stockSelSync(); };
 /* まとめてコピー。ASINも適正価格も「保存されている並び順」で出すので、2回コピーして表計算に2列で貼れば行がそろう */
-window.stockCopySel=(btn,kind)=>{ if(!stockSel.size){ alert("コピーする商品にチェックを入れてください。\n（一番上のチェックで、表示中の行を全部選べます）"); return; }
-  const picked=loadStock(current).rows.filter(r=>stockSel.has(r.id));
+window.stockCopySel=(btn,kind)=>{ const sel=stockSelCur();
+  if(!sel.size){ alert("コピーする商品にチェックを入れてください。\n（一番上のチェックで、表示中の行を全部選べます）"); return; }
+  /* 今開いているタブの商品だけをコピーする（在庫復活なら在庫復活だけ・値段調整なら値段調整だけ） */
+  const picked=loadStock(current).rows.filter(r=>sel.has(r.id) && (stockTab==="all" || stockCat(r)===stockTab));
+  if(!picked.length){ alert("このタブにチェックした商品がありません。"); return; }
   if(kind==="fair"){ const miss=picked.filter(r=>!(num(r.fair)>0)).length;
     if(miss===picked.length){ alert("チェックした商品に適正価格が入っていません。"); return; }
     copyText(picked.map(r=>num(r.fair)>0?String(Math.round(num(r.fair))):"").join("\n")); flashBtn(btn);
@@ -1946,7 +1953,7 @@ window.stockReset=()=>{ const p=current, d=loadStock(p); if(!d.rows.length){ ale
   if(!confirm(`在庫管理（${PNAME[p]}）のリストをリセットします。よろしいですか？\n\n【消すもの】この一覧 ${d.rows.length}件（${PNAME[p]}のみ。もう一方のモールには触りません）\n【影響】最終チェック日が今日になり、共有データにも記録されます（もう一方の端末の同じモールの一覧も、次に開いたときに同じように空になります）。ツール側のデータは消えません。\n【元に戻す】次の取込で、まだ残っている商品はまた入ってきます。\n【消さない】キャンセルを押してください。`)) return;
   const t=new Date(), z=n=>String(n).padStart(2,"0");
   const today=t.getFullYear()+"-"+z(t.getMonth()+1)+"-"+z(t.getDate());
-  localStorage.setItem(stockKey(p),JSON.stringify({t:"",rows:[],lc:today,fn:d.fn||"",rs:stockRs()})); stockSel=new Set();   /* rs を進める＝共有データもここで空になる */
+  localStorage.setItem(stockKey(p),JSON.stringify({t:"",rows:[],lc:today,fn:d.fn||"",rs:stockRs()})); stockSelBy={};   /* rs を進める＝共有データもここで空になる */
   /* スマートストアの在庫チェック完了は、中島さんの日報カレンダーにも「在庫管理」と記録する（クラウド同期に乗る） */
   if(p==="smart"){ try{ const nd=nippoLoad(); if(!nd[today+"|nakajima|stock"]){ nd[today+"|nakajima|stock"]=1; localStorage.setItem(NIPPO_KEY,JSON.stringify(nd)); } }catch(e){} }
   render(); };
@@ -1971,7 +1978,7 @@ window.stockImportFile=(el)=>{
         const lb=stockStampLabel(stockStamp(f.name)); if(lb){ if(!sum.first) sum.first=lb; sum.last=lb; }
       }catch(err){ sum.skipped.push(f.name+"（"+(err.message||"読めません")+"）"); }
     }
-    el.value=""; stockSel=new Set(); render();
+    el.value=""; stockSelBy={}; render();
     if(!sum.done){ alert("取り込めたファイルがありませんでした。\n"+(sum.skipped.join("\n")||"")); return; }
     const tot=STOCK_PLATS.map(p=>`${PNAME[p]}：新しく${sum[p].add}件・更新${sum[p].upd}件（合計${loadStock(p).rows.length}件）`);
     alert("取込完了（在庫管理・蓄積式）"
@@ -2025,7 +2032,7 @@ function importStock(arr,stamp,opts){
     parts.push(`${PNAME[p]}：新しく${add}件・`+(older?`据え置き${keep}件`:`更新${upd}件`)+`（合計${cur.rows.length}件）`); });
   if(stamp&&(!last||stamp>last)){ try{ localStorage.setItem("kr_stock_lastmail_v1",stamp); }catch(e){} }
   try{ ["kr_stock_coupang_v1","kr_stock_done_smart_v1","kr_stock_done_st11_v1","kr_stock_done_coupang_v1"].forEach(k=>localStorage.removeItem(k)); }catch(e){}   /* 旧仕様の残り（クーパン分・済チェック）を掃除 */
-  stockSel=new Set();
+  stockSelBy={};
   if(opts.silent) return res;              /* まとめて取込のときは、最後に1回だけ描き直して1回だけ知らせる */
   render();
   const fl=stockStampLabel(stamp);
@@ -2286,7 +2293,7 @@ function renderStock(){
     bd.innerHTML=`<div class="panel"><div class="empty"><b>このモールは対象外です</b>左の「スマートストア」か「11番街」を選んでください。</div></div>`;
     return;
   }
-  if(stockSelPlat!==p){ stockSel=new Set(); stockSelPlat=p; }   /* モールを切り替えたらチェックはリセット */
+  if(stockSelPlat!==p){ stockSelBy={}; stockSelPlat=p; }   /* モールを切り替えたらチェックはリセット */
   const d=loadStock(p);
   hd.innerHTML=`在庫管理：${PNAME[p]||p} <small>「修正必要商品リスト」から、やることだけを抽出</small>`;
   const rows=d.rows.map(r=>({ ...r, cat:stockCat(r) }));
@@ -2295,8 +2302,8 @@ function renderStock(){
   const toolbar=`<div class="toolbar">`+
     `<span style="font-size:12px;color:var(--muted);font-weight:600">${d.t?("最終取込："+esc(d.t)):"まだ取り込みがありません"}${stockStampLabel(d.fn)?("（データ "+esc(stockStampLabel(d.fn))+"）"):""}${d.lc?("　／　最終チェック："+esc(d.lc)):""}</span>`+
     `<div class="grow"></div>`+
-    `<button class="btn-ghost" id="stock-copyid" onclick="stockCopySel(this,'id')">📋 ASINをまとめてコピー（${stockSel.size}件）</button>`+
-    `<button class="btn-ghost" id="stock-copyfair" onclick="stockCopySel(this,'fair')">📋 適正価格をまとめてコピー（${stockSel.size}件）</button>`+
+    `<button class="btn-ghost" id="stock-copyid" onclick="stockCopySel(this,'id')">📋 ASINをまとめてコピー（${stockSelCur().size}件）</button>`+
+    `<button class="btn-ghost" id="stock-copyfair" onclick="stockCopySel(this,'fair')">📋 適正価格をまとめてコピー（${stockSelCur().size}件）</button>`+
     `<button class="btn-ghost" onclick="stockReset()" title="この一覧を空にして、最終チェック日を今日にします（確認が出ます）">🧹 リセット</button>`+
     `<button class="btn-ghost" onclick="document.getElementById('stock-file').click()" title="何日分かをまとめて選べます（ファイル名の日時で古い順に取り込みます）">📥 修正必要リストを取り込む<small style="color:var(--muted);font-weight:600">（複数可）</small></button>`+
     `<input type="file" id="stock-file" accept=".xlsx,.xls,.csv" multiple style="display:none" onchange="stockImportFile(this)">`+
@@ -2321,7 +2328,7 @@ function renderStock(){
     const badge=(r.isNew?` <span class="stkb blue">NEW</span>`:"")+(r.color?` <span class="stkb ${STOCK_BADGE[r.color]||"grey"}">${esc(r.color)}</span>`:"");
     const diff=(r.price>0&&r.fair>0)?Math.round(r.fair-r.price):0;
     return `<tr>`+
-      `<td><input type="checkbox" class="rowchk stock-chk" data-id="${esc(r.id)}" ${stockSel.has(r.id)?"checked":""} onclick="stockChk('${esc(r.id)}',this)" title="チェックした商品のASINをまとめてコピーできます"></td>`+
+      `<td><input type="checkbox" class="rowchk stock-chk" data-id="${esc(r.id)}" ${stockSelCur().has(r.id)?"checked":""} onclick="stockChk('${esc(r.id)}',this)" title="チェックした商品のASINをまとめてコピーできます"></td>`+
       `<td class="mono">${esc(r.id)}<button class="cbtn" data-copy="${esc(r.id)}" onclick="copyBtn(this)" title="この商品のASINをコピー">📋</button></td>`+
       `<td><span class="clip" title="${esc(r.name)}" onclick="toggleClip(this)">${esc(r.name)}</span></td>`+
       `<td>${esc(r.st||"—")}</td>`+
