@@ -2844,8 +2844,10 @@ function renderHome(){
   const jd=v=>{ const d=new Date(v+"T00:00:00"); return isNaN(d)?null:d; };
   const daysAgo=v=>{ const d=jd(v); return d?Math.round((jd(today)-d)/86400000):null; };
   const md=v=>(+v.slice(5,7))+"/"+(+v.slice(8,10));
-  const stock=[["smart","スマートストア"],["st11","11番街"]].map(pair=>{
-    const p=pair[0], n=pair[1], lc=String(loadStock(p).lc||"");
+  const stock=[["coupang","クーパン"],["smart","スマートストア"],["st11","11番街"]].map(pair=>{
+    const p=pair[0], n=pair[1];
+    /* クーパンは在庫リストが無いので、Excelを取り込んだ日を「最後にチェックした日」とする */
+    const lc=(p==="coupang")?String(oosLoad().t||"").slice(0,10):String(loadStock(p).lc||"");
     const ago=daysAgo(lc);
     const none=(ago==null), ok=(ago===0), warn=(ago!=null&&ago>=3);
     const col=none?"#e5453c":(ok?"#12a866":(warn?"#e29a1f":"#3b4560"));
@@ -2880,21 +2882,25 @@ function renderHome(){
         `<div class="hm-sec" style="margin:0 2px 14px">📊 在庫管理 <span class="hm-sec-s">最後にチェックした日</span></div>`+
         `<div class="hm-chips">${stock}</div>`+
       `</div>`+
+    `</div>`+
+    `<div style="display:flex;gap:16px;align-items:flex-end;flex-wrap:wrap;margin-top:36px">`+
+      `<div>`+
+        `<div class="hm-sec" style="margin:0 2px 14px">📦 当月の新規出品 <span class="hm-sec-s">日報から集計（${+ym.slice(5,7)}月）</span></div>`+
+        `<div class="hm-chips">`+
+          `<button class="hm-chip" onclick="homeGoListCount('coupang')">`+
+            `<span class="hm-chip-n">クーパン</span><b style="color:var(--accent-d)">${npCp.toLocaleString("ja-JP")}件</b>`+
+            `<span class="hm-chip-s">月別グラフへ ›</span></button>`+
+          `<button class="hm-chip" onclick="homeGoListCount('smart')">`+
+            `<span class="hm-chip-n">スマートストア</span><b style="color:var(--accent-d)">${npSm.toLocaleString("ja-JP")}件</b>`+
+            `<span class="hm-chip-s">月別グラフへ ›</span></button>`+
+        `</div>`+
+      `</div>`+
       `<div>`+
         `<div class="hm-sec" style="margin:0 2px 14px">✍️ ブログ</div>`+
         `<div class="hm-chips"><button class="hm-chip" onclick="homeGoBlog()">`+
           `<span class="hm-chip-n">投稿確定日</span><b style="color:var(--accent-d)">${fdl}</b>`+
           `<span class="hm-chip-s">ここまで1日3件揃っています ›</span></button></div>`+
       `</div>`+
-    `</div>`+
-    `<div class="hm-sec">📦 当月の新規出品 <span class="hm-sec-s">日報から集計（${+ym.slice(5,7)}月）</span></div>`+
-    `<div class="hm-chips">`+
-      `<button class="hm-chip" onclick="homeGoListCount('coupang')">`+
-        `<span class="hm-chip-n">クーパン</span><b style="color:var(--accent-d)">${npCp.toLocaleString("ja-JP")}件</b>`+
-        `<span class="hm-chip-s">月別グラフへ ›</span></button>`+
-      `<button class="hm-chip" onclick="homeGoListCount('smart')">`+
-        `<span class="hm-chip-n">スマートストア</span><b style="color:var(--accent-d)">${npSm.toLocaleString("ja-JP")}件</b>`+
-        `<span class="hm-chip-s">月別グラフへ ›</span></button>`+
     `</div>`+
     `<div class="hm-sec">✨ ブラッシュアップ <span class="hm-sec-s">スマートストアの未投稿</span></div>`+
     `<div class="hm-chips">`+
