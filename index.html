@@ -3762,7 +3762,7 @@ async function oosImport(fileList){
       }
       const rows=oosParse(arr);
       if(!rows.length){ bad.push(f.name+"：ASINが見つかりません"); continue; }
-      rows.forEach(r=>{ if(map[r.id]){ Object.assign(map[r.id],r); upd++; } else { map[r.id]=r; add++; } });
+      rows.forEach(r=>{ if(map[r.id]){ Object.assign(map[r.id],r); delete map[r.id].done; upd++; } else { map[r.id]=r; add++; } });
       d.fn=f.name;
     }catch(err){ bad.push(f.name+"："+(err.message||"読めません")); }
   }
@@ -3776,6 +3776,14 @@ async function oosImport(fileList){
   msg.push(`SOLD商品 ${s}件 ／ 在庫切れ ${d.rows.length-s}件`);
   alert("取り込みました。\n"+msg.join("\n")+(bad.length?("\n\n読めなかったファイル:\n"+bad.join("\n")):""));
 }
+/* 補充済み：一覧から外す（データは残す＝取り込み直すと、まだ在庫切れなら戻ってくる） */
+window.oosDone=(a)=>{ const d=oosLoad(), r=d.rows.find(x=>x.id===a); if(!r) return;
+  r.done=todayStr(); oosSave(d); render(); };
+window.oosUndone=(a)=>{ const d=oosLoad(), r=d.rows.find(x=>x.id===a); if(!r) return;
+  delete r.done; oosSave(d); render(); };
+/* 在庫を見たけど無かった日（チェックのみ）。入力中に描き直すとフォーカスが外れるので保存だけ */
+window.oosSetChk=(a,v)=>{ const d=oosLoad(), r=d.rows.find(x=>x.id===a); if(!r) return;
+  if(String(v||"").trim()) r.chk=v; else delete r.chk; oosSave(d); };
 window.oosSetTab=(t)=>{ oosTab=t; render(); };
 window.oosChk=(id,el)=>{ const s=oosSelCur(); if(el.checked) s.add(id); else s.delete(id); oosSync(); };
 window.oosSelAll=(el)=>{ const s=oosSelCur(); document.querySelectorAll("#oos-body .oos-chk").forEach(b=>{ b.checked=el.checked;
@@ -3813,19 +3821,20 @@ window.oosReset=()=>{
   if(!confirm(`在庫切れのリストをリセットします。よろしいですか？\n\n【消すもの】この一覧 ${d.rows.length}件（SOLD商品・在庫切れの両方）と、取り込んだ過去の販売ASIN ${Object.keys(d.past||{}).length}件\n【影響】共有データからも消えます。外注さんの画面でも空になります\n【戻せるか】戻せません。もう一度Excelを取り込んでください（売上台帳・他の画面には触りません）\n【消さない】キャンセルを押してください`)) return;
   oosSave({t:"",fn:"",rows:[],past:{}}); oosSelBy={}; render(); };
 function oosRows(tab){
-  const sm=oosSoldMap(), rows=oosLoad().rows.slice();
+  const sm=oosSoldMap(), rows=oosLoad().rows.filter(r=>!r.done);   /* 補充済みは一覧に出さない */
   const sold=rows.filter(r=>num(sm[r.id])>0).map(r=>Object.assign({},r,{sold:num(sm[r.id])})).sort((a,b)=>b.sold-a.sold);
   if(tab==="sold") return sold;
   return rows.filter(r=>!(num(sm[r.id])>0));
 }
 function oosPanel(){
   const d=oosLoad(), sold=oosRows("sold"), oos=oosRows("oos"), list=(oosTab==="sold")?sold:oos;
+  const doneN=d.rows.filter(r=>r.done).length;
   const sel=oosSelCur(), w$=n=>"₩"+Math.round(n).toLocaleString("ja-JP");
   const zs="border:2px dashed var(--line);border-radius:12px;padding:14px;text-align:center;cursor:pointer;background:#fafbff";
   const on="this.style.background='#eef3ff';this.style.borderColor='var(--brand)'";
   const off="this.style.background='#fafbff';this.style.borderColor='var(--line)'";
   const head=(oosTab==="sold")
-    ? `<tr><th style="width:34px"><input type="checkbox" class="rowchk" id="oos-selall" onclick="oosSelAll(this)" title="表示中の行を全部チェック／解除"></th><th>ASIN</th><th>商品名</th><th class="right">販売数</th><th class="right">価格</th></tr>`
+    ? `<tr><th style="width:34px"><input type="checkbox" class="rowchk" id="oos-selall" onclick="oosSelAll(this)" title="表示中の行を全部チェック／解除"></th><th>ASIN</th><th>商品名</th><th class="right">販売数</th><th class="right">価格</th><th>チェック日</th><th>操作</th></tr>`
     : `<tr><th style="width:34px"><input type="checkbox" class="rowchk" id="oos-selall" onclick="oosSelAll(this)" title="表示中の行を全部チェック／解除"></th><th>ASIN</th><th>商品名</th><th class="right">価格</th></tr>`;
   const body=list.length? list.map(r=>{
       const a=esc(r.id);
@@ -3833,9 +3842,14 @@ function oosPanel(){
         `<td><a class="srclink" href="https://www.amazon.co.jp/dp/${a}" target="_blank">${a}</a></td>`+
         `<td><span class="clip" title="${esc(r.name||"")}" onclick="toggleClip(this)">${esc(r.name||"")}</span></td>`+
         (oosTab==="sold"?`<td class="right mono"><b>${num(r.sold).toLocaleString("ja-JP")}</b></td>`:"")+
-        `<td class="right mono">${num(r.price)>0?w$(r.price):""}</td></tr>`;
+        `<td class="right mono">${num(r.price)>0?w$(r.price):""}</td>`+
+        (oosTab==="sold"
+          ? `<td><input class="rvdate" type="date" value="${esc(r.chk||"")}" title="在庫を見たけど無かった日を入れます" onchange="oosSetChk('${a}',this.value)"></td>`+
+            `<td><button class="btn-primary btn-sm" title="補充できたので一覧から外します" onclick="oosDone('${a}')">補充済み</button></td>`
+          : "")+
+        `</tr>`;
     }).join("")
-    : `<tr><td class="empty" colspan="${oosTab==="sold"?5:4}"><b>${oosTab==="sold"?"SOLD商品はありません":"在庫切れはありません"}</b>${d.rows.length?"":"右上の「📥 Excelを取り込む」から、クーパンの「가격/재고」ファイルを入れてください。"}</td></tr>`;
+    : `<tr><td class="empty" colspan="${oosTab==="sold"?7:4}"><b>${oosTab==="sold"?"SOLD商品はありません":"在庫切れはありません"}</b>${d.rows.length?"":"右上の「📥 Excelを取り込む」から、クーパンの「가격/재고」ファイルを入れてください。"}</td></tr>`;
   return `<div class="toolbar">`+
       `<span style="font-size:12px;color:var(--muted);font-weight:600">${d.t?("最終取込："+esc(d.t)+(d.fn?("（"+esc(d.fn)+"）"):"")):"まだ取り込みがありません"}</span>`+
       `<div class="grow"></div>`+
@@ -3849,7 +3863,9 @@ function oosPanel(){
     `<div class="retnote" style="background:#fafbff;color:var(--muted)">`+
       `クーパンの「가격/재고」Excelを入れると、<b>売上台帳に販売実績があるASIN＝SOLD商品</b>、それ以外＝<b>在庫切れ</b>に自動で分けます。販売数は売上台帳の実績です（キャンセル・返品は数えません）。<br>`+
       `どちらのタブも<b>チェックしてASINをまとめてコピー</b>できます。<b>SOLD商品だけ</b>、商品ページを<b>まとめて開けます</b>（基本はAmazon。売上管理で📎に楽天・ヤフショ等の仕入れ元URLを入れてある商品は、そちらを開きます）。<br>`+
-      `<b>フロンティアの商品データ</b>も同じボタンで取り込めます（自動で見分けます）。台帳に無いASINだけ「販売数1」として足します（件数は当てにならないので必ず1・かぶりはスルー）。`+
+      `<b>フロンティアの商品データ</b>も同じボタンで取り込めます（自動で見分けます）。台帳に無いASINだけ「販売数1」として足します（件数は当てにならないので必ず1・かぶりはスルー）。<br>`+
+      `SOLD商品は、仕入れ直せたら<b>「補充済み」</b>で一覧から外れます。<b>見たけど在庫が無かったときは「チェック日」に日付</b>を入れておくと、次に見るときの目印になります（行は残ります）。`+
+      (doneN?`　いま補充済み：<b>${doneN}件</b>（取り込み直すと、まだ在庫切れなら戻ってきます）`:"")+
       (Object.keys(d.past||{}).length?`　いま登録ずみの過去の販売ASIN：<b>${Object.keys(d.past).length}件</b>`:"")+
     `</div>`+
     (d.rows.length?"":`<div style="${zs};margin:10px 0" onclick="oosPick()" ondragover="event.preventDefault();${on}" ondragleave="${off}" ondrop="${off};oosDrop(event)">`+
