@@ -3789,16 +3789,24 @@ window.oosCopy=(btn)=>{ const s=oosSelCur(); if(!s.size){ alert("コピーする
   const ids=oosRows(oosTab).filter(r=>s.has(r.id)).map(r=>r.id);
   if(!ids.length){ alert("このタブにチェックした商品がありません。"); return; }
   copyText(ids.join("\n")); flashBtn(btn); };
+/* 開くURL：基本はAmazonの商品ページ。売上台帳に仕入れ元URL（楽天・ヤフショ等）が入っていれば、そちらを開く */
+function oosUrlFor(a){
+  try{ const l=loadSales(platforms.coupang.salesKey)||[];
+    for(let i=l.length-1;i>=0;i--){ const s=l[i];
+      if(String(s.asin||"").trim().toUpperCase()!==a) continue;
+      const u=String(s.url||"").trim().split(/\s+/)[0];
+      if(/^https?:\/\//i.test(u)) return u; }
+  }catch(e){}
+  return "https://www.amazon.co.jp/dp/"+a;
+}
 window.oosOpen=()=>{ const s=oosSelCur();
   if(!s.size){ alert("開きたい行の左の ✓ にチェックを入れてから押してください。"); return; }
   const ids=oosRows("sold").filter(r=>s.has(r.id)).map(r=>r.id);
   if(!ids.length){ alert("SOLD商品にチェックを入れてください。"); return; }
-  if(ids.length>10 && !confirm(`${ids.length}件 × 3サイト＝${ids.length*3}個のタブが開きます。よろしいですか？`)) return;
+  const urls=ids.map(oosUrlFor);
+  if(urls.length>15 && !confirm(`${urls.length}個のタブが開きます。よろしいですか？`)) return;
   let blocked=false;
-  ids.forEach(a=>{ [ "https://www.amazon.co.jp/dp/"+a,
-                     "https://search.rakuten.co.jp/search/mall/"+encodeURIComponent(a)+"/",
-                     "https://shopping.yahoo.co.jp/search?p="+encodeURIComponent(a) ]
-    .forEach(u=>{ if(!window.open(u,"_blank","noopener")) blocked=true; }); });
+  urls.forEach(u=>{ if(!window.open(u,"_blank","noopener")) blocked=true; });
   if(blocked) alert("ブラウザにポップアップ（新しいタブ）がブロックされました。\nアドレスバー右のブロック表示から「このサイトのポップアップとリダイレクトを常に許可」を選び、もう一度押してください。"); };
 window.oosReset=()=>{
   const d=oosLoad(); if(!d.rows.length){ alert("消すデータがありません。"); return; }
@@ -3840,7 +3848,7 @@ function oosPanel(){
     `</div>`+
     `<div class="retnote" style="background:#fafbff;color:var(--muted)">`+
       `クーパンの「가격/재고」Excelを入れると、<b>売上台帳に販売実績があるASIN＝SOLD商品</b>、それ以外＝<b>在庫切れ</b>に自動で分けます。販売数は売上台帳の実績です（キャンセル・返品は数えません）。<br>`+
-      `どちらのタブも<b>チェックしてASINをまとめてコピー</b>できます。<b>SOLD商品だけ</b>、Amazon・楽天・ヤフショを<b>まとめて開けます</b>（楽天・ヤフショはASINで検索します）。<br>`+
+      `どちらのタブも<b>チェックしてASINをまとめてコピー</b>できます。<b>SOLD商品だけ</b>、商品ページを<b>まとめて開けます</b>（基本はAmazon。売上管理で📎に楽天・ヤフショ等の仕入れ元URLを入れてある商品は、そちらを開きます）。<br>`+
       `<b>フロンティアの商品データ</b>も同じボタンで取り込めます（自動で見分けます）。台帳に無いASINだけ「販売数1」として足します（件数は当てにならないので必ず1・かぶりはスルー）。`+
       (Object.keys(d.past||{}).length?`　いま登録ずみの過去の販売ASIN：<b>${Object.keys(d.past).length}件</b>`:"")+
     `</div>`+
@@ -3848,7 +3856,7 @@ function oosPanel(){
       `<div style="font-size:12.5px;font-weight:700">📄 Excelをここにドロップ <span style="font-weight:400;color:var(--muted)">（クリックで選んでもOK）</span></div></div>`)+
     `<div class="toolbar" style="border-top:0">`+
       `<button class="btn-ghost" id="oos-copy" onclick="oosCopy(this)">📋 ASINをまとめてコピー（${sel.size}件）</button>`+
-      (oosTab==="sold"?`<button class="btn-ghost" id="oos-open" onclick="oosOpen()" title="Amazonの商品ページ・楽天とヤフショのASIN検索をまとめて開きます">🗂 選択を一括で開く（${sel.size}件）</button>`:"")+
+      (oosTab==="sold"?`<button class="btn-ghost" id="oos-open" onclick="oosOpen()" title="商品ページをまとめて開きます（基本はAmazon／仕入れ元URLがあればそちら）">🗂 選択を一括で開く（${sel.size}件）</button>`:"")+
     `</div>`+
     `<div class="tablewrap"><table><thead>${head}</thead><tbody id="oos-body">${body}</tbody></table></div>`+
     `<div class="count">${oosTab==="sold"?"SOLD商品":"在庫切れ"} ${list.length}件 ／ 合計 ${d.rows.length}件</div>`;
