@@ -667,6 +667,7 @@ window.CAT_ATTR_JA={"색상": "色", "수량": "数量", "패션의류/잡화 �
     <div class="navgroup" data-g="stock">
       <div class="navhead" title="在庫管理"><span class="nav-ico">📊</span><span class="nav-txt">在庫管理</span><span class="arw">▶</span></div>
       <div class="navsub" data-label="在庫管理">
+        <a data-sec="stock" data-p="coupang"><span class="dot"></span>クーパン</a>
         <a data-sec="stock" data-p="smart"><span class="dot"></span>スマートストア</a>
         <a data-sec="stock" data-p="st11"><span class="dot"></span>11番街</a>
       </div>
@@ -1518,7 +1519,7 @@ async function cloudDelete(order){ const u=cloudURL(); if(!u) return;
 /* ===== その他データの同期（マニュアル・顧客・出品・ブログ等）：key-value方式 ===== */
 /* kr_hi_（黄色の選択）は同期しない＝端末ごとの目印。
    共有すると①和集合で選択が溜まる②複数人で1つの選択を奪い合う、の両方が起きるため。 */
-const KV_SYNC_PREFIXES=["kr_teb_","kr_bru_","kr_manual_v2","kr_manual_urls","kr_tblman_","kr_cust_","kr_list_attr_","kr_list_cat_","kr_list_brand_","kr_attr_cat_","kr_blog_","kr_catseg_ja","kr_shinfix","kr_tomb","kr_nippo_","kr_stock_smart_v1","kr_stock_st11_v1"];
+const KV_SYNC_PREFIXES=["kr_teb_","kr_bru_","kr_manual_v2","kr_manual_urls","kr_tblman_","kr_cust_","kr_list_attr_","kr_list_cat_","kr_list_brand_","kr_attr_cat_","kr_blog_","kr_catseg_ja","kr_shinfix","kr_tomb","kr_nippo_","kr_stock_smart_v1","kr_stock_st11_v1","kr_oos_"];
 function isKvSyncKey(k){ return KV_SYNC_PREFIXES.some(p=> k===p || k.indexOf(p)===0 ); }
 let kvReady=false;                 // 初回プル完了まで送信しない（初期シードの誤送信防止）
 const _kvSetItem=localStorage.setItem.bind(localStorage);
@@ -2288,9 +2289,16 @@ function tznPanel(p){
 }
 function renderStock(){
   const p=current, hd=document.getElementById("stock-head"), bd=document.getElementById("stock-body");
+  /* クーパンは「修正必要商品リスト」が来ないので、代わりに在庫切れの整理画面を出す
+     （在庫切れ＝消す候補／SOLD商品＝残して在庫補充する候補） */
+  if(p==="coupang"){
+    hd.innerHTML=`在庫管理：クーパン <small>在庫切れは消す・SOLD商品は残して在庫補充</small>`;
+    bd.innerHTML=`<div class="panel">`+oosPanel()+`</div>`;
+    oosSync(); return;
+  }
   if(STOCK_PLATS.indexOf(p)<0){
     hd.innerHTML=`在庫管理`;
-    bd.innerHTML=`<div class="panel"><div class="empty"><b>このモールは対象外です</b>左の「スマートストア」か「11番街」を選んでください。</div></div>`;
+    bd.innerHTML=`<div class="panel"><div class="empty"><b>このモールは対象外です</b>左の「クーパン」「スマートストア」「11番街」から選んでください。</div></div>`;
     return;
   }
   if(stockSelPlat!==p){ stockSelBy={}; stockSelPlat=p; }   /* モールを切り替えたらチェックはリセット */
@@ -3073,6 +3081,14 @@ const NIPPO_WHO=[ {k:"fukumura",n:"福村",job:"出品"}, {k:"nakajima",n:"中�
 const NIPPO_FEE_DAY=27;
 const NIPPO_FEE_TAGS=["販売手数料","配送料金"];
 const NIPPO_FEE_WHO="fukumura";
+/* 在庫切れの確認日：毎月 第1・第3月曜（福村さんのカレンダーだけ） */
+const NIPPO_OOS_NTH=[1,3];
+function nippoNthMon(ym,n){
+  const y=+ym.slice(0,4), m=+ym.slice(5,7); if(!y||!m) return "";
+  const last=new Date(y,m,0).getDate(); let c=0;
+  for(let d=1;d<=last;d++){ if(new Date(y,m-1,d).getDay()===1 && ++c===n) return ym+"-"+String(d).padStart(2,"0"); }
+  return "";
+}
 let nippoWho="fukumura", nippoMonth="", nippoDate="", nippoFlash=false;
 function nippoLoad(){ try{ const d=JSON.parse(localStorage.getItem(NIPPO_KEY)); if(d&&typeof d==="object"&&!Array.isArray(d)) return d; }catch(e){} return {}; }
 window.nippoTab=k=>{ nippoWho=k; nippoDate=""; nippoFlash=false; renderNippo(); };
@@ -3107,19 +3123,21 @@ function renderNippo(){
   const WDH=["日","月","火","水","木","金","土"];
   const head=WDH.map((w,i)=>`<div style="text-align:center;font-size:11.5px;font-weight:800;color:${i===0?"#e5453c":(i===6?"#4f6bef":"var(--muted)")};padding:4px 0">${w}</div>`).join("");
   const feeDay=(who.k===NIPPO_FEE_WHO)?(nippoMonth+"-"+String(NIPPO_FEE_DAY).padStart(2,"0")):"";
+  const oosDays=(who.k===NIPPO_FEE_WHO)?NIPPO_OOS_NTH.map(n=>nippoNthMon(nippoMonth,n)).filter(Boolean):[];
   let cells="";
   for(let i=0;i<lead;i++) cells+=`<div></div>`;
   for(let dd=1;dd<=last;dd++){
     const dt=nippoMonth+"-"+String(dd).padStart(2,"0");
     const v=d[dt+"|"+who.k], stk=d[dt+"|"+who.k+"|stock"];
     const sel=(dt===nippoDate), isToday=(dt===today);
-    const fee=(dt===feeDay);
+    const fee=(dt===feeDay), oosd=(oosDays.indexOf(dt)>=0);
     const wdi=(lead+dd-1)%7;
     cells+=`<button onclick="nippoPickDay('${dt}')" style="height:auto;min-height:64px;border:1.5px solid ${sel?"var(--accent)":"var(--line)"};border-radius:10px;background:${sel?"#eef2ff":"#fff"};padding:6px 4px 8px;display:flex;flex-direction:column;align-items:center;gap:3px;cursor:pointer;font:inherit">`+
       `<span style="font-size:11.5px;font-weight:${isToday?"800":"600"};color:${isToday?"var(--accent-d)":(wdi===0?"#e5453c":(wdi===6?"#4f6bef":"var(--muted)"))}">${dd}${isToday?" 今日":""}</span>`+
       (v!=null?`<span style="font-size:17px;font-weight:800;color:var(--accent-d);line-height:1">${esc(v)}<small style="font-size:10px;font-weight:700;color:var(--muted)"> 件</small></span>`:(stk?"":`<span style="font-size:13px;color:#dfe3ef;line-height:1">−</span>`))+
       (stk?`<span style="font-size:9.5px;font-weight:800;color:#0e8a55;background:#e6f6ee;border-radius:5px;padding:1px 5px;line-height:1.5;white-space:nowrap">在庫管理</span>`:"")+
       (fee?NIPPO_FEE_TAGS.map(x=>`<span style="font-size:9.5px;font-weight:800;color:#8a5b00;background:#fdf0d5;border-radius:5px;padding:1px 5px;line-height:1.5;white-space:nowrap">${x}</span>`).join(""):"")+
+      (oosd?`<span style="font-size:9.5px;font-weight:800;color:#9b2c2c;background:#fdeaea;border-radius:5px;padding:1px 5px;line-height:1.5;white-space:nowrap">在庫切れ</span>`:"")+
       `</button>`;
   }
   const wd="（"+"日月火水木金土"[new Date(nippoDate+"T00:00:00").getDay()]+"）";
@@ -3663,6 +3681,178 @@ let bruMode="brushup";        /* ブラッシュアップと手出品でデー�
 window.setCoupangListTab=(t)=>{ coupangListTab=t; renderList(); };
 window.setSmartListTab=(t)=>{ smartListTab=t; renderList(); };
 window.setBruTab=(t)=>{ bruTab=t; renderList(); };
+/* ===== 在庫切れ（クーパンの「가격/재고」Excelを取り込み、SOLD商品と在庫切れに振り分ける） =====
+   SOLD＝売上台帳（クーパン）に販売実績があるASIN。販売数もそこから出す（キャンセル・返品は数えない）。
+   在庫切れ＝それ以外。SOLDだけ「選択を一括で開く」（Amazonは商品ページ・楽天/ヤフショはASINで検索）。
+   データはクラウド同期する（kr_oos_）。リセットで空にすると共有側も空になる。 */
+const OOS_KEY="kr_oos_coupang_v1";
+let oosTab="sold", oosSelBy={};
+function oosSelCur(){ if(!oosSelBy[oosTab]) oosSelBy[oosTab]=new Set(); return oosSelBy[oosTab]; }
+function oosLoad(){ try{ const d=JSON.parse(localStorage.getItem(OOS_KEY));
+    if(d&&typeof d==="object"&&Array.isArray(d.rows)) return {t:d.t||"",fn:d.fn||"",rows:d.rows,past:(d.past&&typeof d.past==="object")?d.past:{}}; }catch(e){}
+  return {t:"",fn:"",rows:[],past:{}}; }
+function oosSave(d){ try{ localStorage.setItem(OOS_KEY,JSON.stringify(d)); }
+  catch(e){ alert("保存できませんでした（データが大きすぎるようです）。"); } }
+/* 売上台帳から「過去に売れたASIN → 販売数」を作る（キャンセル・返品は除く＝blogDataと同じ数え方） */
+function oosSoldMap(){ const m={};
+  try{ blogData("coupang").forEach(x=>{ const a=String(x.asin||"").trim().toUpperCase(); if(a) m[a]=(m[a]||0)+x.qty; }); }catch(e){}
+  /* 取り込んだ「過去の販売ASIN」で台帳に無いものだけ 1 として足す（元の件数は当てにならないので必ず1・かぶりはスルー） */
+  const past=oosLoad().past||{};
+  Object.keys(past).forEach(a=>{ if(!(num(m[a])>0)) m[a]=1; });
+  return m; }
+/* フロンティアの商品データ（過去に売れたASINの一覧）かどうか。見出しに「商品ID」があれば そちら */
+function oosParsePast(arr){
+  const norm=v=>String(v==null?"":v).trim();
+  for(let i=0;i<Math.min(arr.length,30);i++){
+    const row=(arr[i]||[]).map(norm);
+    const c=row.indexOf("商品ID"); if(c<0) continue;
+    const sold=row.findIndex(v=>v==="販売数");
+    const out=[];
+    for(let j=i+1;j<arr.length;j++){ const r=arr[j]||[];
+      const a=norm(r[c]).toUpperCase(); if(!tznIsAsin(a)) continue;
+      if(sold>=0 && !(num(r[sold])>0)) continue;      /* 販売数が0の行は「売れた」ではない */
+      out.push(a); }
+    return out;
+  }
+  return null;
+}
+/* 見出しの韓国語から列を割り出す。見出しが見つからないときはASINらしい列を自動で探す */
+function oosParse(arr){
+  const WANT={ asin:["업체상품코드","판매자상품코드","판매자 상품코드","상품코드"],
+               name:["쿠팡 노출 상품명","업체 등록 상품명","상품명"],
+               price:["판매가격"], stock:["잔여수량(재고)","잔여수량"] };
+  const norm=v=>String(v==null?"":v).trim();
+  let hr=-1, idx={};
+  for(let i=0;i<Math.min(arr.length,30);i++){
+    const row=(arr[i]||[]).map(norm), hit={};
+    Object.keys(WANT).forEach(k=>{ const c=row.findIndex(v=>WANT[k].indexOf(v)>=0); if(c>=0) hit[k]=c; });
+    if(hit.asin!=null){ hr=i; idx=hit; break; }
+  }
+  const out=[], seen=new Set();
+  if(hr>=0){
+    for(let i=hr+1;i<arr.length;i++){ const r=arr[i]||[];
+      const a=norm(r[idx.asin]).toUpperCase(); if(!tznIsAsin(a)||seen.has(a)) continue; seen.add(a);
+      out.push({ id:a, name:(idx.name!=null?norm(r[idx.name]):""),
+                 price:(idx.price!=null?num(r[idx.price]):0), stock:(idx.stock!=null?num(r[idx.stock]):0) }); }
+    return out;
+  }
+  const p=tznPickCol(arr);                       /* 見出しが違う形でもASINだけは拾う */
+  p.list.forEach(a=>{ if(!seen.has(a)){ seen.add(a); out.push({id:a,name:"",price:0,stock:0}); } });
+  return out;
+}
+window.oosPick=()=>{ const i=document.createElement("input"); i.type="file"; i.accept=".xlsx,.xls,.csv"; i.multiple=true;
+  i.onchange=()=>oosImport(i.files); i.click(); };
+window.oosDrop=(ev)=>{ ev.preventDefault(); oosImport(ev.dataTransfer&&ev.dataTransfer.files); };
+async function oosImport(fileList){
+  const fs=Array.from(fileList||[]); if(!fs.length) return;
+  const d=oosLoad(), map={}; d.rows.forEach(r=>{ map[r.id]=r; });
+  let add=0, upd=0, pastAdd=0, pastTot=0; const bad=[];
+  for(const f of fs){
+    const buf=await new Promise(ok=>{ const rd=new FileReader(); rd.onload=e=>ok(e.target.result); rd.onerror=()=>ok(null); rd.readAsArrayBuffer(f); });
+    if(!buf){ bad.push(f.name+"：読み込めません"); continue; }
+    try{
+      const wb=readWB(buf), sh=tznFixRef(wb.Sheets[wb.SheetNames[0]]);
+      const arr=XLSX.utils.sheet_to_json(sh,{header:1,raw:false,defval:""});
+      const past=oosParsePast(arr);
+      if(past){                                        /* フロンティアの商品データ＝過去の販売ASIN */
+        if(!past.length){ bad.push(f.name+"：販売実績のあるASINが見つかりません"); continue; }
+        d.past=d.past||{}; let pn=0;
+        past.forEach(a=>{ if(!d.past[a]){ d.past[a]=1; pn++; } });
+        pastAdd+=pn; pastTot+=past.length; d.fn=f.name; continue;
+      }
+      const rows=oosParse(arr);
+      if(!rows.length){ bad.push(f.name+"：ASINが見つかりません"); continue; }
+      rows.forEach(r=>{ if(map[r.id]){ Object.assign(map[r.id],r); upd++; } else { map[r.id]=r; add++; } });
+      d.fn=f.name;
+    }catch(err){ bad.push(f.name+"："+(err.message||"読めません")); }
+  }
+  const t=new Date(), z=n=>String(n).padStart(2,"0");
+  d.t=t.getFullYear()+"-"+z(t.getMonth()+1)+"-"+z(t.getDate())+" "+z(t.getHours())+":"+z(t.getMinutes());
+  d.rows=Object.values(map); oosSave(d); oosSelBy={}; render();
+  const sm=oosSoldMap(), s=d.rows.filter(r=>num(sm[r.id])>0).length;
+  const msg=[];
+  if(add||upd) msg.push(`在庫リスト：新しく ${add}件・更新 ${upd}件（合計 ${d.rows.length}件）`);
+  if(pastTot) msg.push(`過去の販売ASIN：${pastTot}件のうち ${pastAdd}件を追加（残りは登録済みなのでスルー）`);
+  msg.push(`SOLD商品 ${s}件 ／ 在庫切れ ${d.rows.length-s}件`);
+  alert("取り込みました。\n"+msg.join("\n")+(bad.length?("\n\n読めなかったファイル:\n"+bad.join("\n")):""));
+}
+window.oosSetTab=(t)=>{ oosTab=t; render(); };
+window.oosChk=(id,el)=>{ const s=oosSelCur(); if(el.checked) s.add(id); else s.delete(id); oosSync(); };
+window.oosSelAll=(el)=>{ const s=oosSelCur(); document.querySelectorAll("#oos-body .oos-chk").forEach(b=>{ b.checked=el.checked;
+  const id=b.getAttribute("data-id"); if(el.checked) s.add(id); else s.delete(id); }); oosSync(); };
+function oosSync(){ const n=oosSelCur().size;
+  const b1=document.getElementById("oos-copy"); if(b1) b1.textContent=`📋 ASINをまとめてコピー（${n}件）`;
+  const b2=document.getElementById("oos-open"); if(b2) b2.textContent=`🗂 選択を一括で開く（${n}件）`;
+  const all=document.getElementById("oos-selall");
+  if(all){ const bx=[...document.querySelectorAll("#oos-body .oos-chk")]; all.checked=bx.length>0&&bx.every(b=>b.checked); } }
+window.oosCopy=(btn)=>{ const s=oosSelCur(); if(!s.size){ alert("コピーする商品にチェックを入れてください。\n（一番上のチェックで、表示中の行を全部選べます）"); return; }
+  const ids=oosRows(oosTab).filter(r=>s.has(r.id)).map(r=>r.id);
+  if(!ids.length){ alert("このタブにチェックした商品がありません。"); return; }
+  copyText(ids.join("\n")); flashBtn(btn); };
+window.oosOpen=()=>{ const s=oosSelCur();
+  if(!s.size){ alert("開きたい行の左の ✓ にチェックを入れてから押してください。"); return; }
+  const ids=oosRows("sold").filter(r=>s.has(r.id)).map(r=>r.id);
+  if(!ids.length){ alert("SOLD商品にチェックを入れてください。"); return; }
+  if(ids.length>10 && !confirm(`${ids.length}件 × 3サイト＝${ids.length*3}個のタブが開きます。よろしいですか？`)) return;
+  let blocked=false;
+  ids.forEach(a=>{ [ "https://www.amazon.co.jp/dp/"+a,
+                     "https://search.rakuten.co.jp/search/mall/"+encodeURIComponent(a)+"/",
+                     "https://shopping.yahoo.co.jp/search?p="+encodeURIComponent(a) ]
+    .forEach(u=>{ if(!window.open(u,"_blank","noopener")) blocked=true; }); });
+  if(blocked) alert("ブラウザにポップアップ（新しいタブ）がブロックされました。\nアドレスバー右のブロック表示から「このサイトのポップアップとリダイレクトを常に許可」を選び、もう一度押してください。"); };
+window.oosReset=()=>{
+  const d=oosLoad(); if(!d.rows.length){ alert("消すデータがありません。"); return; }
+  if(!confirm(`在庫切れのリストをリセットします。よろしいですか？\n\n【消すもの】この一覧 ${d.rows.length}件（SOLD商品・在庫切れの両方）と、取り込んだ過去の販売ASIN ${Object.keys(d.past||{}).length}件\n【影響】共有データからも消えます。外注さんの画面でも空になります\n【戻せるか】戻せません。もう一度Excelを取り込んでください（売上台帳・他の画面には触りません）\n【消さない】キャンセルを押してください`)) return;
+  oosSave({t:"",fn:"",rows:[],past:{}}); oosSelBy={}; render(); };
+function oosRows(tab){
+  const sm=oosSoldMap(), rows=oosLoad().rows.slice();
+  const sold=rows.filter(r=>num(sm[r.id])>0).map(r=>Object.assign({},r,{sold:num(sm[r.id])})).sort((a,b)=>b.sold-a.sold);
+  if(tab==="sold") return sold;
+  return rows.filter(r=>!(num(sm[r.id])>0));
+}
+function oosPanel(){
+  const d=oosLoad(), sold=oosRows("sold"), oos=oosRows("oos"), list=(oosTab==="sold")?sold:oos;
+  const sel=oosSelCur(), w$=n=>"₩"+Math.round(n).toLocaleString("ja-JP");
+  const zs="border:2px dashed var(--line);border-radius:12px;padding:14px;text-align:center;cursor:pointer;background:#fafbff";
+  const on="this.style.background='#eef3ff';this.style.borderColor='var(--brand)'";
+  const off="this.style.background='#fafbff';this.style.borderColor='var(--line)'";
+  const head=(oosTab==="sold")
+    ? `<tr><th style="width:34px"><input type="checkbox" class="rowchk" id="oos-selall" onclick="oosSelAll(this)" title="表示中の行を全部チェック／解除"></th><th>ASIN</th><th>商品名</th><th class="right">販売数</th><th class="right">価格</th></tr>`
+    : `<tr><th style="width:34px"><input type="checkbox" class="rowchk" id="oos-selall" onclick="oosSelAll(this)" title="表示中の行を全部チェック／解除"></th><th>ASIN</th><th>商品名</th><th class="right">価格</th></tr>`;
+  const body=list.length? list.map(r=>{
+      const a=esc(r.id);
+      return `<tr><td><input type="checkbox" class="rowchk oos-chk" data-id="${a}" ${sel.has(r.id)?"checked":""} onclick="oosChk('${a}',this)"></td>`+
+        `<td><a class="srclink" href="https://www.amazon.co.jp/dp/${a}" target="_blank">${a}</a></td>`+
+        `<td><span class="clip" title="${esc(r.name||"")}" onclick="toggleClip(this)">${esc(r.name||"")}</span></td>`+
+        (oosTab==="sold"?`<td class="right mono"><b>${num(r.sold).toLocaleString("ja-JP")}</b></td>`:"")+
+        `<td class="right mono">${num(r.price)>0?w$(r.price):""}</td></tr>`;
+    }).join("")
+    : `<tr><td class="empty" colspan="${oosTab==="sold"?5:4}"><b>${oosTab==="sold"?"SOLD商品はありません":"在庫切れはありません"}</b>${d.rows.length?"":"右上の「📥 Excelを取り込む」から、クーパンの「가격/재고」ファイルを入れてください。"}</td></tr>`;
+  return `<div class="toolbar">`+
+      `<span style="font-size:12px;color:var(--muted);font-weight:600">${d.t?("最終取込："+esc(d.t)+(d.fn?("（"+esc(d.fn)+"）"):"")):"まだ取り込みがありません"}</span>`+
+      `<div class="grow"></div>`+
+      `<button class="btn-ghost" onclick="oosReset()" title="この一覧を空にします（確認が出ます）">🧹 リセット</button>`+
+      `<button class="btn-ghost" onclick="oosPick()">📥 Excelを取り込む<small style="color:var(--muted);font-weight:600">（複数可）</small></button>`+
+    `</div>`+
+    `<div class="chips" style="margin:10px 0 4px">`+
+      `<button class="chip${oosTab==="sold"?" active":""}" onclick="oosSetTab('sold')">SOLD商品 <span class="n">${sold.length}</span></button>`+
+      `<button class="chip${oosTab==="oos"?" active":""}" onclick="oosSetTab('oos')">在庫切れ <span class="n">${oos.length}</span></button>`+
+    `</div>`+
+    `<div class="retnote" style="background:#fafbff;color:var(--muted)">`+
+      `クーパンの「가격/재고」Excelを入れると、<b>売上台帳に販売実績があるASIN＝SOLD商品</b>、それ以外＝<b>在庫切れ</b>に自動で分けます。販売数は売上台帳の実績です（キャンセル・返品は数えません）。<br>`+
+      `どちらのタブも<b>チェックしてASINをまとめてコピー</b>できます。<b>SOLD商品だけ</b>、Amazon・楽天・ヤフショを<b>まとめて開けます</b>（楽天・ヤフショはASINで検索します）。<br>`+
+      `<b>フロンティアの商品データ</b>も同じボタンで取り込めます（自動で見分けます）。台帳に無いASINだけ「販売数1」として足します（件数は当てにならないので必ず1・かぶりはスルー）。`+
+      (Object.keys(d.past||{}).length?`　いま登録ずみの過去の販売ASIN：<b>${Object.keys(d.past).length}件</b>`:"")+
+    `</div>`+
+    (d.rows.length?"":`<div style="${zs};margin:10px 0" onclick="oosPick()" ondragover="event.preventDefault();${on}" ondragleave="${off}" ondrop="${off};oosDrop(event)">`+
+      `<div style="font-size:12.5px;font-weight:700">📄 Excelをここにドロップ <span style="font-weight:400;color:var(--muted)">（クリックで選んでもOK）</span></div></div>`)+
+    `<div class="toolbar" style="border-top:0">`+
+      `<button class="btn-ghost" id="oos-copy" onclick="oosCopy(this)">📋 ASINをまとめてコピー（${sel.size}件）</button>`+
+      (oosTab==="sold"?`<button class="btn-ghost" id="oos-open" onclick="oosOpen()" title="Amazonの商品ページ・楽天とヤフショのASIN検索をまとめて開きます">🗂 選択を一括で開く（${sel.size}件）</button>`:"")+
+    `</div>`+
+    `<div class="tablewrap"><table><thead>${head}</thead><tbody id="oos-body">${body}</tbody></table></div>`+
+    `<div class="count">${oosTab==="sold"?"SOLD商品":"在庫切れ"} ${list.length}件 ／ 合計 ${d.rows.length}件</div>`;
+}
 function renderList(){
   const head=document.getElementById("list-head"), body=document.getElementById("list-body");
   if(current==="coupang"){
