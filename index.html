@@ -598,7 +598,7 @@ window.CAT_ATTR_JA={"색상": "色", "수량": "数量", "패션의류/잡화 �
   .hm-sec{ font-size:15px; font-weight:800; color:#1e2a4a; margin:36px 2px 14px; display:flex; align-items:baseline; gap:10px; }
   .hm-sec-s{ font-weight:600; color:var(--muted); font-size:12.5px; }
   .hm-chips{ display:flex; gap:16px; flex-wrap:wrap; }
-  .hm-chip{ display:flex; align-items:center; gap:14px; height:auto; background:#fff; border:1px solid var(--line); border-radius:14px; padding:18px 24px; cursor:pointer; font:inherit; font-weight:400; text-align:left; box-shadow:var(--sh-sm); transition:border-color .15s, box-shadow .15s, transform .15s; }
+  .hm-chip{ display:flex; align-items:center; justify-content:center; gap:14px; height:auto; background:#fff; border:1px solid var(--line); border-radius:14px; padding:18px 24px; cursor:pointer; font:inherit; font-weight:400; text-align:center; box-shadow:var(--sh-sm); transition:border-color .15s, box-shadow .15s, transform .15s; }
   .hm-chip:hover{ border-color:var(--accent); box-shadow:0 8px 22px rgba(79,107,239,.15); transform:translateY(-1px); }
   .hm-chip-n{ font-size:14px; font-weight:700; color:#3b4560; }
   .hm-chip b{ font-size:20px; letter-spacing:.01em; }
@@ -2860,7 +2860,8 @@ function renderHome(){
   const cards=[["coupang","クーパン","🟠"],["smart","スマートストア","🟢"],["st11","11番街","🔴"]].map(trio=>{
     const p=trio[0], n=trio[1], ico=trio[2];
     const c={}; (loadSales(platforms[p].salesKey)||[]).forEach(x=>{ const st=String(x.status||"").trim(); c[st]=(c[st]||0)+1; });
-    const tiles=HOME_ST.map(st=>`<button class="hm-tile" onclick="homeGo('sales','${p}','${st}')">`+
+    /* 仕入れ済みは「これから発送手配する」実務なので顧客管理へ。ほかは今までどおり売上管理へ */
+  const tiles=HOME_ST.map(st=>`<button class="hm-tile" onclick="homeGo('${st==="仕入れ済み"?"cust":"sales"}','${p}','${st}')">`+
       `<span class="hm-tile-v" style="color:${(c[st]||0)>0?STATUS_COLOR[st]:"#1e2a4a"}">${c[st]||0}</span>`+
       `<span class="hm-tile-l"><span style="width:7px;height:7px;border-radius:50%;background:${STATUS_COLOR[st]};display:inline-block"></span>${st}</span></button>`).join("");
     return `<div class="hm-card">`+
@@ -2876,7 +2877,7 @@ function renderHome(){
     `<div class="hm-sec">💼 売上ステータス <span class="hm-sec-s">台帳全体の件数。タップでその状態に絞り込み</span></div>`+
     `<div class="hm-grid">${cards}</div>`+
     `<div style="display:flex;gap:16px;align-items:flex-end;flex-wrap:wrap;margin-top:36px">`+
-      `<button class="hm-chip" style="min-width:200px;justify-content:center;padding:18px 24px" onclick="homeGoNippo()">`+
+      `<button class="hm-chip" style="min-width:200px" onclick="homeGoNippo()">`+
         `<span class="hm-chip-n" style="font-size:16px">📝 日報</span><span class="hm-chip-s">›</span></button>`+
       `<div>`+
         `<div class="hm-sec" style="margin:0 2px 14px">📊 在庫管理 <span class="hm-sec-s">最後にチェックした日</span></div>`+
@@ -2910,6 +2911,7 @@ function renderHome(){
     `</div>`;
 }
 window.homeGo=(sec,p,st)=>{ if(sec==="sales") salesStatusFilter=String(st||"");
+  if(sec==="cust") custStatusFilter=String(st||"");
   const a=document.querySelector(`.navsub a[data-sec="${sec}"][data-p="${p}"]`); if(a) a.click(); };
 window.homeGoBlog=()=>{ blogTab="stats";
   const a=document.querySelector('.navsub a[data-sec="blog"][data-p="coupang"]'); if(a) a.click(); };
@@ -3298,20 +3300,19 @@ function renderBlog(){
   if(blogTab==="done") list.sort((a,b)=>String((blog[b.asin]||{}).date||"").localeCompare(String((blog[a.asin]||{}).date||"")));
   else list.sort((a,b)=>b.lastT-a.lastT);
   const amz=a=>`<a class="srclink" href="${esc(resolveUrl(a))}" target="_blank" title="${esc(resolveUrl(a))}">${esc(urlLabel(a))}</a>`;
-  const titleCell=t=>`<td><span class="clip" title="${esc(t)}" onclick="toggleClip(this)">${esc(t)}</span></td>`;
   if(blogTab==="done"){
-    document.getElementById("bloghead").innerHTML="<tr><th>ASIN</th><th>商品タイトル</th><th>管理番号</th><th>投稿日</th><th>記事URL</th><th>操作</th></tr>";
+    document.getElementById("bloghead").innerHTML="<tr><th>ASIN</th><th>管理番号</th><th>投稿日</th><th>記事URL</th><th>操作</th></tr>";
     document.getElementById("blogbody").innerHTML = list.length? list.map(x=>{ const a=esc(x.asin), d=(blog[x.asin]||{}).date||"";
-      return `<tr><td>${amz(x.asin)}</td>${titleCell(x.title)}${noCell(x)}<td class="mono">${esc(d)}</td>${urlCell(x)}`+
+      return `<tr><td>${amz(x.asin)}</td>${noCell(x)}<td class="mono">${esc(d)}</td>${urlCell(x)}`+
         `<td><button class="rowbtn btn-sm" onclick="blogUnpost('${a}')">未投稿に戻す</button></td></tr>`; }).join("")
-      : `<tr><td class="empty" colspan="6"><b>投稿済みはまだありません</b>「未投稿」で投稿日を選び「投稿する」を押すと、ここへ移動します。</td></tr>`;
+      : `<tr><td class="empty" colspan="5"><b>投稿済みはまだありません</b>「未投稿」で投稿日を選び「投稿する」を押すと、ここへ移動します。</td></tr>`;
   } else {
-    document.getElementById("bloghead").innerHTML="<tr><th>ASIN</th><th>商品タイトル</th><th>管理番号</th><th>投稿日</th><th>操作</th></tr>";
+    document.getElementById("bloghead").innerHTML="<tr><th>ASIN</th><th>管理番号</th><th>投稿日</th><th>操作</th></tr>";
     document.getElementById("blogbody").innerHTML = list.length? list.map(x=>{ const a=esc(x.asin), d=(blog[x.asin]||{}).date||"";
-      return `<tr><td>${amz(x.asin)}</td>${titleCell(x.title)}${noCell(x)}`+
+      return `<tr><td>${amz(x.asin)}</td>${noCell(x)}`+
         `<td><input class="rvdate" type="date" value="${esc(d)}" onchange="blogSetDate('${a}',this.value)"></td>`+
         `<td><button class="btn-primary btn-sm" onclick="blogPost('${a}')">投稿する</button></td></tr>`; }).join("")
-      : `<tr><td class="empty" colspan="5"><b>未投稿のASINがありません</b>売上管理に販売データが入ると、ここへASINが並びます。</td></tr>`;
+      : `<tr><td class="empty" colspan="4"><b>未投稿のASINがありません</b>売上管理に販売データが入ると、ここへASINが並びます。</td></tr>`;
   }
   document.getElementById("blogcount").textContent=`${PNAME[p]} ・ 未投稿 ${todoCount}件 ／ 投稿済み ${doneCount}件`;
 }
@@ -3409,7 +3410,7 @@ function renderBlogStats(){
     `<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:6px;margin-top:4px">${cells}</div>`+
     `<div style="font-size:11px;color:var(--muted);margin-top:8px"><span style="color:#e03131">●</span> 投稿ずみ ／ <span style="color:#d7dde7">○</span> 空き（1日 ${BLOG_PER_DAY}件）　緑＝満了・黄＝途中・青灰＝確定ずみ。同じ日に${BLOG_PER_DAY}件を超えた分は翌日に繰り下げています。</div>`+
   `</div>`;
-  const fixnote=bs?`<div class="retnote" style="background:#f3f7fb">${bs.from.replace(/-/g,"/")} 〜 ${bs.to.replace(/-/g,"/")} は<b>確定ずみ</b>として1日${BLOG_PER_DAY}件で数えています（この期間の実際の記録は ${older.length}件）。${blogNextDay(bs.to).replace(/-/g,"/")} からは記録どおりに自動で数えます。</div>`:"";
+  const fixnote="";   /* 確定期間の説明文はずくの指示で非表示（数え方は今までどおり） */
   /* ===== 下の分析 ===== */
   const dim=(m)=> new Date(+m.slice(0,4), +m.slice(5,7), 0).getDate();
   const bar=(pct,col)=>`<div style="height:9px;border-radius:999px;background:#eef1f7;overflow:hidden"><div style="width:${Math.min(100,pct)}%;height:100%;border-radius:999px;background:${col}"></div></div>`;
