@@ -1678,6 +1678,18 @@ function pwUnlock(){ try{ localStorage.setItem("kr_pw_until_"+pwScope(), String(
   if(b) b.addEventListener("click",go);
   if(i) i.addEventListener("keydown",ev=>{ if(ev.key==="Enter") go(); });
 })();
+/* ===== 軽量化(2026-09-03)：大きい表は100行ずつ表示。検索・絞り込み・集計・CSVは全件のまま＝描画だけ減らす ===== */
+const PAGE_N=100; const _pg={};
+function pageRows(name,key,arr){ const p=_pg[name]||(_pg[name]={key:"",n:PAGE_N});
+  if(p.key!==key){ p.key=key; p.n=PAGE_N; }
+  return arr.length>p.n? arr.slice(0,p.n): arr; }
+function pageMoreRow(name,total,col){ const p=_pg[name]; if(!p||total<=p.n) return "";
+  return `<tr class="pg-more"><td colspan="${col}" style="text-align:center;padding:10px;background:#fafbff"><button class="btn-ghost" onclick="pageMore('${name}')">▼ さらに100行表示する（いま ${p.n}件 ／ 全 ${total}件）</button></td></tr>`; }
+window.pageMore=(name)=>{ if(_pg[name]) _pg[name].n+=PAGE_N; render(); };
+/* ===== 軽量化(2026-09-03)：見ていない画面の大きな中身は捨てる。どの画面も開くたびに必ず描き直すので安全 ===== */
+const VIEW_DUMP={home:["home-body"],cust:["thead","tbody","cust-chips"],sales:["sthead","stbody","rkhead","rkbody","ythead","ytbody","sales-chips"],research:["rvhead","rvbody"],list:["list-body"],banned:["banned-body"],banlist:["banlist-body"],shortcut:["shortcut-body"],blog:["bloghead","blogbody","blog-stats"],manual:["manual-videos"],tblman:["tblman-body"],shipfee:["shipfee-body"],cs:["cs-body"],faq:["view-faq"],stock:["stock-body"],profit:["profit-body"],nippo:["nippo-body"]};
+function dumpHiddenViews(){ Object.keys(VIEW_DUMP).forEach(k=>{ if(k===section) return;
+  VIEW_DUMP[k].forEach(id=>{ const el=document.getElementById(id); if(el&&el.firstChild) el.innerHTML=""; }); }); }
 function render(){
   const _locked = pwNeed();   /* 対象画面のみロック（ナビは操作可能・モール別の暗証番号） */
   document.getElementById("view-lock").style.display=_locked?"":"none";
@@ -1709,6 +1721,7 @@ function render(){
   document.getElementById("view-stock").style.display=stock?"":"none";
   document.getElementById("view-profit").style.display=profit?"":"none";
   document.getElementById("view-nippo").style.display=nippo?"":"none";
+  dumpHiddenViews();
   if(home){ renderHome(); } else if(faq) renderFaq(); else if(cs) renderCs(); else if(shipfee) renderShipfee(); else if(nippo) renderNippo(); else if(profit) renderProfit(); else if(tblman) renderTblMan(); else if(manual) renderManual(); else if(blog) renderBlog(); else if(shortcut) renderShortcut(); else if(banlist) renderBanlist(); else if(banned) renderBanned(); else if(stock) renderStock(); else if(list) renderList(); else if(research) renderResearch(); else if(sales) renderSales(); else renderCust();
 }
 /* ===== 管理表マニュアル（ブログマニュアルと同じフォーマット・モール別） ===== */
@@ -2941,12 +2954,15 @@ function renderShipfee(){
 /* ===== 利益計算（スマートストア・11番街）＝仕入れ値と重量から売値を逆算 =====
    ・送料は HANIROLINE の重量別料金（0.5kg刻み・左メニュー「配送料金」と同じ式）＋発送手数料200円で自動計算
    ・手数料率は実測の既定値（スマートストア6.63%＝売上台帳、11番街13%＝商品リスト318件すべて）
-   ・目標利益率はほぼ固定（既定10%）。変えるときは「編集」、初期値に戻すときは「リセット」
+   ・目標利益率はほぼ固定（既定15%・2026-09-03に10%から変更）。変えるときは「編集」、初期値に戻すときは「リセット」
    ・設定はこの端末にだけ保存（クラウド同期なし）。クーパンは対象外 */
-const PROFIT_DEF={margin:10, feeSmart:6.63, feeSt11:13, shipAdd:200, rate:0};   /* rate 0=自動（現在レート） */
+const PROFIT_DEF={margin:15, feeSmart:6.63, feeSt11:13, shipAdd:200, rate:0};   /* rate 0=自動（現在レート）。利益率は2026-09-03に10→15%へ（ずくの指示） */
 const PROFIT_KEY="kr_profit_cfg_v1";
 function profitCfg(){ try{ const o=JSON.parse(localStorage.getItem(PROFIT_KEY)||"null");
-    if(o&&typeof o==="object") return Object.assign({},PROFIT_DEF,o); }catch(e){}
+    if(o&&typeof o==="object"){
+      if(!o.m15){ o.m15=1; if(num(o.margin)===10) o.margin=15;   /* 旧既定10%のままの端末だけ、一度だけ15%へ（2026-09-03） */
+        try{ localStorage.setItem(PROFIT_KEY,JSON.stringify(o)); }catch(e){} }
+      return Object.assign({},PROFIT_DEF,o); } }catch(e){}
   return Object.assign({},PROFIT_DEF); }
 let profitEdit=false, pcCost="", pcW="0.5", pcWon="", pcMall="smart", pcLk="";
 function haniroFee(w){ const i=Math.max(1,Math.min(24,Math.ceil(num(w)/0.5))); return 950+(i-1)*100; }   /* 料金表と同じ式 */
@@ -2965,14 +2981,15 @@ function pcCalc(){
   const hideCp=()=>{ if(cp) cp.style.display="none"; if(cpn0) cpn0.style.display="none"; };
   if(!(cost>0)){
     put("pc-won",'<span style="color:var(--muted);font-size:18px;font-weight:600">仕入れ値を入れると、ここに出ます</span>');
-    put("pc-detail",""); hideCp();
+    put("pc-detail",""); hideCp(); pcTplPaint(0);
   }else{
     const denom=rate*(1-x.f-m);
-    if(denom<=0){ put("pc-won",'<span style="color:#c0392b;font-size:16px">計算不可（手数料率＋利益率が100%以上）</span>'); put("pc-detail",""); hideCp(); }
+    if(denom<=0){ put("pc-won",'<span style="color:#c0392b;font-size:16px">計算不可（手数料率＋利益率が100%以上）</span>'); put("pc-detail",""); hideCp(); pcTplPaint(0); }
     else{
       const w=Math.ceil(((cost+ship)/denom)/10)*10;                    /* 10ウォン単位に切り上げ */
       const sell=w*rate, fee=w*x.f*rate, prof=sell-fee-cost-ship;
       put("pc-won",won(w));
+      pcTplPaint(w);
       if(cp){ cp.style.display=""; cp.dataset.copy=won(w); }           /* ₩付き＝画面に出ている表記のままコピー */
       if(cpn0){ cpn0.style.display=""; cpn0.dataset.copy=String(w); }  /* 数字だけ＝そのまま価格欄に貼れる */
       put("pc-detail",
@@ -3008,6 +3025,12 @@ window.pcLookup=(el)=>{ pcLk=el.value; const out=document.getElementById("pc-lk-
   }).join("<br>");
 };
 window.pcCopyTxt=(t,btn)=>{ copyText(t); flashBtn(btn); };
+/* ブログ用テンプレ＝顧客対応「よく使う→ブログ」の文面を1か所から引く。売値が出ていれば {금액} を置き換える */
+function pcBlogTpl(){ return (CS_TPL.find(x=>x.g==="よく使う"&&x.n==="ブログ")||{}).t||""; }
+function pcTplPaint(w){ const el=document.getElementById("pc-blog-tpl"); if(!el) return;
+  const t=pcBlogTpl(); el.textContent = (num(w)>0)? t.replace("{금액}", Math.round(w).toLocaleString("ja-JP")) : t; }
+window.pcCopyBlogTpl=(btn)=>{ const el=document.getElementById("pc-blog-tpl");
+  copyText(el?el.textContent:pcBlogTpl()); flashBtn(btn); };
 window.pcSetMall=(m)=>{ pcMall=m; renderProfit(); };
 window.pcCopyWon=(btn)=>{ const v=btn.dataset.copy||""; if(!v) return; copyText(v); flashBtn(btn); };
 window.pcInput=(k,el)=>{ if(k==="cost") pcCost=el.value; else if(k==="won") pcWon=el.value; else if(k==="w") pcW=el.value; pcCalc(); };
@@ -3017,10 +3040,10 @@ window.pcSave=()=>{ const g=id=>num((document.getElementById(id)||{}).value);
   const margin=g("pe-margin"), fs=g("pe-fs"), f11=g("pe-f11"), add=g("pe-add"), rate=g("pe-rate");
   if(!(margin>=0&&margin<90)){ alert("目標利益率は 0〜90% の範囲で入れてください。"); return; }
   if(!(fs>=0&&fs<50)||!(f11>=0&&f11<50)){ alert("手数料率は 0〜50% の範囲で入れてください。"); return; }
-  localStorage.setItem(PROFIT_KEY,JSON.stringify({margin:margin,feeSmart:fs,feeSt11:f11,shipAdd:add,rate:(rate>0?rate:0)}));
+  localStorage.setItem(PROFIT_KEY,JSON.stringify({margin:margin,feeSmart:fs,feeSt11:f11,shipAdd:add,rate:(rate>0?rate:0),m15:1}));
   profitEdit=false; renderProfit(); };
 window.pcReset=()=>{
-  if(!confirm("利益計算の設定を初期値に戻しますか？\n\n目標利益率 10%／手数料 スマートストア 6.63%・11番街 13%／発送手数料 +200円／レート 自動\n\n（今の設定値は消えますが、いつでも「編集」で入れ直せます）")) return;
+  if(!confirm("利益計算の設定を初期値に戻しますか？\n\n目標利益率 15%／手数料 スマートストア 6.63%・11番街 13%／発送手数料 +200円／レート 自動\n\n（今の設定値は消えますが、いつでも「編集」で入れ直せます）")) return;
   localStorage.removeItem(PROFIT_KEY); profitEdit=false; renderProfit(); };
 function renderProfit(){
   const c=profitCfg(), auto=!(num(c.rate)>0), rate=profitRate();
@@ -3076,6 +3099,14 @@ function renderProfit(){
         `<span id="pc-rv"></span>`+
         `<span style="font-size:11.5px;color:var(--muted)">売値を直接入れると、いくら残るかを確認できます</span>`+
       `</div>`+
+    `</div>`+
+    `<div class="panel" style="padding:15px 18px;margin-top:12px">`+
+      `<div style="display:flex;gap:10px 16px;align-items:center;flex-wrap:wrap;margin-bottom:8px">`+
+        `<b style="font-size:13px">✍️ ブログ用テンプレート</b>`+
+        `<button class="btn-ghost btn-sm" onclick="pcCopyBlogTpl(this)">📋 コピー</button>`+
+        `<span style="font-size:11.5px;color:var(--muted)">顧客対応の「よく使う → ブログ」と同じ文面です。売値を計算すると {금액} に自動で入ります</span>`+
+      `</div>`+
+      `<div id="pc-blog-tpl" style="white-space:pre-wrap;font-size:13.5px;line-height:1.75;background:#fafbff;border:1px solid var(--line);border-radius:10px;padding:12px 14px">${esc(pcBlogTpl())}</div>`+
     `</div>`;
   const lk=document.getElementById("pc-lk-in"); if(lk) pcLookup(lk);
   pcCalc();
@@ -3878,7 +3909,8 @@ function oosPanel(){
   const head=(oosTab==="sold")
     ? `<tr><th style="width:34px"><input type="checkbox" class="rowchk" id="oos-selall" onclick="oosSelAll(this)" title="表示中の行を全部チェック／解除"></th><th>ASIN</th><th>商品名</th><th class="right">販売数</th><th class="right">価格</th><th>チェック日</th><th>操作</th></tr>`
     : `<tr><th style="width:34px"><input type="checkbox" class="rowchk" id="oos-selall" onclick="oosSelAll(this)" title="表示中の行を全部チェック／解除"></th><th>ASIN</th><th>商品名</th><th class="right">価格</th></tr>`;
-  const body=list.length? list.map(r=>{
+  const pv=pageRows("oos","coupang|"+oosTab,list);
+  const body=list.length? pv.map(r=>{
       const a=esc(r.id);
       return `<tr><td><input type="checkbox" class="rowchk oos-chk" data-id="${a}" ${sel.has(r.id)?"checked":""} onclick="oosChk('${a}',this)"></td>`+
         `<td><a class="srclink" href="https://www.amazon.co.jp/dp/${a}" target="_blank">${a}</a></td>`+
@@ -3890,7 +3922,7 @@ function oosPanel(){
             `<td><button class="btn-primary btn-sm" title="補充できたので一覧から外します" onclick="oosDone('${a}')">補充済み</button></td>`
           : "")+
         `</tr>`;
-    }).join("")
+    }).join("")+pageMoreRow("oos",list.length,(oosTab==="sold"?7:4))
     : `<tr><td class="empty" colspan="${oosTab==="sold"?7:4}"><b>${oosTab==="sold"?"SOLD商品はありません":"在庫切れはありません"}</b>${d.rows.length?"":"右上の「📥 Excelを取り込む」から、クーパンの「가격/재고」ファイルを入れてください。"}</td></tr>`;
   return `<div class="toolbar">`+
       `<span style="font-size:12px;color:var(--muted);font-weight:600">${d.t?("最終取込："+esc(d.t)+(d.fn?("（"+esc(d.fn)+"）"):"")):"まだ取り込みがありません"}${doneN?("　補充済み "+doneN+"件"):""}${Object.keys(d.past||{}).length?("　過去の販売ASIN "+Object.keys(d.past).length+"件"):""}</span>`+
@@ -5237,7 +5269,8 @@ function renderSalesDetail(){
   let pSum=0,cSum=0,wSum=0,ySum=0; rows.forEach(s=>{ const c=calcSale(s,rate); pSum+=c.profit; cSum+=c.costTotal; wSum+=c.won; ySum+=c.saleTotal; });
   const hi=hiSet();
   const md=s=>String(s||"").slice(5,10).replace("-","/");
-  document.getElementById("stbody").innerHTML = vrows.length ? vrows.map(s=>{
+  const pv=pageRows("sales", current+"|"+q+"|"+svMonth+"|"+salesStatusFilter, vrows);
+  document.getElementById("stbody").innerHTML = vrows.length ? pv.map(s=>{
     const c=calcSale(s,rate);
     const id=esc(s.order);
     const sel=`<select class="stsel" data-v="${esc(s.status)}" onchange="setSaleStatus('${id}',this.value)">`+STATUSES.map(x=>`<option ${x===s.status?"selected":""}>${x}</option>`).join("")+`</select>`;
@@ -5281,7 +5314,7 @@ function renderSalesDetail(){
       `<td><input class="notein" value="${esc(s.note||"")}" placeholder="備考…" onchange="setNote('${id}',this.value)"></td>`+
       `<td><button class="rowbtn del btn-sm" onclick="delSaleRow('${id}')" title="この行を削除">削除</button></td>`+
     `</tr>`;
-  }).join("") : `<tr><td class="empty" colspan="${COL}"><b>該当する売上データがありません</b>${salesStatusFilter?`「${salesStatusFilter}」の注文はこの期間にありません。`:"顧客管理でExcelを取り込むと、購入日の月ごとにここへ自動で入ります。"}</td></tr>`;
+  }).join("")+pageMoreRow("sales",vrows.length,COL) : `<tr><td class="empty" colspan="${COL}"><b>該当する売上データがありません</b>${salesStatusFilter?`「${salesStatusFilter}」の注文はこの期間にありません。`:"顧客管理でExcelを取り込むと、購入日の月ごとにここへ自動で入ります。"}</td></tr>`;
 
   const ym=svMonth.split("-"); const monthLbl=ym.length===2?`${ym[0]}年${Number(ym[1])}月`:svMonth;
   document.getElementById("sv-head").innerHTML= q? `🔍 検索結果 <small>「${esc(q)}」・全期間から ${rows.length}件</small>` : `${monthLbl} <small>${rows.length}件</small>`;
@@ -5342,7 +5375,8 @@ function renderCust(){
     view.map(c=>`<th>${esc(c.jp)}</th>`).join("")+
     `<th>備考</th><th>操作</th></tr>`;
 
-  tbody.innerHTML = view2.length ? view2.map(r=>{
+  const pv=pageRows("cust", current+"|"+q+"|"+custStatusFilter, view2);
+  tbody.innerHTML = view2.length ? pv.map(r=>{
     const id=esc(r[okey]||"");
     const led=lmap[String(r[okey])];
     const sel=`<select class="stsel" data-v="${esc(r._status)}" onchange="setStatus('${id}',this.value)">`+
@@ -5368,7 +5402,7 @@ function renderCust(){
     const cls=[base, hi.has(String(r[okey]))?"hi":""].filter(Boolean).join(" ");
     const note=led?(led.note||""):"";
     return `<tr${cls?` class="${cls}"`:""}><td class="s0">${delivSel(id,delivOf(led),r._status)}</td><td class="s1">${sel}</td>${chk}${cells}<td><input class="notein" value="${esc(note)}" placeholder="備考…" onchange="setNote('${id}',this.value)"></td><td><button class="rowbtn del btn-sm" onclick="delRow('${id}')" title="この行を削除">削除</button></td></tr>`;
-  }).join("") : `<tr><td class="empty" colspan="99"><b>データがありません</b>右上の「📥 Excelを取り込む」から${spec.name}のExcel(.xlsx)を読み込んでください。</td></tr>`;
+  }).join("")+pageMoreRow("cust",view2.length,99) : `<tr><td class="empty" colspan="99"><b>データがありません</b>右上の「📥 Excelを取り込む」から${spec.name}のExcel(.xlsx)を読み込んでください。</td></tr>`;
 
   document.getElementById("count").textContent=`全 ${rows.length} 件中 ${view2.length} 件を表示`;
   const cnt=s=>rows.filter(r=>r._status===s).length;
