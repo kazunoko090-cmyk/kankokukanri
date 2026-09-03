@@ -3836,9 +3836,13 @@ window.oosDoneChecked=()=>{
 window.oosSetChk=(a,v)=>{ const d=oosLoad(), r=d.rows.find(x=>x.id===a); if(!r) return;
   if(String(v||"").trim()) r.chk=v; else delete r.chk; oosSave(d); };
 window.oosSetTab=(t)=>{ oosTab=t; render(); };
-window.oosChk=(id,el)=>{ const s=oosSelCur(); if(el.checked) s.add(id); else s.delete(id); oosSync(); };
+window.oosChk=(id,el)=>{ const s=oosSelCur(); if(el.checked) s.add(id); else s.delete(id);
+  oosPaintRow(el); oosSync(); };
+/* SOLD商品だけ、チェックした行を黄色にする（顧客管理と同じ tr.hi） */
+function oosPaintRow(el){ const tr=el&&el.closest?el.closest("tr"):null;
+  if(tr && oosTab==="sold") tr.classList.toggle("hi", !!el.checked); }
 window.oosSelAll=(el)=>{ const s=oosSelCur(); document.querySelectorAll("#oos-body .oos-chk").forEach(b=>{ b.checked=el.checked;
-  const id=b.getAttribute("data-id"); if(el.checked) s.add(id); else s.delete(id); }); oosSync(); };
+  const id=b.getAttribute("data-id"); if(el.checked) s.add(id); else s.delete(id); oosPaintRow(b); }); oosSync(); };
 function oosSync(){ const n=oosSelCur().size;
   const b1=document.getElementById("oos-copy"); if(b1) b1.textContent=`📋 ASINをまとめてコピー（${n}件）`;
   const b2=document.getElementById("oos-open"); if(b2) b2.textContent=`🗂 選択を一括で開く（${n}件）`;
@@ -3911,9 +3915,10 @@ function oosPanel(){
     : `<tr><th style="width:34px"><input type="checkbox" class="rowchk" id="oos-selall" onclick="oosSelAll(this)" title="表示中の行を全部チェック／解除"></th><th>ASIN</th><th>商品名</th><th class="right">価格</th></tr>`;
   const pv=pageRows("oos","coupang|"+oosTab,list);
   const body=list.length? pv.map(r=>{
-      const a=esc(r.id);
-      return `<tr><td><input type="checkbox" class="rowchk oos-chk" data-id="${a}" ${sel.has(r.id)?"checked":""} onclick="oosChk('${a}',this)"></td>`+
-        `<td><a class="srclink" href="https://www.amazon.co.jp/dp/${a}" target="_blank">${a}</a></td>`+
+      const a=esc(r.id), isSold=(oosTab==="sold");
+      return `<tr${(isSold&&sel.has(r.id))?' class="hi"':''}><td><input type="checkbox" class="rowchk oos-chk" data-id="${a}" ${sel.has(r.id)?"checked":""} onclick="oosChk('${a}',this)"></td>`+
+        `<td><a class="srclink" href="https://www.amazon.co.jp/dp/${a}" target="_blank">${a}</a>`+
+          (isSold?`<button class="cbtn" data-copy="${a}" onclick="copyBtn(this)" title="このASINをコピー">📋</button>`:"")+`</td>`+
         `<td><span class="clip" title="${esc(r.name||"")}" onclick="toggleClip(this)">${esc(r.name||"")}</span></td>`+
         (oosTab==="sold"?`<td class="right mono"><b>${num(r.sold).toLocaleString("ja-JP")}</b></td>`:"")+
         `<td class="right mono">${num(r.price)>0?w$(r.price):""}</td>`+
