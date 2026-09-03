@@ -3703,8 +3703,11 @@ function oosSave(d){ try{ localStorage.setItem(OOS_KEY,JSON.stringify(d)); }
 /* 売上台帳から「過去に売れたASIN → 販売数」を作る（キャンセル・返品は除く＝blogDataと同じ数え方） */
 function oosSoldMap(){ const m={};
   try{ blogData("coupang").forEach(x=>{ const a=String(x.asin||"").trim().toUpperCase(); if(a) m[a]=(m[a]||0)+x.qty; }); }catch(e){}
-  /* 取り込んだ「過去の販売ASIN」で台帳に無いものだけ 1 として足す（元の件数は当てにならないので必ず1・かぶりはスルー） */
-  const past=oosLoad().past||{};
+  const d=oosLoad();
+  /* クーパンのExcelに入っている「판매수량（販売数量）」も実績とみなす（台帳は2025-12-28以降しか無いので、それ以前の販売はここで拾う） */
+  (d.rows||[]).forEach(r=>{ const q=num(r.qty); if(q>0 && !(num(m[r.id])>0)) m[r.id]=q; });
+  /* 取り込んだ「過去の販売ASIN」で、どこにも無いものだけ 1 として足す（元の件数は当てにならないので必ず1・かぶりはスルー） */
+  const past=d.past||{};
   Object.keys(past).forEach(a=>{ if(!(num(m[a])>0)) m[a]=1; });
   return m; }
 /* フロンティアの商品データ（過去に売れたASINの一覧）かどうか。見出しに「商品ID」があれば そちら */
@@ -3713,12 +3716,10 @@ function oosParsePast(arr){
   for(let i=0;i<Math.min(arr.length,30);i++){
     const row=(arr[i]||[]).map(norm);
     const c=row.indexOf("商品ID"); if(c<0) continue;
-    const sold=row.findIndex(v=>v==="販売数");
     const out=[];
     for(let j=i+1;j<arr.length;j++){ const r=arr[j]||[];
       const a=norm(r[c]).toUpperCase(); if(!tznIsAsin(a)) continue;
-      if(sold>=0 && !(num(r[sold])>0)) continue;      /* 販売数が0の行は「売れた」ではない */
-      out.push(a); }
+      out.push(a); }                                  /* 載っているASIN＝過去に売れた商品。「販売数」列は当てにならないので見ない（必ず1として数える。2026-09-03 ずくの指示） */
     return out;
   }
   return null;
@@ -3727,7 +3728,8 @@ function oosParsePast(arr){
 function oosParse(arr){
   const WANT={ asin:["업체상품코드","판매자상품코드","판매자 상품코드","상품코드"],
                name:["쿠팡 노출 상품명","업체 등록 상품명","상품명"],
-               price:["판매가격"], stock:["잔여수량(재고)","잔여수량"] };
+               price:["판매가격"], stock:["잔여수량(재고)","잔여수량"],
+               qty:["판매수량","판매 수량"] };   /* クーパンのExcelに入っている販売実績。台帳に無い昔の販売を拾う */
   const norm=v=>String(v==null?"":v).trim();
   let hr=-1, idx={};
   for(let i=0;i<Math.min(arr.length,30);i++){
@@ -3740,7 +3742,8 @@ function oosParse(arr){
     for(let i=hr+1;i<arr.length;i++){ const r=arr[i]||[];
       const a=norm(r[idx.asin]).toUpperCase(); if(!tznIsAsin(a)||seen.has(a)) continue; seen.add(a);
       out.push({ id:a, name:(idx.name!=null?norm(r[idx.name]):""),
-                 price:(idx.price!=null?num(r[idx.price]):0), stock:(idx.stock!=null?num(r[idx.stock]):0) }); }
+                 price:(idx.price!=null?num(r[idx.price]):0), stock:(idx.stock!=null?num(r[idx.stock]):0),
+                 qty:(idx.qty!=null?num(r[idx.qty]):0) }); }
     return out;
   }
   const p=tznPickCol(arr);                       /* 見出しが違う形でもASINだけは拾う */
@@ -3769,7 +3772,9 @@ async function oosImport(fileList){
       }
       const rows=oosParse(arr);
       if(!rows.length){ bad.push(f.name+"：ASINが見つかりません"); continue; }
-      rows.forEach(r=>{ if(map[r.id]){ Object.assign(map[r.id],r); delete map[r.id].done; upd++; } else { map[r.id]=r; add++; } });
+      rows.forEach(r=>{ const o=map[r.id];
+        if(o){ const q=Math.max(num(o.qty),num(r.qty)); Object.assign(o,r); if(q>0) o.qty=q; delete o.done; upd++; }
+        else { map[r.id]=r; add++; } });   /* 販売数量は多い方を残す＝クーパンの集計期間が変わっても実績が消えない */
       d.fn=f.name;
     }catch(err){ bad.push(f.name+"："+(err.message||"読めません")); }
   }
@@ -3834,6 +3839,20 @@ window.oosReset=()=>{
   if(!oosN && !doneN){ alert("消す対象がありません。\n（在庫切れが0件で、補充済みのSOLD商品もありません）"); return; }
   if(!confirm(`在庫切れのリストをリセットします。よろしいですか？\n\n【消すもの】在庫切れ ${oosN}件 ／ 補充済みのSOLD商品 ${doneN}件\n【残すもの】まだ補充していないSOLD商品 ${keep.length}件（チェック日もそのまま）と、取り込んだ過去の販売ASIN ${Object.keys(d.past||{}).length}件\n【影響】共有データにも反映されます（外注さんの画面でも同じように消えます）\n【戻せるか】戻せません。もう一度Excelを取り込んでください（売上台帳・他の画面には触りません）\n【消さない】キャンセルを押してください`)) return;
   d.rows=keep; oosSave(d); oosSelBy={}; render(); };
+/* 在庫切れタブだけ：上から100件チェック（100件ずつ片付ける作業用。100件未満なら残り全部） */
+window.oosPick100=()=>{ const list=oosRows(oosTab).slice(0,100);
+  if(!list.length){ alert("チェックする行がありません。"); return; }
+  const s=oosSelCur(); s.clear(); list.forEach(r=>s.add(r.id)); render(); };
+/* 在庫切れタブだけ：チェックした在庫切れをデータごと消す（SOLD商品・売上台帳には触らない） */
+window.oosDelChecked=()=>{
+  const s=oosSelCur(), d=oosLoad();
+  const ids=new Set(oosRows("oos").filter(r=>s.has(r.id)).map(r=>r.id));
+  if(!ids.size){ alert("消したい行にチェックを入れてから押してください。\n（「☑️ 100件チェックする」でも選べます）"); return; }
+  if(!confirm(`チェックした在庫切れ ${ids.size}件をリストから消します。よろしいですか？\n\n【消すもの】在庫切れ ${ids.size}件だけ（SOLD商品・売上台帳・他の画面には触りません）\n【影響】共有データにも反映されます（外注さんの画面でも同じように消えます）\n【戻せるか】戻せません。もう一度Excelを取り込めば、まだ在庫切れの商品は戻ってきます\n【消さない】キャンセルを押してください`)) return;
+  const before=d.rows.length;
+  d.rows=d.rows.filter(r=>!ids.has(r.id));
+  s.clear(); oosSave(d); render();
+  alert(`${before-d.rows.length}件を消しました（在庫リストの残り ${d.rows.length}件）。`); };
 function oosRows(tab){
   const sm=oosSoldMap(), rows=oosLoad().rows.filter(r=>!r.done);   /* 補充済みは一覧に出さない */
   const sold=rows.filter(r=>num(sm[r.id])>0).map(r=>Object.assign({},r,{sold:num(sm[r.id])})).sort((a,b)=>b.sold-a.sold);
@@ -3875,19 +3894,22 @@ function oosPanel(){
       `<button class="chip${oosTab==="oos"?" active":""}" onclick="oosSetTab('oos')">在庫切れ <span class="n">${oos.length}</span></button>`+
     `</div>`+
     `<div class="retnote" style="background:#fafbff;color:var(--muted)">`+
-      `クーパンの「가격/재고」Excelを入れると、<b>売上台帳に販売実績があるASIN＝SOLD商品</b>、それ以外＝<b>在庫切れ</b>に自動で分けます。販売数は売上台帳の実績です（キャンセル・返品は数えません）。<br>`+
+      `クーパンの「가격/재고」Excelを入れると、<b>販売実績があるASIN＝SOLD商品</b>、それ以外＝<b>在庫切れ</b>に自動で分けます。実績は3つから拾います：<b>①売上台帳</b>（キャンセル・返品は数えません）<b>②Excelの「판매수량」列</b>（台帳より前の販売もここに残っています）<b>③フロンティアの過去販売ASIN</b>（下記）。<br>`+
       `どちらのタブも<b>チェックしてASINをまとめてコピー</b>できます。<b>SOLD商品だけ</b>、商品ページを<b>まとめて開けます</b>（基本はAmazon。売上管理で📎に楽天・ヤフショ等の仕入れ元URLを入れてある商品は、そちらを開きます）。<br>`+
-      `<b>フロンティアの商品データ</b>も同じボタンで取り込めます（自動で見分けます）。台帳に無いASINだけ「販売数1」として足します（件数は当てにならないので必ず1・かぶりはスルー）。<br>`+
+      `<b>フロンティアの商品データ</b>も同じボタンで取り込めます（自動で見分けます）。<b>載っているASINは全部「過去に売れた」</b>として扱い、①②で数が分からないものだけ「販売数1」を足します（件数は当てにならないので必ず1・かぶりはスルー）。<br>`+
       `SOLD商品は、仕入れ直せたら<b>「補充済み」</b>で一覧から外れます。<b>見たけど在庫が無かったときは「チェック日」に日付</b>を入れておくと、次に見るときの目印になります（行は残ります）。`+
       (doneN?`　いま補充済み：<b>${doneN}件</b>（取り込み直すと、まだ在庫切れなら戻ってきます）`:"")+
       `<br><b>🧹 リセット</b>は、<b>在庫切れを全部</b>と<b>補充済みのSOLD商品</b>だけを消します。まだ補充していないSOLD商品は残ります。`+
+      `<br><b>在庫切れタブ</b>では、<b>☑️ 100件チェックする</b>で上から100件だけ選べます。コピーして片付けたら<b>🗑 チェックした項目を消去する</b>で、その分だけリストから消せます（確認が出ます）。`+
       (Object.keys(d.past||{}).length?`　いま登録ずみの過去の販売ASIN：<b>${Object.keys(d.past).length}件</b>`:"")+
     `</div>`+
     (d.rows.length?"":`<div style="${zs};margin:10px 0" onclick="oosPick()" ondragover="event.preventDefault();${on}" ondragleave="${off}" ondrop="${off};oosDrop(event)">`+
       `<div style="font-size:12.5px;font-weight:700">📄 Excelをここにドロップ <span style="font-weight:400;color:var(--muted)">（クリックで選んでもOK）</span></div></div>`)+
     `<div class="toolbar" style="border-top:0">`+
+      (oosTab==="oos"?`<button class="btn-ghost" onclick="oosPick100()" title="上から100件だけチェックします（100件ずつ片付けるとき用）">☑️ 100件チェックする</button>`:"")+
       `<button class="btn-ghost" id="oos-copy" onclick="oosCopy(this)">📋 ASINをまとめてコピー（${sel.size}件）</button>`+
       (oosTab==="sold"?`<button class="btn-ghost" id="oos-open" onclick="oosOpen()" title="商品ページをまとめて開きます（基本はAmazon／仕入れ元URLがあればそちら）">🗂 選択を一括で開く（${sel.size}件）</button>`:"")+
+      (oosTab==="oos"?`<button class="btn-ghost" onclick="oosDelChecked()" title="チェックした在庫切れをリストから消します（確認が出ます）">🗑 チェックした項目を消去する</button>`:"")+
     `</div>`+
     `<div class="tablewrap"><table><thead>${head}</thead><tbody id="oos-body">${body}</tbody></table></div>`+
     `<div class="count">${oosTab==="sold"?"SOLD商品":"在庫切れ"} ${list.length}件 ／ 合計 ${d.rows.length}件</div>`;
