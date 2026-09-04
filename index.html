@@ -1344,7 +1344,15 @@ function curSalesKey(){ return (platforms[current]&&platforms[current].salesKey)
 function orderDateField(){ return (platforms[current].map&&platforms[current].map.date)||ORDER_DATE; }
 function deadlineField(){ return (platforms[current].map&&platforms[current].map.deadline)||DEADLINE; }
 /* クラウドへ送るのは同期対象プラットフォーム（現状クーパンのみ）だけ */
-function pushLedger(rows){ if(platforms[current]&&platforms[current].cloud) cloudPushRows(rows); }
+/* 直近にこの端末で変えた注文は、サーバーの古い値で上書きしない＝「変えたのに戻る」事故の防止（2026-09-04）。
+   送信に失敗した行は貯めておき、次の自動同期でもう一度送る。 */
+const LOCAL_EDIT_MS=20000; const _localEdits={}; const _pushQ={};
+function markLocalEdit(rows){ const t=Date.now(); (rows||[]).forEach(r=>{ if(r&&r.order!=null) _localEdits[String(r.order)]=t; }); }
+function isFreshLocal(order){ const t=_localEdits[String(order)]; return !!t && (Date.now()-t)<LOCAL_EDIT_MS; }
+function queuePush(rows){ (rows||[]).forEach(r=>{ if(r&&r.order!=null) _pushQ[String(r.order)]=r; }); }
+function retryPush(){ const ks=Object.keys(_pushQ); if(!ks.length) return;
+  const rows=ks.map(k=>_pushQ[k]); markLocalEdit(rows); cloudPushRows(rows); }
+function pushLedger(rows){ markLocalEdit(rows); if(platforms[current]&&platforms[current].cloud) cloudPushRows(rows); }
 function delLedger(id){ if(platforms[current]&&platforms[current].cloud) cloudDelete(id); }
 const RATE_KEY="kr_won_yen_rate";
 let svMonth=null;                          // 売上（明細）の表示対象月
@@ -1511,7 +1519,11 @@ function mergeServer(server){
   const pushBack=[];
   Object.keys(platforms).forEach(pk=>{ const sk=platforms[pk]&&platforms[pk].salesKey; if(!sk) return;
     const l=loadSales(sk); const map={}; l.forEach(x=>map[String(x.order)]=x);
-    const seen={}; (groups[pk]||[]).forEach(x=>{ map[String(x.order)]=x; seen[String(x.order)]=1; });
+    const seen={}; (groups[pk]||[]).forEach(x=>{ const k=String(x.order); seen[k]=1;
+      if(map[k] && isFreshLocal(k)){                                     /* この端末で直近に変えた行は守る */
+        if(JSON.stringify(map[k])!==JSON.stringify(x)) pushBack.push(map[k]);
+        return; }
+      map[k]=x; });
     saveSales(Object.values(map), sk);
     l.forEach(x=>{ if(!seen[String(x.order)]){ if(!x.plat) x.plat=pk; pushBack.push(x); } });   /* ローカルにしか無い注文はサーバーへ */
   });
@@ -1519,8 +1531,9 @@ function mergeServer(server){
 }
 async function cloudPushRows(rows){ const u=cloudURL(); if(!u||!rows||!rows.length) return;
   try{ const r=await fetch(u,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify({action:"save",rows})});
-    if(!r.ok){ console.warn("cloudPush HTTP",r.status); return noteSync(false); }   /* 保存が届いていないなら黙らせない */
-    localStorage.setItem(CLOUD_SYNC_KEY,new Date().toISOString()); noteSync(true); }catch(e){ console.warn("cloudPush",e); noteSync(false); } }
+    if(!r.ok){ console.warn("cloudPush HTTP",r.status); queuePush(rows); return noteSync(false); }   /* 届いていないので次の同期で送り直す */
+    rows.forEach(x=>{ if(x&&x.order!=null) delete _pushQ[String(x.order)]; });
+    localStorage.setItem(CLOUD_SYNC_KEY,new Date().toISOString()); noteSync(true); }catch(e){ console.warn("cloudPush",e); queuePush(rows); noteSync(false); } }
 async function cloudDelete(order){ const u=cloudURL(); if(!u) return;
   try{ const r=await fetch(u,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify({action:"delete",order:String(order)})}); noteSync(r.ok); }catch(e){ console.warn("cloudDelete",e); noteSync(false); } }
 /* ===== その他データの同期（マニュアル・顧客・出品・ブログ等）：key-value方式 ===== */
@@ -6268,10 +6281,11 @@ function refreshSyncUI(){
    ・入力中（フォーカスがinput/textarea等）は取り込みを保留＝編集中のセルを壊さない。
    ・タブが非表示の間は何もしない（無駄な通信ゼロ）。 */
 const AUTO_SYNC_MS=10000; let _autoRev=null,_autoBusy=false;
-function _editingNow(){ const ae=document.activeElement; return !!(ae&&(ae.tagName==="INPUT"||ae.tagName==="TEXTAREA"||ae.isContentEditable)); }
+function _editingNow(){ const ae=document.activeElement; return !!(ae&&(ae.tagName==="INPUT"||ae.tagName==="TEXTAREA"||ae.tagName==="SELECT"||ae.isContentEditable)); }
 async function autoSyncTick(){
   const u=cloudURL(); if(!u||_autoBusy||document.hidden) return;
   _autoBusy=true;
+  retryPush();                                   /* 送れていない変更があれば、まず送り直す */
   try{
     const r=await fetch(u+(u.indexOf("?")<0?"?":"&")+"check=1",{method:"GET"});
     if(!r.ok){ noteSync(false); _autoBusy=false; return; }        /* 401等＝黙って止まらせない */
