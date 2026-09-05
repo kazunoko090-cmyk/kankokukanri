@@ -1543,6 +1543,7 @@ const KV_SYNC_PREFIXES=["kr_teb_","kr_bru_","kr_manual_v2","kr_manual_urls","kr_
 function isKvSyncKey(k){ return KV_SYNC_PREFIXES.some(p=> k===p || k.indexOf(p)===0 ); }
 let kvReady=false;                 // 初回プル完了まで送信しない（初期シードの誤送信防止）
 const _kvSetItem=localStorage.setItem.bind(localStorage);
+const _kvGetItem=localStorage.getItem.bind(localStorage);
 const _kvTimers={};
 async function cloudPushKV(key,value){ const u=cloudURL(); if(!u) return;
   try{ const r=await fetch(u,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify({action:"saveKV",key:String(key),value:String(value==null?"":value)})});
@@ -1617,7 +1618,11 @@ function applyServerKV(kv){ Object.keys(kv||{}).forEach(k=>{ if(!isKvSyncKey(k))
 /* 初回接続時：サーバーに無いローカルデータを一度だけアップロード */
 function pushLocalKvMissing(serverKV){ try{ for(let i=0;i<localStorage.length;i++){ const k=localStorage.key(i); if(!k||!isKvSyncKey(k)) continue; if(Object.prototype.hasOwnProperty.call(serverKV,k)) continue; const v=localStorage.getItem(k); if(v!=null) cloudPushKV(k,v); } }catch(e){ console.warn("pushLocalKvMissing",e); } }
 /* localStorage.setItem をラップして、対象キーの変更を自動でクラウドへ送る */
-localStorage.setItem=function(k,v){ _kvSetItem(k,v); try{ if(kvReady && cloudURL() && isKvSyncKey(k)) scheduleKvPush(k); }catch(e){} };
+localStorage.setItem=function(k,v){
+  /* 中身が同じなら送信しない。送るたびに _rev が動き、全端末が全件を取り直すため（D1の読み取り枠を焼く原因だった。2026-09-05） */
+  let same=false; try{ same=(_kvGetItem(k)===String(v)); }catch(e){}
+  _kvSetItem(k,v);
+  try{ if(!same && kvReady && cloudURL() && isKvSyncKey(k)) scheduleKvPush(k); }catch(e){} };
 /* 1注文の損益計算（キャンセル／キャンセル返品／返品は売上0・仕入れ額は残す＝赤字判定） */
 function calcSale(s,rate){ const cancel=isZeroSale(s.status); const qty=num(s.qty)||1;   /* 2026-09-03：返品・キャンセル返品も売上0にした */
   const r=(s.rate>0)?s.rate:rate;  /* 取込時に記録したレートを優先（過去分はその時のレートで固定） */
@@ -5366,8 +5371,9 @@ function renderCust(){
   }
   const spec=pf, okey=spec.orderKey, view=spec.view;
   let rows=load();                                 /* 全件を保持（表示のたびにpurgeで消さない＝サーバー・ローカルとも蓄積） */
-  rows.forEach(r=>{ if(!r._status||r._status==="未発送") r._status=DEFAULT_STATUS; });
-  save(rows);
+  let _seedFixed=false;
+  rows.forEach(r=>{ if(!r._status||r._status==="未発送"){ r._status=DEFAULT_STATUS; _seedFixed=true; } });
+  if(_seedFixed) save(rows);                       /* 直すものが無いときは書かない＝無駄な同期を起こさない（2026-09-05） */
   syncLedger(rows);
   const lmap=ledgerMap();
   const hi=hiSet();
