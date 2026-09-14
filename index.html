@@ -616,6 +616,35 @@ window.CAT_ATTR_JA={"색상": "色", "수량": "数量", "패션의류/잡화 �
   .hm-tile:hover{ background:#f6f9ff; }
   .hm-tile-v{ font-size:32px; font-weight:800; line-height:1.05; width:100%; text-align:center; }
   .hm-tile-l{ font-size:14px; color:#2b3652; font-weight:700; display:flex; align-items:center; justify-content:center; gap:7px; line-height:1.3; width:100%; }
+
+  /* ===== 問い合わせマニュアル：左＝パターンA/B/C…の見出し、右＝内容 ===== */
+  .inq-wrap{ display:grid; grid-template-columns:260px 1fr; gap:16px; align-items:start; }
+  .inq-side{ position:sticky; top:12px; }
+  .inq-list{ display:flex; flex-direction:column; gap:6px; margin-bottom:10px; }
+  .inq-item{ display:flex; align-items:center; gap:10px; width:100%; text-align:left; padding:10px 12px; border:1px solid var(--line); border-radius:12px;
+    background:var(--surface); cursor:pointer; font:inherit; color:var(--txt); box-shadow:var(--sh-sm); }
+  .inq-item:hover{ background:var(--line-2); }
+  .inq-item.active{ border-color:var(--accent); background:#f5f7ff; box-shadow:0 0 0 3px var(--ring); }
+  .inq-letter{ flex:none; width:30px; height:30px; border-radius:9px; background:linear-gradient(135deg,var(--accent),var(--accent-2)); color:#fff;
+    display:inline-flex; align-items:center; justify-content:center; font-weight:800; font-size:14px; letter-spacing:.02em; }
+  .inq-letter.big{ width:44px; height:44px; border-radius:12px; font-size:20px; }
+  .inq-name{ font-size:13px; font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .inq-name.empty{ color:var(--muted); font-weight:500; }
+  .inq-main{ padding:18px 20px 16px; }
+  .inq-head{ display:flex; align-items:center; gap:12px; margin-bottom:12px; }
+  .inq-title{ flex:1; height:44px; border:1px solid var(--line); border-radius:10px; padding:0 14px; font:inherit; font-size:17px; font-weight:700; background:var(--surface); }
+  .inq-title:focus,.inq-text:focus{ outline:none; border-color:var(--accent); box-shadow:0 0 0 3px var(--ring); }
+  .inq-text{ width:100%; min-height:420px; border:1px solid var(--line); border-radius:12px; padding:14px 16px; font:inherit; font-size:14px; line-height:1.75;
+    background:var(--surface); resize:vertical; }
+  .inq-foot{ display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-top:10px; }
+  .inq-saved{ font-size:12px; color:var(--muted); margin-left:auto; }
+  .inq-empty{ padding:40px 20px; text-align:center; color:var(--muted); font-size:13.5px; }
+  /* スマホ：左右を縦に並べる（基本の指定より後ろに置かないと負ける） */
+  @media (max-width:768px){
+    .inq-wrap{ grid-template-columns:1fr; }
+    .inq-side{ position:static; }
+    .inq-text{ min-height:260px; }
+  }
 </style>
 </head>
 <body>
@@ -682,6 +711,7 @@ window.CAT_ATTR_JA={"색상": "色", "수량": "数量", "패션의류/잡화 �
       <div class="navhead" title="顧客対応"><span class="nav-ico">💬</span><span class="nav-txt">顧客対応</span><span class="arw">▶</span></div>
       <div class="navsub" data-label="顧客対応">
         <a id="nav-cs"><span class="dot"></span>翻訳・定型文</a>
+        <a id="nav-inq"><span class="dot"></span>問い合わせマニュアル</a>
       </div>
     </div>
     <div class="navgroup" data-g="blog">
@@ -933,6 +963,11 @@ window.CAT_ATTR_JA={"색상": "色", "수량": "数量", "패션의류/잡화 �
   </div>
 
   <div id="view-faq" style="display:none"></div>
+
+  <div id="view-inq" style="display:none">
+    <div class="page-head">問い合わせマニュアル <small>問い合わせのパターンごとに、対応の手順をまとめます</small></div>
+    <div id="inq-body"></div>
+  </div>
 
   <div id="view-shipfee" style="display:none">
     <div class="page-head">配送料金 <small>HANIROLINE 重量別料金表</small></div>
@@ -1553,7 +1588,7 @@ async function cloudDelete(order){ const u=cloudURL(); if(!u) return;
 /* ===== その他データの同期（マニュアル・顧客・出品・ブログ等）：key-value方式 ===== */
 /* kr_hi_（黄色の選択）は同期しない＝端末ごとの目印。
    共有すると①和集合で選択が溜まる②複数人で1つの選択を奪い合う、の両方が起きるため。 */
-const KV_SYNC_PREFIXES=["kr_teb_","kr_bru_","kr_manual_v2","kr_manual_urls","kr_tblman_","kr_cust_","kr_list_attr_","kr_list_cat_","kr_list_brand_","kr_attr_cat_","kr_blog_","kr_catseg_ja","kr_shinfix","kr_tomb","kr_nippo_","kr_stock_smart_v1","kr_stock_st11_v1","kr_oos_"];
+const KV_SYNC_PREFIXES=["kr_teb_","kr_bru_","kr_manual_v2","kr_manual_urls","kr_tblman_","kr_cust_","kr_list_attr_","kr_list_cat_","kr_list_brand_","kr_attr_cat_","kr_blog_","kr_catseg_ja","kr_shinfix","kr_tomb","kr_nippo_","kr_stock_smart_v1","kr_stock_st11_v1","kr_oos_","kr_inq_"];
 function isKvSyncKey(k){ return KV_SYNC_PREFIXES.some(p=> k===p || k.indexOf(p)===0 ); }
 let kvReady=false;                 // 初回プル完了まで送信しない（初期シードの誤送信防止）
 const _kvSetItem=localStorage.setItem.bind(localStorage);
@@ -1742,7 +1777,7 @@ function render(){
   const _locked = pwNeed();   /* 対象画面のみロック（ナビは操作可能・モール別の暗証番号） */
   document.getElementById("view-lock").style.display=_locked?"":"none";
   if(_locked){
-    ["view-home","view-cust","view-sales","view-research","view-list","view-banned","view-banlist","view-shortcut","view-blog","view-manual","view-tblman","view-cs","view-faq","view-shipfee","view-stock","view-profit","view-nippo"].forEach(id=>{ const el=document.getElementById(id); if(el) el.style.display="none"; });
+    ["view-home","view-cust","view-sales","view-research","view-list","view-banned","view-banlist","view-shortcut","view-blog","view-manual","view-tblman","view-cs","view-faq","view-shipfee","view-stock","view-profit","view-nippo","view-inq"].forEach(id=>{ const el=document.getElementById(id); if(el) el.style.display="none"; });
     const lm=document.getElementById("lockMsg"); if(lm) lm.textContent= (pwScope()==="hassou")
       ? "「管理表マニュアル 発送管理」を開くには暗証番号を入力してください"
       : "「"+(PW_PLATNAMES[current]||"")+" "+(PW_NAMES[section]||"")+"」を開くには暗証番号を入力してください";
@@ -1752,8 +1787,8 @@ function render(){
   const home=section==="home";
   document.getElementById("view-home").style.display=home?"":"none";
   if(home){ const c=document.getElementById("crumb"); if(c) c.innerHTML="ホーム"; }
-  const sales=section==="sales", research=section==="research", list=section==="list", banned=section==="banned", banlist=section==="banlist", shortcut=section==="shortcut", blog=section==="blog", manual=section==="manual", tblman=section==="tblman", shipfee=section==="shipfee", cs=section==="cs", faq=section==="faq", stock=section==="stock", profit=section==="profit", nippo=section==="nippo";
-  document.getElementById("view-cust").style.display=(home||sales||research||list||banned||banlist||shortcut||blog||manual||tblman||shipfee||cs||faq||stock||profit||nippo)?"none":"";
+  const sales=section==="sales", research=section==="research", list=section==="list", banned=section==="banned", banlist=section==="banlist", shortcut=section==="shortcut", blog=section==="blog", manual=section==="manual", tblman=section==="tblman", shipfee=section==="shipfee", cs=section==="cs", faq=section==="faq", stock=section==="stock", profit=section==="profit", nippo=section==="nippo", inq=section==="inq";
+  document.getElementById("view-cust").style.display=(home||sales||research||list||banned||banlist||shortcut||blog||manual||tblman||shipfee||cs||faq||stock||profit||nippo||inq)?"none":"";
   document.getElementById("view-faq").style.display=faq?"":"none";
   document.getElementById("view-sales").style.display=sales?"":"none";
   document.getElementById("view-research").style.display=research?"":"none";
@@ -1769,8 +1804,9 @@ function render(){
   document.getElementById("view-stock").style.display=stock?"":"none";
   document.getElementById("view-profit").style.display=profit?"":"none";
   document.getElementById("view-nippo").style.display=nippo?"":"none";
+  document.getElementById("view-inq").style.display=inq?"":"none";
   dumpHiddenViews();
-  if(home){ renderHome(); } else if(faq) renderFaq(); else if(cs) renderCs(); else if(shipfee) renderShipfee(); else if(nippo) renderNippo(); else if(profit) renderProfit(); else if(tblman) renderTblMan(); else if(manual) renderManual(); else if(blog) renderBlog(); else if(shortcut) renderShortcut(); else if(banlist) renderBanlist(); else if(banned) renderBanned(); else if(stock) renderStock(); else if(list) renderList(); else if(research) renderResearch(); else if(sales) renderSales(); else renderCust();
+  if(home){ renderHome(); } else if(faq) renderFaq(); else if(cs) renderCs(); else if(inq) renderInq(); else if(shipfee) renderShipfee(); else if(nippo) renderNippo(); else if(profit) renderProfit(); else if(tblman) renderTblMan(); else if(manual) renderManual(); else if(blog) renderBlog(); else if(shortcut) renderShortcut(); else if(banlist) renderBanlist(); else if(banned) renderBanned(); else if(stock) renderStock(); else if(list) renderList(); else if(research) renderResearch(); else if(sales) renderSales(); else renderCust();
 }
 /* ===== 管理表マニュアル（ブログマニュアルと同じフォーマット・モール別） ===== */
 const TBLMAN_SEED=[{title:"",url:""},{title:"",url:""},{title:"",url:""},{title:"",url:""}];
@@ -2556,6 +2592,49 @@ function csApply(){
 /* テンプレを切り替えても、入れた注文番号・商品名はそのまま使う */
 function csSetKo(t){ csRaw=String(t||""); csPhKeys="@reset@"; if(/\{[^{}\n]+\}/.test(csRaw)) csPhOpen=true; csApply(); }
 
+
+/* ===== 問い合わせマニュアル =====
+   ・データは kr_inq_v1（{id,title,body} の配列）。クラウド同期あり（id で統合・削除はトゥームストーン）
+   ・左の A/B/C… は並び順から自動で付ける（消すと繰り上がる）。右は見出しと本文。入力は自動保存 */
+const INQ_KEY="kr_inq_v1";
+let inqCur=null, _inqTimer=null;
+function loadInq(){ try{ const d=JSON.parse(localStorage.getItem(INQ_KEY)); if(Array.isArray(d)) return d; }catch(e){} return []; }
+function saveInq(l){ localStorage.setItem(INQ_KEY,JSON.stringify(l)); }
+function inqLetter(i){ let s="", n=i; do{ s=String.fromCharCode(65+(n%26))+s; n=Math.floor(n/26)-1; }while(n>=0); return s; }
+function renderInq(){
+  const host=document.getElementById("inq-body"); if(!host) return;
+  const l=loadInq();
+  if(!l.some(x=>x.id===inqCur)) inqCur=l.length?l[0].id:null;
+  const cur=l.find(x=>x.id===inqCur)||null, ci=l.indexOf(cur);
+  const side=`<div class="inq-list">`+l.map((x,i)=>`<button class="inq-item${x.id===inqCur?" active":""}" onclick="inqSel('${esc(x.id)}')">`+
+      `<span class="inq-letter">${inqLetter(i)}</span><span class="inq-name${String(x.title||"").trim()?"":" empty"}" data-id="${esc(x.id)}">${esc(String(x.title||"").trim()||"（見出し未設定）")}</span></button>`).join("")+`</div>`+
+    `<button class="btn-ghost btn-sm" onclick="inqAdd()">＋ パターンを追加</button>`;
+  const main= cur
+    ? `<div class="inq-head"><span class="inq-letter big">${inqLetter(ci)}</span>`+
+      `<input class="inq-title" placeholder="パターンの見出し（例：関税について聞かれた）" value="${esc(cur.title||"")}" oninput="inqSet('${esc(cur.id)}','title',this.value)"></div>`+
+      `<textarea class="inq-text" placeholder="対応の手順・返信の要点・注意点など、自由に書いてください" oninput="inqSet('${esc(cur.id)}','body',this.value)">${esc(cur.body||"")}</textarea>`+
+      `<div class="inq-foot"><button class="btn-ghost btn-sm" onclick="inqCopy(this)">📋 内容をコピー</button>`+
+      `<span class="inq-saved" id="inq-saved"></span>`+
+      `<button class="rowbtn del btn-sm" onclick="inqDel('${esc(cur.id)}')">このパターンを削除</button></div>`
+    : `<div class="inq-empty"><b>まだパターンがありません。</b><br>左の「＋ パターンを追加」から作ってください。A・B・C… と自動で番号が付きます。</div>`;
+  host.innerHTML=`<div class="inq-wrap"><aside class="inq-side">${side}</aside><section class="inq-main panel">${main}</section></div>`;
+}
+window.inqSel=(id)=>{ inqCur=id; renderInq(); };
+window.inqAdd=()=>{ const l=loadInq(); const it={id:uid(),title:"",body:""}; l.push(it); saveInq(l); inqCur=it.id; renderInq();
+  const ti=document.querySelector(".inq-title"); if(ti) setTimeout(()=>{ try{ ti.focus(); }catch(e){} },30); };
+/* 入力のたびに描き直すとカーソルが飛ぶので、データと左の見出しだけ直し、保存は少し待ってまとめる */
+window.inqSet=(id,field,val)=>{ const l=loadInq(); const it=l.find(x=>x.id===id); if(!it) return;
+  it[field]=String(val);
+  /* 見出しと本文を続けて打ったとき、保存待ちの片方が消えないよう、画面にある両方の値を毎回拾う */
+  const ti=document.querySelector(".inq-title"), ta=document.querySelector(".inq-text");
+  if(id===inqCur){ if(ti) it.title=ti.value; if(ta) it.body=ta.value; }
+  if(field==="title"){ const el=document.querySelector(`.inq-name[data-id="${id}"]`); if(el){ const s=String(val).trim(); el.textContent=s||"（見出し未設定）"; el.classList.toggle("empty",!s); } }
+  clearTimeout(_inqTimer);
+  _inqTimer=setTimeout(()=>{ saveInq(l); const sv=document.getElementById("inq-saved"); if(sv){ const d=new Date(); sv.textContent="保存しました "+String(d.getHours()).padStart(2,"0")+":"+String(d.getMinutes()).padStart(2,"0"); } },500); };
+window.inqCopy=(btn)=>{ const ta=document.querySelector(".inq-text"); copyText(ta?ta.value:""); flashBtn(btn); };
+window.inqDel=(id)=>{ const it=loadInq().find(x=>x.id===id);
+  if(!askDel("パターン", delLabel(it,["title","body"]), UNDO_NG)) return;
+  clearTimeout(_inqTimer); saveInq(loadInq().filter(x=>x.id!==id)); addTomb(INQ_KEY,id); inqCur=null; renderInq(); };
 function renderCs(){
   if(csBuilt) return;
   const saved=(()=>{ try{ return JSON.parse(localStorage.getItem(CS_KEY)||"{}")||{}; }catch(e){ return {}; } })();
@@ -5646,6 +5725,14 @@ document.getElementById("nav-cs").addEventListener("click",()=>{
   document.getElementById("nav-cs").classList.add("active");
   document.getElementById("crumb").innerHTML=`HOME / <b>顧客対応</b> / 翻訳・定型文`;
   document.getElementById("search").value=""; render();
+});
+document.getElementById("nav-inq").addEventListener("click",()=>{
+  section="inq";
+  document.querySelectorAll(".navsub a").forEach(x=>x.classList.remove("active"));
+  document.getElementById("nav-inq").classList.add("active");
+  document.getElementById("crumb").innerHTML=`HOME / <b>顧客対応</b> / 問い合わせマニュアル`;
+  document.getElementById("search").value="";
+  render();
 });
 document.getElementById("nav-faq").addEventListener("click",()=>{
   section="faq";
