@@ -990,6 +990,7 @@ window.CAT_ATTR_JA={"색상": "色", "수량": "数量", "패션의류/잡화 �
       <div class="toolbar">
         <div class="seg" id="blog-tabs">
           <button class="segbtn active" data-bt="todo">未投稿</button>
+          <button class="segbtn" data-bt="reco">おすすめ</button>
           <button class="segbtn" data-bt="done">投稿済み</button>
           <button class="segbtn" data-bt="stats">累計</button>
         </div>
@@ -3434,6 +3435,18 @@ window.blogUnpost=(asin)=>{ const b=loadBlog(current); if(b[asin]) b[asin].poste
      だから入力欄を必ず通す。空でも作れるが、薄いことを画面で伝える。
    ・APIキーはこの画面に置かない。Workerのシークレット経由（BLOG_API）。 */
 const BLOG_API = true;
+/* ===== おすすめ（まだ売れていないが記事にしたい商品）＝ blogreco.json（2026-09-14） =====
+   ・フロンティアの出品一覧から作った静的ファイル。{smart:[{a:ASIN, e:英語名, k:韓国語名, n:상품번호}]}
+   ・売れて「未投稿」に出た商品は、おすすめからは自動で消える（同じASINが2か所に出ない）
+   ・投稿すると「投稿済み」へ移る（売れた商品と同じ扱い）。管理番号（M〜）も同じ通し番号
+   ・n（スマートストアの상품번호）が入っていればショップの商品URLを出す */
+let BLOGRECO = {};
+(async function(){ try{ const r=await fetch("blogreco.json"); if(r.ok){ BLOGRECO=await r.json(); if(section==="blog") renderBlog(); } }catch(e){} })();
+const SHOP_URL={ smart:"https://smartstore.naver.com/tokyomart7585" };
+function shopItemUrl(p,n){ n=String(n||"").trim(); return (n&&SHOP_URL[p])?(SHOP_URL[p]+"/products/"+n):""; }
+function blogReco(p){ const sold=new Set(blogData(p).map(x=>x.asin));
+  return (Array.isArray(BLOGRECO[p])?BLOGRECO[p]:[]).filter(r=>r&&r.a&&!sold.has(r.a))
+    .map(r=>({asin:r.a,title:r.e||r.k||"",ko:r.k||"",qty:0,lastT:0,last:"",reco:true,n:r.n||""})); }
 let BLOGSRC = {};
 (async function(){ try{ const r=await fetch("blogsrc.json"); if(r.ok) BLOGSRC=await r.json(); }catch(e){} })();
 
@@ -3442,6 +3455,7 @@ function blogSrc(asin){
   const s = BLOGSRC[asin] || {};
   let led = "";
   try{ const g=blogData(current).find(x=>x.asin===asin); led=(g&&g.title)||""; }catch(e){}
+  if(!led){ try{ const r=(BLOGRECO[current]||[]).find(x=>x.a===asin); led=(r&&(r.k||r.e))||""; }catch(e){} }   /* おすすめ商品：台帳に無いので blogreco の名前を使う */
   const b = loadBlog(current)[asin] || {};
   return { asin:asin, name:(s.n||led||""), ledger:led, desc:(s.d||""),
            brand:(s.b||""), size:(s.sz||""), note:String(b.note||"") };
@@ -3524,7 +3538,9 @@ function renderBlog(){
   document.getElementById("blog-export").style.display=st?"none":"";
   if(st){ renderBlogStats(); return; }
   document.getElementById("blog-head").innerHTML=`ブログ：${PNAME[p]||p} <small>販売済み商品のASINを投稿管理</small>`;
-  let arr=blogData(p);
+  const sold=blogData(p), reco=blogReco(p);
+  /* 未投稿＝売れた商品／おすすめ＝まだ売れていない候補（売れたら自動で未投稿へ）／投稿済み＝両方 */
+  let arr= blogTab==="reco" ? reco : (blogTab==="done" ? sold.concat(reco) : sold);
   /* 管理番号：一覧に出た商品へ通し番号（M1001〜）を振る。両モール横断で重複せず、一度振ったら変えない。
      外注さんはこの番号を記事の最後に貼る＝ネイバーブログの検索でも、この検索窓でも、番号ひとつで商品と記事がつながる */
   (function(){ let mx=1000, chg=false;
@@ -3543,7 +3559,7 @@ function renderBlog(){
     return x.asin.toLowerCase().includes(q)||String(x.title).toLowerCase().includes(q)
       ||code.includes(q)||(qlog&&u.indexOf(qlog)>=0)||(u&&q.length>8&&u.indexOf(q)>=0); });
   const isDone=a=>!!(blog[a]&&blog[a].posted);
-  const doneCount=arr.filter(x=>isDone(x.asin)).length, todoCount=arr.length-doneCount;
+  const doneCount=sold.concat(reco).filter(x=>isDone(x.asin)).length, todoCount=sold.filter(x=>!isDone(x.asin)).length, recoCount=reco.filter(x=>!isDone(x.asin)).length;
   let list=arr.filter(x=> blogTab==="done"?isDone(x.asin):!isDone(x.asin));
   const z=n=>('0'+n).slice(-2); const fmtd=ds=>{const pp=parseDate(ds);return pp?pp.getFullYear()+"-"+z(pp.getMonth()+1)+"-"+z(pp.getDate()):"";};
   if(blogTab==="done") list.sort((a,b)=>String((blog[b.asin]||{}).date||"").localeCompare(String((blog[a.asin]||{}).date||"")));
@@ -3555,6 +3571,17 @@ function renderBlog(){
       return `<tr><td>${amz(x.asin)}</td>${noCell(x)}<td class="mono">${esc(d)}</td>${urlCell(x)}`+
         `<td><button class="rowbtn btn-sm" onclick="blogUnpost('${a}')">未投稿に戻す</button></td></tr>`; }).join("")
       : `<tr><td class="empty" colspan="5"><b>投稿済みはまだありません</b>「未投稿」で投稿日を選び「投稿する」を押すと、ここへ移動します。</td></tr>`;
+  } else if(blogTab==="reco"){
+    list.sort((a,b)=>String(a.title).localeCompare(String(b.title)));
+    document.getElementById("bloghead").innerHTML="<tr><th>ASIN</th><th>商品名（英語）</th><th>ショップ</th><th>管理番号</th><th>投稿日</th><th>操作</th></tr>";
+    document.getElementById("blogbody").innerHTML = list.length? list.map(x=>{ const a=esc(x.asin), d=(blog[x.asin]||{}).date||"", su=shopItemUrl(p,x.n);
+      return `<tr><td>${amz(x.asin)}<button class="cbtn" data-copy="${a}" onclick="copyBtn(this)" title="ASINをコピー">📋</button></td>`+
+        `<td><span class="clip" title="${esc(x.ko||x.title)}" onclick="toggleClip(this)">${esc(x.title)}</span>${x.title?`<button class="cbtn" data-copy="${esc(x.title)}" onclick="copyBtn(this)" title="商品名をコピー">📋</button>`:""}</td>`+
+        `<td>${su?`<a class="srclink" href="${esc(su)}" target="_blank" title="${esc(su)}">開く</a><button class="cbtn" data-copy="${esc(su)}" onclick="copyBtn(this)" title="URLをコピー">📋</button>`:`<span style="color:var(--muted)">—</span>`}</td>`+
+        noCell(x)+
+        `<td><input class="rvdate" type="date" value="${esc(d)}" onchange="blogSetDate('${a}',this.value)"></td>`+
+        `<td><button class="rowbtn btn-sm" onclick="blogMake('${a}')" title="商品データからブログ本文を作ります">✍️ 作成する</button> <button class="btn-primary btn-sm" onclick="blogPost('${a}')">投稿する</button></td></tr>`; }).join("")
+      : `<tr><td class="empty" colspan="6"><b>おすすめの商品がありません</b>${(BLOGRECO[p]||[]).length?"すべて売れたか投稿済みです。":"このモールにはおすすめリストがありません。"}</td></tr>`;
   } else {
     document.getElementById("bloghead").innerHTML="<tr><th>ASIN</th><th>管理番号</th><th>投稿日</th><th>操作</th></tr>";
     document.getElementById("blogbody").innerHTML = list.length? list.map(x=>{ const a=esc(x.asin), d=(blog[x.asin]||{}).date||"";
@@ -3563,7 +3590,7 @@ function renderBlog(){
         `<td><button class="rowbtn btn-sm" onclick="blogMake('${a}')" title="商品データからブログ本文を作ります">✍️ 作成する</button> <button class="btn-primary btn-sm" onclick="blogPost('${a}')">投稿する</button></td></tr>`; }).join("")
       : `<tr><td class="empty" colspan="4"><b>未投稿のASINがありません</b>売上管理に販売データが入ると、ここへASINが並びます。</td></tr>`;
   }
-  document.getElementById("blogcount").textContent=`${PNAME[p]} ・ 未投稿 ${todoCount}件 ／ 投稿済み ${doneCount}件`;
+  document.getElementById("blogcount").textContent=`${PNAME[p]} ・ 未投稿 ${todoCount}件 ／ おすすめ ${recoCount}件 ／ 投稿済み ${doneCount}件`;
 }
 /* ===== ブログ 累計（クーパン＋スマートストア 合算） =====
    1日にできるのは3件までなので、同じ日に4件以上たまっている分は翌日へ繰り下げて数える（＝実際にこなせる形に換算する）。
@@ -5783,7 +5810,7 @@ document.getElementById("nav-manual").addEventListener("click",()=>{
 document.querySelectorAll("#blog-tabs .segbtn").forEach(b=>b.addEventListener("click",()=>{ blogTab=b.dataset.bt; renderBlog(); }));
 document.getElementById("blog-search").addEventListener("input",renderBlog);
 document.getElementById("blog-export").onclick=()=>{
-  const p=current, blog=loadBlog(p), arr=blogData(p);
+  const p=current, blog=loadBlog(p), arr=(blogTab==="reco")?blogReco(p):blogData(p);   /* おすすめタブではおすすめの一覧を出す */
   const z=n=>('0'+n).slice(-2); const fmtd=ds=>{const pp=parseDate(ds);return pp?pp.getFullYear()+"-"+z(pp.getMonth()+1)+"-"+z(pp.getDate()):"";};
   const H=["ASIN","商品タイトル","販売数","最終販売日","状態","投稿日"];
   const esccsv=v=>{const s=String(v??"");return /[",\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s;};
