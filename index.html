@@ -989,7 +989,7 @@ window.CAT_ATTR_JA={"색상": "色", "수량": "数量", "패션의류/잡화 �
     <div class="panel">
       <div class="toolbar">
         <div class="seg" id="blog-tabs">
-          <button class="segbtn active" data-bt="todo">未投稿</button>
+          <button class="segbtn active" data-bt="todo">販売済み</button>
           <button class="segbtn" data-bt="reco">おすすめ</button>
           <button class="segbtn" data-bt="done">投稿済み</button>
           <button class="segbtn" data-bt="stats">累計</button>
@@ -3569,8 +3569,8 @@ function renderBlog(){
     document.getElementById("bloghead").innerHTML="<tr><th>ASIN</th><th>管理番号</th><th>投稿日</th><th>記事URL</th><th>操作</th></tr>";
     document.getElementById("blogbody").innerHTML = list.length? list.map(x=>{ const a=esc(x.asin), d=(blog[x.asin]||{}).date||"";
       return `<tr><td>${amz(x.asin)}</td>${noCell(x)}<td class="mono">${esc(d)}</td>${urlCell(x)}`+
-        `<td><button class="rowbtn btn-sm" onclick="blogUnpost('${a}')">未投稿に戻す</button></td></tr>`; }).join("")
-      : `<tr><td class="empty" colspan="5"><b>投稿済みはまだありません</b>「未投稿」で投稿日を選び「投稿する」を押すと、ここへ移動します。</td></tr>`;
+        `<td><button class="rowbtn btn-sm" onclick="blogUnpost('${a}')">販売済みに戻す</button></td></tr>`; }).join("")
+      : `<tr><td class="empty" colspan="5"><b>投稿済みはまだありません</b>「販売済み」で投稿日を選び「投稿する」を押すと、ここへ移動します。</td></tr>`;
   } else if(blogTab==="reco"){
     list.sort((a,b)=>String(a.title).localeCompare(String(b.title)));
     document.getElementById("bloghead").innerHTML="<tr><th>ASIN</th><th>商品名（英語）</th><th>ショップ</th><th>管理番号</th><th>投稿日</th><th>操作</th></tr>";
@@ -3588,9 +3588,9 @@ function renderBlog(){
       return `<tr><td>${amz(x.asin)}</td>${noCell(x)}`+
         `<td><input class="rvdate" type="date" value="${esc(d)}" onchange="blogSetDate('${a}',this.value)"></td>`+
         `<td><button class="rowbtn btn-sm" onclick="blogMake('${a}')" title="商品データからブログ本文を作ります">✍️ 作成する</button> <button class="btn-primary btn-sm" onclick="blogPost('${a}')">投稿する</button></td></tr>`; }).join("")
-      : `<tr><td class="empty" colspan="4"><b>未投稿のASINがありません</b>売上管理に販売データが入ると、ここへASINが並びます。</td></tr>`;
+      : `<tr><td class="empty" colspan="4"><b>販売済みのASINがありません</b>売上管理に販売データが入ると、ここへASINが並びます。</td></tr>`;
   }
-  document.getElementById("blogcount").textContent=`${PNAME[p]} ・ 未投稿 ${todoCount}件 ／ おすすめ ${recoCount}件 ／ 投稿済み ${doneCount}件`;
+  document.getElementById("blogcount").textContent=`${PNAME[p]} ・ 販売済み ${todoCount}件 ／ おすすめ ${recoCount}件 ／ 投稿済み ${doneCount}件`;
 }
 /* ===== ブログ 累計（クーパン＋スマートストア 合算） =====
    1日にできるのは3件までなので、同じ日に4件以上たまっている分は翌日へ繰り下げて数える（＝実際にこなせる形に換算する）。
@@ -3629,7 +3629,7 @@ function renderBlogStats(){
   document.getElementById("blog-head").innerHTML=`ブログ：累計 <small>クーパン＋スマートストアの合算。1日${BLOG_PER_DAY}件で換算</small>`;
   const box=document.getElementById("blog-stats");
   if(!asg.length&&!bs){
-    box.innerHTML=`<div class="empty"><b>投稿済みがまだありません</b>「未投稿」で投稿日を選び「投稿する」を押すと、ここで数えます。`
+    box.innerHTML=`<div class="empty"><b>投稿済みがまだありません</b>「販売済み」で投稿日を選び「投稿する」を押すと、ここで数えます。`
       +(got.nodate?`<br>（投稿日が空のまま投稿済みになっているものが ${got.nodate}件あります）`:"")+`</div>`;
     document.getElementById("blogcount").textContent="クーパン＋スマートストア 合算 ・ 投稿済み 0件"; return; }
   const months={}, years={}, byDay={}, fixDay={};
@@ -3655,8 +3655,8 @@ function renderBlogStats(){
   const cards=`<div class="stats s4">`+
     `<div class="card alert"><div class="label">${yy}年${mm}月 の累計</div><div class="num">${cm.t}<small> 件</small></div></div>`+
     `<div class="card"><div class="label">投稿確定日</div><div class="num">${lpD}<small> ${lastFull?`(${lpW}) まで確定`:""}</small></div></div>`+
-    `<div class="card" style="cursor:pointer" title="クーパンの未投稿を開く" onclick="blogGoTodo('coupang')"><div class="label">クーパン 未投稿</div><div class="num" style="color:var(--brand);text-decoration:underline">${todoC}<small> 件</small></div></div>`+
-    `<div class="card" style="cursor:pointer" title="スマートストアの未投稿を開く" onclick="blogGoTodo('smart')"><div class="label">スマートストア 未投稿</div><div class="num" style="color:var(--brand);text-decoration:underline">${todoS}<small> 件</small></div></div>`+
+    `<div class="card" style="cursor:pointer" title="クーパンの販売済み（まだ投稿していない分）を開く" onclick="blogGoTodo('coupang')"><div class="label">クーパン 販売済み</div><div class="num" style="color:var(--brand);text-decoration:underline">${todoC}<small> 件</small></div></div>`+
+    `<div class="card" style="cursor:pointer" title="スマートストアの販売済み（まだ投稿していない分）を開く" onclick="blogGoTodo('smart')"><div class="label">スマートストア 販売済み</div><div class="num" style="color:var(--brand);text-decoration:underline">${todoS}<small> 件</small></div></div>`+
   `</div>`;
   const opts=sel.slice().reverse().map(m=>`<option value="${m}"${m===blogMonth?" selected":""}>${m.slice(0,4)}年${+m.slice(5,7)}月（${months[m]?months[m].t:0}件）</option>`).join("");
   const picker=`<div class="toolbar"><span style="font-size:12px;color:var(--muted);font-weight:600">見たい月</span>`+
