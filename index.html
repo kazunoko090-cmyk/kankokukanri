@@ -1833,6 +1833,7 @@ const STOCK_MK2P={ "スマートストア":"smart", "11番街":"st11" };
 const STOCK_PLATS=["smart","st11"];
 const STOCK_TABS=[ {id:"all",label:"全体"}, {id:"stop",label:"出品停止"}, {id:"price",label:"値段調整"}, {id:"revive",label:"在庫復活"}, {id:"tana",label:"棚卸し"} ];
 let stockTab="stop", stockSelBy={}, stockSelPlat="";
+const STOCK_PAGE=1000; let stockPage=0;   /* 一覧は1000件ずつ表示（数千件を一度に描くと重いため） */
 /* チェックはタブごとに別々に持つ。全体でまとめてチェックしても、値段調整・在庫復活には移らない。
    コピーも「今開いているタブの分だけ」になる。 */
 function stockSelCur(){ if(!stockSelBy[stockTab]) stockSelBy[stockTab]=new Set(); return stockSelBy[stockTab]; }
@@ -1875,7 +1876,8 @@ function stockCat(r){
   return "";
 }
 const STOCK_BADGE={ "在庫切れ商品":"grey", "在庫復活商品":"green", "赤字商品":"red", "黒字転換商品":"blue" };
-window.setStockTab=(t)=>{ stockTab=t; render(); };
+window.setStockTab=(t)=>{ stockTab=t; stockPage=0; render(); };
+window.stockPageGo=(d)=>{ stockPage=Math.max(0,stockPage+d); render(); const el=document.getElementById("stock-pager-top"); if(el) el.scrollIntoView({block:"start"}); };
 /* ===== 値段調整：Excelの並びに合わせて価格の列を作る =====
    スマストの一括修正Excelは「商品番号の新しい順」で出てくるので、こちらの表示順とは一致しない。
    そこでExcelから貼られた行の順番をそのまま使い、同じ行数だけ価格を返す（＝上から順にF列へ貼れる）。
@@ -2399,7 +2401,7 @@ function renderStock(){
     bd.innerHTML=`<div class="panel"><div class="empty"><b>このモールは対象外です</b>左の「クーパン」「スマートストア」「11番街」から選んでください。</div></div>`;
     return;
   }
-  if(stockSelPlat!==p){ stockSelBy={}; stockSelPlat=p; }   /* モールを切り替えたらチェックはリセット */
+  if(stockSelPlat!==p){ stockSelBy={}; stockSelPlat=p; stockPage=0; }   /* モールを切り替えたらチェックとページはリセット */
   const d=loadStock(p);
   hd.innerHTML=`在庫管理：${PNAME[p]||p} <small>「修正必要商品リスト」から、やることだけを抽出</small>`;
   const rows=d.rows.map(r=>({ ...r, cat:stockCat(r) }));
@@ -2430,7 +2432,19 @@ function renderStock(){
   const chips=chipsBar;
   const view=of(stockTab).slice().sort((a,b)=>(b.isNew?1:0)-(a.isNew?1:0));   /* 今回入ったNEWを上に */
   const CATLB={stop:"出品停止",price:"値段調整",revive:"在庫復活"};
-  const trs=view.map(r=>{
+  /* 1000件ずつ表示。チェックはページをまたいで残る（コピーはチェック分すべて） */
+  const total=view.length, pages=Math.max(1,Math.ceil(total/STOCK_PAGE));
+  if(stockPage>=pages) stockPage=pages-1;
+  const pv=view.slice(stockPage*STOCK_PAGE,(stockPage+1)*STOCK_PAGE);
+  const pager=(id)=>pages<=1?"":
+    `<div id="${id}" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:8px 2px;font-size:12.5px">`+
+      `<span style="color:var(--muted);font-weight:600">${(stockPage*STOCK_PAGE+1).toLocaleString("ja-JP")}〜${Math.min(total,(stockPage+1)*STOCK_PAGE).toLocaleString("ja-JP")}件目 ／ 全${total.toLocaleString("ja-JP")}件</span>`+
+      `<div class="grow"></div>`+
+      `<button class="btn-ghost btn-sm" onclick="stockPageGo(-1)" ${stockPage<=0?"disabled":""}>← 前のページ</button>`+
+      `<span style="font-weight:700">${stockPage+1} / ${pages}</span>`+
+      `<button class="btn-ghost btn-sm" onclick="stockPageGo(1)" ${stockPage>=pages-1?"disabled":""}>次のページ →</button>`+
+    `</div>`;
+  const trs=pv.map(r=>{
     const badge=(r.isNew?` <span class="stkb blue">NEW</span>`:"")+(r.color?` <span class="stkb ${STOCK_BADGE[r.color]||"grey"}">${esc(r.color)}</span>`:"");
     const diff=(r.price>0&&r.fair>0)?Math.round(r.fair-r.price):0;
     return `<tr>`+
@@ -2487,10 +2501,10 @@ function renderStock(){
     handBox+`</div>`;
   bd.innerHTML=
     cards+chips+
-    `<div class="panel">${toolbar}<div class="tablewrap"><table>`+
+    `<div class="panel">${toolbar}${pager("stock-pager-top")}<div class="tablewrap"><table>`+
     `<thead><tr><th><input type="checkbox" class="rowchk" id="stock-selall" onclick="stockSelAll(this)" title="表示中の行を全部チェック／解除"></th><th>商品ID（ASIN）</th><th>商品名</th><th>今の状態</th><th>出品時価格</th><th>適正価格</th><th>差</th><th>在庫</th><th>分類</th></tr></thead>`+
     `<tbody>${trs||`<tr><td class="empty" colspan="9"><b>この分類には商品がありません</b></td></tr>`}</tbody>`+
-    `</table></div></div>`+pasteBox;
+    `</table></div>${pager("stock-pager-btm")}</div>`+pasteBox;
   stockSelSync();
 }
 /* ===== 顧客対応（日本語⇄韓国語の翻訳・韓国語の定型文） =====
