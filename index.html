@@ -1323,9 +1323,18 @@ const platforms = {
             map:{ order:"Order number", date:"Order date", deadline:"Expected shipment date upon order",
                   asin:"Vendor product code", title:"Registered product name", won:"paid amount", qty:"Purchased qty" } },
   smart:{ name:"スマートストア", key:"kr_cust_smart_v4", salesKey:"kr_sales_smart_v3", ready:true, cloud:true,
-          orderKey:"상품주문번호", displayOrder:"주문번호", feeInline:true, view:SMART_VIEW,
+          orderKey:"상품주문번호", displayOrder:"주문번호", feeInline:true, view:SMART_VIEW, wonRecalc:true,
+          /* 売上の基準額＝買い手が払った額 ＋ ネイバーが負担した割引ぶん。
+             「최종 총 주문금액」は買い手が払った額で、ネイバー持ちのクーポンまで引かれている。
+             それをそのまま売上にすると、ネイバー持ちの割引を自分の損として計算してしまう（2026-09-14、9/1のVictorinoxで発覚：
+             実際は+825円なのに−926円に見えていた）。
+             基準額 − 手数料 ＝ 정산예정금액 に一致する（4注文で実測確認）。11番街の「控除合計」と同じ考え方。
+             ※「상품가격」は1個の単価なので数量のある注文では使えない。割引の差分で足し戻す形にしてある。
+             割引の列が無い旧形式の行は、足し戻しがゼロ＝今までどおり買い手支払額になる。 */
+          prep:r=>{ const paid=num(r["최종 상품별 총 주문금액"]), disc=Math.abs(num(r["최종 상품별 할인액"])), sd=Math.abs(num(r["판매자 부담 할인액"]));
+                    r["売上基準額"]= paid + Math.max(0, disc-sd); },
           map:{ order:"상품주문번호", date:"주문일시", deadline:"발송기한", asin:"판매자 상품코드",
-                title:"상품명", won:"최종 상품별 총 주문금액", qty:"수량", discount:"최종 상품별 할인액",
+                title:"상품명", won:"売上基準額", qty:"수량", discount:"최종 상품별 할인액",
                 feeA:"네이버페이 주문관리 수수료", feeB:"매출연동 수수료" } },
   st11:{ name:"11番街", key:"kr_cust_11st_v4", salesKey:"kr_sales_11st_v3", ready:true, cloud:true,
          orderKey:"注文キー", displayOrder:"주문번호", feeInline:true, view:ST11_VIEW,
@@ -1400,6 +1409,7 @@ function histTip(s){ if(!s||!s.hist||!s.hist.length) return ""; return "ステ�
 /* 顧客データ→売上台帳へ不足分を追加（削除しない=履歴保持／手入力欄は保持） */
 function syncLedger(rows){ const spec=platforms[current], m=spec.map; const l=loadSales(); const map={}; l.forEach(x=>map[String(x.order)]=x); const added=[];
   rows.forEach(r=>{ const id=String(r[spec.orderKey]||""); if(!id) return;
+    if(spec.prep && r[m.won]==null) spec.prep(r);   /* 直す前に取り込んだ行にも派生列を作る（メモリ上だけ。保存はしない） */
     const title=r[m.title]||""; let s=map[id];
     if(!s){ const won=num(r[m.won]); const cr=curConvRate();   /* 取込時のライブレート */
       const feeWon=spec.feeInline?(Math.abs(num(r[m.feeA]))+Math.abs(num(r[m.feeB]))):0;
@@ -1420,6 +1430,10 @@ function syncLedger(rows){ const spec=platforms[current], m=spec.map; const l=lo
         const feeWon=Math.abs(num(r[m.feeA]))+Math.abs(num(r[m.feeB]));
         const fy=Math.round(feeWon*((s.rate>0)?s.rate:curConvRate()));
         if(num(s.fee)!==fy){ s.fee=fy; ch=true; }
+      }
+      if(spec.wonRecalc && !isZeroSale(s.status)){   /* スマート：売上の基準額を精算ベースに直す（2026-09-14） */
+        const w=num(r[m.won]);
+        if(w>0 && num(s.won)!==w){ s.won=w; ch=true; }
       }
       if(ch) added.push(s);
     } });
@@ -2997,12 +3011,14 @@ function renderShipfee(){
    ・手数料率は実測の既定値（スマートストア6.63%＝売上台帳、11番街13%＝商品リスト318件すべて）
    ・目標利益率はほぼ固定（既定15%・2026-09-03に10%から変更）。変えるときは「編集」、初期値に戻すときは「リセット」
    ・設定はこの端末にだけ保存（クラウド同期なし）。クーパンは対象外 */
-const PROFIT_DEF={margin:15, feeSmart:6.63, feeSt11:13, shipAdd:200, rate:0};   /* rate 0=自動（現在レート）。利益率は2026-09-03に10→15%へ（ずくの指示） */
+const PROFIT_DEF={margin:13, feeSmart:6.63, feeSt11:13, shipAdd:200, rate:0};   /* rate 0=自動（現在レート）。利益率は2026-09-03に10→15%、2026-09-14に15→13%へ（ずくの指示。5%クーポンが使われても8%残る） */
 const PROFIT_KEY="kr_profit_cfg_v1";
 function profitCfg(){ try{ const o=JSON.parse(localStorage.getItem(PROFIT_KEY)||"null");
     if(o&&typeof o==="object"){
-      if(!o.m15){ o.m15=1; if(num(o.margin)===10) o.margin=15;   /* 旧既定10%のままの端末だけ、一度だけ15%へ（2026-09-03） */
-        try{ localStorage.setItem(PROFIT_KEY,JSON.stringify(o)); }catch(e){} }
+      let mig=false;
+      if(!o.m15){ o.m15=1; mig=true; if(num(o.margin)===10) o.margin=15; }   /* 旧既定10%のままの端末だけ、一度だけ15%へ（2026-09-03） */
+      if(!o.m13){ o.m13=1; mig=true; if(num(o.margin)===15) o.margin=13; }   /* 15%のままの端末だけ、一度だけ13%へ（2026-09-14） */
+      if(mig){ try{ localStorage.setItem(PROFIT_KEY,JSON.stringify(o)); }catch(e){} }
       return Object.assign({},PROFIT_DEF,o); } }catch(e){}
   return Object.assign({},PROFIT_DEF); }
 let profitEdit=false, pcCost="", pcW="0.5", pcWon="", pcMall="smart", pcLk="";
@@ -3081,7 +3097,7 @@ window.pcSave=()=>{ const g=id=>num((document.getElementById(id)||{}).value);
   const margin=g("pe-margin"), fs=g("pe-fs"), f11=g("pe-f11"), add=g("pe-add"), rate=g("pe-rate");
   if(!(margin>=0&&margin<90)){ alert("目標利益率は 0〜90% の範囲で入れてください。"); return; }
   if(!(fs>=0&&fs<50)||!(f11>=0&&f11<50)){ alert("手数料率は 0〜50% の範囲で入れてください。"); return; }
-  localStorage.setItem(PROFIT_KEY,JSON.stringify({margin:margin,feeSmart:fs,feeSt11:f11,shipAdd:add,rate:(rate>0?rate:0),m15:1}));
+  localStorage.setItem(PROFIT_KEY,JSON.stringify({margin:margin,feeSmart:fs,feeSt11:f11,shipAdd:add,rate:(rate>0?rate:0),m15:1,m13:1}));
   profitEdit=false; renderProfit(); };
 window.pcReset=()=>{
   if(!confirm("利益計算の設定を初期値に戻しますか？\n\n目標利益率 15%／手数料 スマートストア 6.63%・11番街 13%／発送手数料 +200円／レート 自動\n\n（今の設定値は消えますが、いつでも「編集」で入れ直せます）")) return;
