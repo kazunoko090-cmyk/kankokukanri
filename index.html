@@ -1833,7 +1833,7 @@ const STOCK_MK2P={ "スマートストア":"smart", "11番街":"st11" };
 const STOCK_PLATS=["smart","st11"];
 const STOCK_TABS=[ {id:"all",label:"全体"}, {id:"stop",label:"出品停止"}, {id:"price",label:"値段調整"}, {id:"revive",label:"在庫復活"}, {id:"tana",label:"棚卸し"} ];
 let stockTab="stop", stockSelBy={}, stockSelPlat="";
-const STOCK_PAGE=1000; let stockPage=0;   /* 一覧は1000件ずつ表示（数千件を一度に描くと重いため） */
+const STOCK_PAGE=500; let stockPage=0;   /* 一覧は500件ずつ表示（まとめてコピーも表示中の500件まで） */
 /* チェックはタブごとに別々に持つ。全体でまとめてチェックしても、値段調整・在庫復活には移らない。
    コピーも「今開いているタブの分だけ」になる。 */
 function stockSelCur(){ if(!stockSelBy[stockTab]) stockSelBy[stockTab]=new Set(); return stockSelBy[stockTab]; }
@@ -2050,7 +2050,7 @@ window.stockSelAll=(el)=>{ const s=stockSelCur(); document.querySelectorAll("#st
 window.stockCopySel=(btn,kind)=>{ const sel=stockSelCur();
   if(!sel.size){ alert("コピーする商品にチェックを入れてください。\n（一番上のチェックで、表示中の行を全部選べます）"); return; }
   /* 今開いているタブの商品だけをコピーする（在庫復活なら在庫復活だけ・値段調整なら値段調整だけ） */
-  const onPage=new Set(stockPageRows(current).pv.map(r=>r.id));                     /* 表示中のページ（最大1000件）だけ */
+  const onPage=new Set(stockPageRows(current).pv.map(r=>r.id));                     /* 表示中のページ（最大500件）だけ */
   const picked=loadStock(current).rows.filter(r=>sel.has(r.id) && onPage.has(r.id));
   if(!picked.length){ alert("このページにチェックした商品がありません。"); return; }
   if(kind==="fair"){ const miss=picked.filter(r=>!(num(r.fair)>0)).length;
@@ -2440,7 +2440,7 @@ function renderStock(){
   `</div>`;
   const chips=chipsBar;
   const CATLB={stop:"出品停止",price:"値段調整",revive:"在庫復活"};
-  /* 1000件ずつ表示。ページを変えるとチェックは外れる＝コピーも表示中の1000件まで */
+  /* 500件ずつ表示。ページを変えるとチェックは外れる＝コピーも表示中の500件まで */
   const {total,pages,pv}=stockPageRows(p);
   const pager=(id)=>pages<=1?"":
     `<div id="${id}" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:8px 2px;font-size:12.5px">`+
