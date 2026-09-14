@@ -3446,7 +3446,7 @@ const SHOP_URL={ smart:"https://smartstore.naver.com/tokyomart7585" };
 function shopItemUrl(p,n){ n=String(n||"").trim(); return (n&&SHOP_URL[p])?(SHOP_URL[p]+"/products/"+n):""; }
 function blogReco(p){ const sold=new Set(blogData(p).map(x=>x.asin));
   return (Array.isArray(BLOGRECO[p])?BLOGRECO[p]:[]).filter(r=>r&&r.a&&!sold.has(r.a))
-    .map(r=>({asin:r.a,title:r.e||r.k||"",ko:r.k||"",qty:0,lastT:0,last:"",reco:true,n:r.n||""})); }
+    .map(r=>({asin:r.a,title:r.e||r.k||"",ko:r.k||"",qty:0,lastT:0,last:"",reco:true,n:r.n||"",s:r.s||""})); }   /* s＝型番（ショップ内検索用。商品名から機械的に抜いた） */
 let BLOGSRC = {};
 (async function(){ try{ const r=await fetch("blogsrc.json"); if(r.ok) BLOGSRC=await r.json(); }catch(e){} })();
 
@@ -3556,7 +3556,7 @@ function renderBlog(){
   const q=(document.getElementById("blog-search").value||"").trim().toLowerCase();
   const qlog=(q.match(/([0-9]{9,})/)||[])[1]||"";                    /* 記事URLの글번호（9桁以上の数字）でも探せる */
   if(q) arr=arr.filter(x=>{ const bb=blog[x.asin]||{}, code="m"+num(bb.no), u=String(bb.url||"").toLowerCase();
-    return x.asin.toLowerCase().includes(q)||String(x.title).toLowerCase().includes(q)
+    return x.asin.toLowerCase().includes(q)||String(x.title).toLowerCase().includes(q)||String(x.s||"").toLowerCase().includes(q)||String(x.ko||"").toLowerCase().includes(q)
       ||code.includes(q)||(qlog&&u.indexOf(qlog)>=0)||(u&&q.length>8&&u.indexOf(q)>=0); });
   const isDone=a=>!!(blog[a]&&blog[a].posted);
   const doneCount=sold.concat(reco).filter(x=>isDone(x.asin)).length, todoCount=sold.filter(x=>!isDone(x.asin)).length, recoCount=reco.filter(x=>!isDone(x.asin)).length;
@@ -3573,15 +3573,16 @@ function renderBlog(){
       : `<tr><td class="empty" colspan="5"><b>投稿済みはまだありません</b>「販売済み」で投稿日を選び「投稿する」を押すと、ここへ移動します。</td></tr>`;
   } else if(blogTab==="reco"){
     list.sort((a,b)=>String(a.title).localeCompare(String(b.title)));
-    document.getElementById("bloghead").innerHTML="<tr><th>ASIN</th><th>商品名（英語）</th><th>ショップ</th><th>管理番号</th><th>投稿日</th><th>操作</th></tr>";
+    document.getElementById("bloghead").innerHTML="<tr><th>ASIN</th><th>型番<small style=\"font-weight:500;color:var(--muted)\">（ショップ検索用）</small></th><th>商品名（英語）</th><th>ショップ</th><th>管理番号</th><th>投稿日</th><th>操作</th></tr>";
     document.getElementById("blogbody").innerHTML = list.length? list.map(x=>{ const a=esc(x.asin), d=(blog[x.asin]||{}).date||"", su=shopItemUrl(p,x.n);
       return `<tr><td>${amz(x.asin)}<button class="cbtn" data-copy="${a}" onclick="copyBtn(this)" title="ASINをコピー">📋</button></td>`+
+        `<td class="mono" style="white-space:nowrap">${x.s?`${esc(x.s)}<button class="cbtn" data-copy="${esc(x.s)}" onclick="copyBtn(this)" title="型番をコピー（ショップの検索窓に貼る）">📋</button>`:`<span style="color:var(--muted)">—</span>`}</td>`+
         `<td><span class="clip" title="${esc(x.ko||x.title)}" onclick="toggleClip(this)">${esc(x.title)}</span>${x.title?`<button class="cbtn" data-copy="${esc(x.title)}" onclick="copyBtn(this)" title="商品名をコピー">📋</button>`:""}</td>`+
         `<td>${su?`<a class="srclink" href="${esc(su)}" target="_blank" title="${esc(su)}">開く</a><button class="cbtn" data-copy="${esc(su)}" onclick="copyBtn(this)" title="URLをコピー">📋</button>`:`<span style="color:var(--muted)">—</span>`}</td>`+
         noCell(x)+
         `<td><input class="rvdate" type="date" value="${esc(d)}" onchange="blogSetDate('${a}',this.value)"></td>`+
         `<td><button class="rowbtn btn-sm" onclick="blogMake('${a}')" title="商品データからブログ本文を作ります">✍️ 作成する</button> <button class="btn-primary btn-sm" onclick="blogPost('${a}')">投稿する</button></td></tr>`; }).join("")
-      : `<tr><td class="empty" colspan="6"><b>おすすめの商品がありません</b>${(BLOGRECO[p]||[]).length?"すべて売れたか投稿済みです。":"このモールにはおすすめリストがありません。"}</td></tr>`;
+      : `<tr><td class="empty" colspan="7"><b>おすすめの商品がありません</b>${(BLOGRECO[p]||[]).length?"すべて売れたか投稿済みです。":"このモールにはおすすめリストがありません。"}</td></tr>`;
   } else {
     document.getElementById("bloghead").innerHTML="<tr><th>ASIN</th><th>管理番号</th><th>投稿日</th><th>操作</th></tr>";
     document.getElementById("blogbody").innerHTML = list.length? list.map(x=>{ const a=esc(x.asin), d=(blog[x.asin]||{}).date||"";
