@@ -5269,6 +5269,10 @@ window.brandImport=()=>{ const inp=document.createElement("input"); inp.type="fi
 /* ===== 売上管理：ディスパッチャ ===== */
 function renderSales(){
   const t=salesTab;
+  /* 売上管理を開いた時も台帳を顧客管理の行と突き合わせる。
+     顧客管理を開かないと売上の直し（スマートの精算ベース化・手数料の円換算）が効かなかったため（2026-09-14）。
+     変化が無ければ何も保存しない＝同期ループにはならない。 */
+  if(platforms[current]&&platforms[current].ready){ try{ syncLedger(load()); }catch(e){} }
   document.getElementById("ctl-search").style.display= t==="detail"?"flex":"none";
   document.getElementById("ctl-month").style.display= (t==="detail"||t==="rank")?"flex":"none";
   document.getElementById("ctl-year").style.display= t==="year"?"flex":"none";
