@@ -1876,8 +1876,16 @@ function stockCat(r){
   return "";
 }
 const STOCK_BADGE={ "在庫切れ商品":"grey", "在庫復活商品":"green", "赤字商品":"red", "黒字転換商品":"blue" };
+/* いまのタブ・ページに表示される行（描画とコピーで同じものを使う） */
+function stockPageRows(p){
+  const rows=loadStock(p).rows.map(r=>({ ...r, cat:stockCat(r) }));
+  const view=rows.filter(r=>stockTab==="all"?true:r.cat===stockTab).sort((a,b)=>(b.isNew?1:0)-(a.isNew?1:0));   /* 今回入ったNEWを上に */
+  const total=view.length, pages=Math.max(1,Math.ceil(total/STOCK_PAGE));
+  if(stockPage>=pages) stockPage=pages-1;
+  return { view, total, pages, pv:view.slice(stockPage*STOCK_PAGE,(stockPage+1)*STOCK_PAGE) };
+}
 window.setStockTab=(t)=>{ stockTab=t; stockPage=0; render(); };
-window.stockPageGo=(d)=>{ stockPage=Math.max(0,stockPage+d); render(); const el=document.getElementById("stock-pager-top"); if(el) el.scrollIntoView({block:"start"}); };
+window.stockPageGo=(d)=>{ stockPage=Math.max(0,stockPage+d); stockSelCur().clear(); render(); const el=document.getElementById("stock-pager-top"); if(el) el.scrollIntoView({block:"start"}); };
 /* ===== 値段調整：Excelの並びに合わせて価格の列を作る =====
    スマストの一括修正Excelは「商品番号の新しい順」で出てくるので、こちらの表示順とは一致しない。
    そこでExcelから貼られた行の順番をそのまま使い、同じ行数だけ価格を返す（＝上から順にF列へ貼れる）。
@@ -2042,8 +2050,9 @@ window.stockSelAll=(el)=>{ const s=stockSelCur(); document.querySelectorAll("#st
 window.stockCopySel=(btn,kind)=>{ const sel=stockSelCur();
   if(!sel.size){ alert("コピーする商品にチェックを入れてください。\n（一番上のチェックで、表示中の行を全部選べます）"); return; }
   /* 今開いているタブの商品だけをコピーする（在庫復活なら在庫復活だけ・値段調整なら値段調整だけ） */
-  const picked=loadStock(current).rows.filter(r=>sel.has(r.id) && (stockTab==="all" || stockCat(r)===stockTab));
-  if(!picked.length){ alert("このタブにチェックした商品がありません。"); return; }
+  const onPage=new Set(stockPageRows(current).pv.map(r=>r.id));                     /* 表示中のページ（最大1000件）だけ */
+  const picked=loadStock(current).rows.filter(r=>sel.has(r.id) && onPage.has(r.id));
+  if(!picked.length){ alert("このページにチェックした商品がありません。"); return; }
   if(kind==="fair"){ const miss=picked.filter(r=>!(num(r.fair)>0)).length;
     if(miss===picked.length){ alert("チェックした商品に適正価格が入っていません。"); return; }
     copyText(picked.map(r=>num(r.fair)>0?String(Math.round(num(r.fair))):"").join("\n")); flashBtn(btn);
@@ -2430,12 +2439,9 @@ function renderStock(){
     `<div class="card"><div class="label">在庫復活</div><div class="num">${of("revive").length}<small> 件</small></div></div>`+
   `</div>`;
   const chips=chipsBar;
-  const view=of(stockTab).slice().sort((a,b)=>(b.isNew?1:0)-(a.isNew?1:0));   /* 今回入ったNEWを上に */
   const CATLB={stop:"出品停止",price:"値段調整",revive:"在庫復活"};
-  /* 1000件ずつ表示。チェックはページをまたいで残る（コピーはチェック分すべて） */
-  const total=view.length, pages=Math.max(1,Math.ceil(total/STOCK_PAGE));
-  if(stockPage>=pages) stockPage=pages-1;
-  const pv=view.slice(stockPage*STOCK_PAGE,(stockPage+1)*STOCK_PAGE);
+  /* 1000件ずつ表示。ページを変えるとチェックは外れる＝コピーも表示中の1000件まで */
+  const {total,pages,pv}=stockPageRows(p);
   const pager=(id)=>pages<=1?"":
     `<div id="${id}" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:8px 2px;font-size:12.5px">`+
       `<span style="color:var(--muted);font-weight:600">${(stockPage*STOCK_PAGE+1).toLocaleString("ja-JP")}〜${Math.min(total,(stockPage+1)*STOCK_PAGE).toLocaleString("ja-JP")}件目 ／ 全${total.toLocaleString("ja-JP")}件</span>`+
