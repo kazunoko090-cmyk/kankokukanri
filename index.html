@@ -231,6 +231,8 @@ window.CAT_ATTR_JA={"색상": "色", "수량": "数量", "패션의류/잡화 �
   #view-research td{ vertical-align:middle; padding:9px 11px; }
   #view-research th{ white-space:nowrap; text-transform:none; letter-spacing:.01em; }
   #rv-tabs .segbtn{ padding:0 13px; }
+  #rv-tabs .segbtn .rvtab-edit{ display:inline-block; margin-left:5px; font-size:11px; color:var(--muted); opacity:.45; cursor:pointer; }
+  #rv-tabs .segbtn:hover .rvtab-edit, #rv-tabs .segbtn.active .rvtab-edit{ opacity:.9; }
   th.rvc,td.rvc{ position:sticky; left:0; width:36px; min-width:36px; text-align:center; padding-left:6px; padding-right:6px; background:var(--surface); z-index:2; }
   th.rvc{ background:#fbfcfe; z-index:3; }
   tbody tr:hover td.rvc{ background:#f6f8ff; }
@@ -1589,7 +1591,7 @@ async function cloudDelete(order){ const u=cloudURL(); if(!u) return;
 /* ===== その他データの同期（マニュアル・顧客・出品・ブログ等）：key-value方式 ===== */
 /* kr_hi_（黄色の選択）は同期しない＝端末ごとの目印。
    共有すると①和集合で選択が溜まる②複数人で1つの選択を奪い合う、の両方が起きるため。 */
-const KV_SYNC_PREFIXES=["kr_teb_","kr_bru_","kr_manual_v2","kr_manual_urls","kr_tblman_","kr_cust_","kr_list_attr_","kr_list_cat_","kr_list_brand_","kr_attr_cat_","kr_blog_","kr_catseg_ja","kr_shinfix","kr_tomb","kr_nippo_","kr_stock_smart_v1","kr_stock_st11_v1","kr_oos_","kr_inq_"];
+const KV_SYNC_PREFIXES=["kr_teb_","kr_bru_","kr_manual_v2","kr_manual_urls","kr_tblman_","kr_cust_","kr_list_attr_","kr_list_cat_","kr_list_brand_","kr_attr_cat_","kr_blog_","kr_catseg_ja","kr_shinfix","kr_tomb","kr_nippo_","kr_stock_smart_v1","kr_stock_st11_v1","kr_oos_","kr_inq_","kr_rvtab_"];
 function isKvSyncKey(k){ return KV_SYNC_PREFIXES.some(p=> k===p || k.indexOf(p)===0 ); }
 let kvReady=false;                 // 初回プル完了まで送信しない（初期シードの誤送信防止）
 const _kvSetItem=localStorage.setItem.bind(localStorage);
@@ -6065,6 +6067,22 @@ const RCATS=[
 ];
 let researchTab="soldA";
 function rcat(id){ return RCATS.find(c=>c.id===id)||RCATS[0]; }
+/* タブの名前の変更（スマートストア・11番街だけ）。文字はそのまま使い、名前だけ差し替える。クラウド同期に乗る */
+const RVTAB_KEY="kr_rvtab_names_v1";
+function rvTabNames(){ try{ const d=JSON.parse(localStorage.getItem(RVTAB_KEY)); if(d&&typeof d==="object"&&!Array.isArray(d)) return d; }catch(e){} return {}; }
+function rvTabEditable(c){ return c.plat==="smart"||c.plat==="st11"; }
+function rvName(c){ if(typeof c==="string") c=rcat(c); const n=rvTabEditable(c)?String(rvTabNames()[c.id]||"").trim():""; return n||c.short; }
+function rvLabel(c){ if(typeof c==="string") c=rcat(c); const n=rvTabEditable(c)?String(rvTabNames()[c.id]||"").trim():""; return n||c.label; }
+window.rvTabRename=(id)=>{
+  const c=rcat(id); if(!rvTabEditable(c)) return;
+  const cur=rvName(c);
+  const v=prompt(`タブの名前を変更します。\n（空にすると元の名前「${c.short}」に戻ります）`, cur);
+  if(v==null) return;
+  const d=rvTabNames(); const nv=v.trim();
+  if(!nv || nv===c.short) delete d[id]; else d[id]=nv.slice(0,30);
+  localStorage.setItem(RVTAB_KEY, JSON.stringify(d));
+  renderResearch();
+};
 function researchCats(){ return RCATS.filter(c=>(c.plat||"coupang")===current); }
 window.rvTabClick=(id)=>{ researchTab=id; const s=document.getElementById("rv-search"); if(s) s.value=""; renderResearch(); };
 function loadResearch(){ try{ const d=JSON.parse(localStorage.getItem(RESEARCH_KEY)); if(d&&typeof d==="object"&&!Array.isArray(d)) return d; }catch(e){} return {}; }
@@ -6251,8 +6269,8 @@ function renderBrandRank(cat){
     const src=x.src?`<small class="rk-src" title="商品名にあった元の表記">${esc(x.src)}</small>`:"";
     return `<tr><td class="rvc mono"><b>${rk}</b></td><td class="clip-brand" title="${esc(x.brand)}${x.src?"　←　"+esc(x.src):""}">${esc(x.brand)}${src}</td><td class="right mono"><b>${x.qty}</b> 個</td><td>${esc(fmtd(x.last))}</td></tr>`;
   }).join("") : `<tr><td class="empty" colspan="4"><b>まだ販売データがありません</b>売上管理にデータが入ると、商品タイトルのブランド名ごとに販売個数を集計してここへランキング表示します。</td></tr>`;
-  document.getElementById("rv-head").innerHTML=`${esc(cat.label)} <small>${arr.length}ブランド</small>`;
-  document.getElementById("rvcount").textContent=`${cat.label} ・ ${arr.length}ブランド ・ 販売個数の多い順`;
+  document.getElementById("rv-head").innerHTML=`${esc(rvLabel(cat))} <small>${arr.length}ブランド</small>`;
+  document.getElementById("rvcount").textContent=`${rvLabel(cat)} ・ ${arr.length}ブランド ・ 販売個数の多い順`;
 }
 /* ===== 初めて売れたブランドを自動で移す（クーパン＝競合リサーチ→Sold B／スマート＝ブランド→ランクA） =====
    判定：売上台帳（キャンセル/返品を除く）の商品名に、そのブランド名が出てくれば「売れた」。
@@ -6366,7 +6384,7 @@ function renderResearch(){
   promoteSoldBrands();                                             /* 4個以上売れたブランドを1つ上のランクへ（クーパンのみ） */
   const rvAutoEl=document.getElementById("rv-auto");
   if(rvAutoEl){ const msgs=[];
-    if(rvAutoMoved.length && rvAutoPlat===current){ const dest=(AUTO_MOVE[current]||{}).label||"";
+    if(rvAutoMoved.length && rvAutoPlat===current){ const am=AUTO_MOVE[current]||{}; const dest=am.to?rvName(am.to):(am.label||"");
       msgs.push(`<b>✅ 初めて売れたブランドを ${esc(dest)} へ移動しました（${rvAutoMoved.length}件）</b><br>${esc([...new Set(rvAutoMoved)].join(" / "))}`); }
     if(rvPromoted.length && rvPromoPlat===current){ const pc=PROMOTE[current]||{};
       msgs.push(`<b>🏆 ${pc.min||4}個以上売れたブランドを ${esc(pc.label||"")} へ移動しました（${rvPromoted.length}件）</b><br>${esc([...new Set(rvPromoted)].join(" / "))}`); }
@@ -6375,7 +6393,7 @@ function renderResearch(){
     else { rvAutoEl.style.display="none"; rvAutoEl.innerHTML=""; } }
   const cats=researchCats();
   if(!cats.some(c=>c.id===researchTab)) researchTab=cats[0].id;   /* 現在のモールに合うタブへ切替 */
-  document.getElementById("rv-tabs").innerHTML=cats.map(c=>`<button class="segbtn${c.id===researchTab?' active':''}" data-cat="${c.id}" onclick="rvTabClick('${c.id}')">${esc(c.short)}</button>`).join("");
+  document.getElementById("rv-tabs").innerHTML=cats.map(c=>`<button class="segbtn${c.id===researchTab?' active':''}" data-cat="${c.id}" onclick="rvTabClick('${c.id}')"${rvTabEditable(c)?` ondblclick="rvTabRename('${c.id}')" title="ダブルクリック（または✎）で名前を変更"`:""}>${esc(rvName(c))}${rvTabEditable(c)?`<span class="rvtab-edit" onclick="event.stopPropagation();rvTabRename('${c.id}')" title="名前を変更">✎</span>`:""}</button>`).join("");
   const cat=rcat(researchTab), seller=cat.type==="seller", rank=cat.type==="rank", ngmulti=cat.type==="ngmulti";
   document.querySelectorAll("#rv-tabs .segbtn").forEach(b=>b.classList.toggle("active",b.dataset.cat===researchTab));
   ["rv-add","rv-open","rv-import-btn","rv-export"].forEach(id=>{ const el=document.getElementById(id); if(el) el.style.display= rank?"none":""; });
@@ -6392,7 +6410,7 @@ function renderResearch(){
     ? ["✓","ブランド名","Amazon URL","メモ","最終確認日","操作"]
     : ["✓","ブランド名","Amazon URL","楽天 URL","メモ","最終確認日","操作"];
   document.getElementById("rvhead").innerHTML="<tr>"+H.map((h,i)=>`<th${i===0?' class="rvc"':''}>${esc(h)}</th>`).join("")+"</tr>";
-  const moveSel=id=>{ const opts=researchCats().filter(c=>c.id!==researchTab).map(c=>`<option value="${c.id}">${esc(c.short)}へ移動</option>`).join("");
+  const moveSel=id=>{ const opts=researchCats().filter(c=>c.id!==researchTab).map(c=>`<option value="${c.id}">${esc(rvName(c))}へ移動</option>`).join("");
     return `<select class="rvmove" title="別カテゴリへ移動" onchange="rvMove('${id}',this.value)"><option value="">移動…</option>${opts}</select>`; };
   const delBtn=id=>`<button class="rowbtn del btn-sm" onclick="rvDel('${id}')" title="この行を削除">削除</button>`;
   const opCell=id=>`<td class="rvop">${moveSel(id)}${delBtn(id)}</td>`;
@@ -6420,8 +6438,8 @@ function renderResearch(){
     const rakCell=urlCellFor(r,'rakuten','楽天 URL');
     return `<tr data-id="${id}">${chk}${nameCell}${amzCell}${rakCell}${memoCell}${dateCell}${opCell(id)}</tr>`;
   }).join("") : `<tr><td class="empty" colspan="${colspan}"><b>まだ登録がありません</b>右上の「＋ 行を追加」または「CSV取込」で${seller?'セラー':'ブランド'}を登録してください。</td></tr>`;
-  document.getElementById("rv-head").innerHTML=`${esc(cat.label)} <small>${rows.length}件</small>`;
-  document.getElementById("rvcount").textContent=`${cat.label} ・ ${rows.length}件 ・ 古い順（最終確認日）`;
+  document.getElementById("rv-head").innerHTML=`${esc(rvLabel(cat))} <small>${rows.length}件</small>`;
+  document.getElementById("rvcount").textContent=`${rvLabel(cat)} ・ ${rows.length}件 ・ 古い順（最終確認日）`;
   if(rvLastAdded){ const el=document.querySelector(`#rvbody tr[data-id="${rvLastAdded}"] input.rvname`); if(el){ el.focus(); if(el.scrollIntoView) el.scrollIntoView({block:"nearest"}); } rvLastAdded=null; }
   if(rvFocusUrl){ const el=document.querySelector(`#rvbody textarea[data-uk="${rvFocusUrl}"]`); if(el) el.focus(); rvFocusUrl=null; }
 }
@@ -6450,7 +6468,7 @@ document.getElementById("rv-export").onclick=()=>{
   const esccsv=v=>{ const s=String(v??""); return /[",\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s; };
   const body=rows.map(r=>(seller?[r.name,r.coupang,r.memo,r.date]:ngmulti?[r.name,r.coupang,r.rakuten,r.amazon,r.memo,r.date]:smB?[r.name,r.amazon,r.memo,r.date]:[r.name,r.amazon,r.rakuten,r.memo,r.date]).map(esccsv).join(",")).join("\n");
   const blob=new Blob(["﻿"+H.join(",")+"\n"+body],{type:"text/csv;charset=utf-8"});
-  const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download="リサーチ_"+cat.label+".csv"; a.click();
+  const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download="リサーチ_"+rvLabel(cat)+".csv"; a.click();
 };
 
 /* リサーチ：CSV/Excel取込（1列目=名前, 2列目=URL, 以降 型に応じて） */
@@ -6494,7 +6512,7 @@ document.getElementById("rv-file").addEventListener("change",e=>{
       rows.push(row); newRows.push(row); added++;
     }
     setCatRows(cat,rows); if(newRows.length) cloudPushResearch(newRows.map(r=>({cat, ...r}))); renderResearch();
-    alert(`${added}件を追加しました（${rcat(cat).label}）\n${isHeader?"※見出しを認識して列を自動対応しました":"※1列目=名前, 2列目=URL として取込みました"}`);
+    alert(`${added}件を追加しました（${rvLabel(cat)}）\n${isHeader?"※見出しを認識して列を自動対応しました":"※1列目=名前, 2列目=URL として取込みました"}`);
   }catch(err){ alert("取込エラー："+err.message); } e.target.value=""; };
   rd.readAsArrayBuffer(f);
 });
