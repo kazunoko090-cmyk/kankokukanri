@@ -6633,12 +6633,18 @@ function hxModel(title){ const toks=String(title||"").replace(/[\[\]（）()【�
     if(!/[0-9]/.test(t)) return; if(!/[A-Za-z]/.test(t) && !/-/.test(t) && t.length<5) return; if(!/^[A-Za-z0-9][A-Za-z0-9\-\/\.]*$/.test(t)) return;
     if(/^\d+(gb|mb|ml|mm|cm|kg|g|w|v|mah|x|inch|型)$/i.test(t)) return; if(t.length>best.length) best=t; }); return best; }
 function hxBrandOf(title){ const b=(current==="coupang")?brandOf(title):(smartBrandInfo(title).name||""); return hxClean(b).replace(/[\[\]【】()（）「」]/g,"").trim(); }
-function hxProductName(title,brand,model){ let core=hxClean(title).replace(/\[[^\]]*\]|【[^】]*】|\([^)]*\)|（[^）]*）/g," ");
+function hxProductName(title,brand,model,ja){ let core=hxClean(title).replace(/\[[^\]]*\]|【[^】]*】|\([^)]*\)|（[^）]*）/g," ");
   if(brand){ const re=new RegExp(brand.replace(/[.*+?^${}()|[\]\\]/g,"\\$&"),"i"); core=core.replace(re," "); }
   if(model) core=core.replace(model," ");
-  const words=core.replace(/[\s　]+/g," ").trim().split(" ").filter(Boolean).slice(0,4);
-  const out=[brand, words.join(" "), model].filter(Boolean).join(" ").replace(/\s+/g," ").trim();
-  return out.split(" ").length>=2 ? out : (out+" product"); }
+  const words=core.replace(/[\s　]+/g," ").trim().split(" ").filter(w=>w && !/[\uac00-\ud7af]/.test(w)).slice(0,3);   /* ハングルの語は外す（業者側は日本語が必要） */
+  let out=[brand, words.join(" "), ja, model].filter(Boolean).join(" ").replace(/\s+/g," ").trim();
+  if(!HX_JP_RE.test(out)) out=(out+" 商品").trim();
+  return out.split(" ").length>=2 ? out : (out+" 商品"); }
+/* 商品名は日本語が含まれていないと業者の検証で弾かれる（"Please put 'japanese' at 'Product name'"・2026-09-17実測）。
+   コードごとの日本語の品目名を入れる。ルールのキーワードが日本語ならそれを優先 */
+const HX_JA={15:"腕時計",53:"電子機器",54:"電子製品",52:"パソコン周辺機器",45:"パソコン部品",34:"おもちゃ",7:"衣類",8:"靴",31:"バッグ",13:"本",14:"アウトドア用品",10:"文房具",9:"家具",17:"車用品",46:"ディスク",33:"楽器",35:"織物"};
+const HX_JP_RE=/[\u3040-\u30ff\u4e00-\u9fff]/;
+function hxJaNoun(code,src){ const kw=String(src||"").replace(/^ルール:/,""); if(src&&src.indexOf("ルール:")===0 && HX_JP_RE.test(kw) && kw.length>=2) return kw; return HX_JA[code]||""; }
 function hxShopHost(url,asin){ const u=String(url||"").trim(); if(!u) return asin?"www.amazon.co.jp":""; try{ return new URL(u).hostname; }catch(e){ return ""; } }
 function hxSplitAddr(a){ a=hxClean(a); const m=a.search(/[,，(（]/); if(m>0){ const a1=a.slice(0,m).replace(/[\s,，]+$/,"").trim(); const a2=a.slice(m).replace(/^[,，\s]+/,"").trim(); return [a1||a, a2||"-"]; } return [a,"-"]; }
 let hxRows=[];
@@ -6648,10 +6654,10 @@ function hxBuild(){
   return rows.filter(r=>r._status==="仕入れ済み").map(r=>{
     const id=String(r[ok]||""); const s=lmap[id]||{}; const c=calcSale(s,getRate());
     const title=String(s.title||r[spec.map&&spec.map.title]||"").trim(); const asin=String(s.asin||r[spec.map&&spec.map.asin]||"").trim();
-    const brand=hxBrandOf(title), model=hxModel(title); const g=hxGuessCode(asin,title+" "+brand);
+    const brand=hxBrandOf(title), model=hxModel(title); const g=hxGuessCode(asin,title+" "+brand); const ja=hxJaNoun(g.c,g.src);
     const [a1,a2]=hxSplitAddr(r[K.addr]);
     const url=String(s.url||"").trim() || (asin&&!/^https?:/i.test(asin)?"https://www.amazon.co.jp/dp/"+asin:(/^https?:/i.test(asin)?asin:""));
-    return { id, s, asin, title, brand, model, name:hxProductName(title,brand,model), qty:c.qty||1, unit:c.qty?Math.round(c.saleTotal/c.qty):0,
+    return { id, s, asin, title, brand, model, name:hxProductName(title,brand,model,ja), qty:c.qty||1, unit:c.qty?Math.round(c.saleTotal/c.qty):0,
       code:g.c, codeSrc:g.src, jpord:hxClean(s.jpord), jptrack:hxClean(s.jptrack), url, host:hxShopHost(s.url,asin),
       rname:hxClean(r[K.name]), phone:hxClean(r[K.phone]), pccc:hxClean(r[K.pccc]), a1, a2, zip:hxClean(r[K.zip]), exported:s.hxl||"",
       ng: !hxClean(s.jpord) ? "国内注文番号なし" : (!c.saleTotal ? "売値なし" : "") };
@@ -6680,11 +6686,13 @@ function hxRender(){
     `</div>`+
     `<div id="hx-rules-box" style="display:none;margin-bottom:10px"><div style="font-size:11.5px;color:var(--muted);margin-bottom:4px">1行＝「キーワード,キーワード,…=コード」。上の行から順に商品名と照合します。ASINごとに一度選んだコードはこの表より優先して記憶されます。</div><textarea class="hx-rules" id="hx-rules" onchange="hxSaveRules(this.value)">${esc(hxRules())}</textarea><div style="font-size:11.5px;color:var(--muted);margin-top:4px">使えるコード：${HX_CODES.map(([c,l])=>c+"="+l).join("／")}</div></div>`+
     `<div style="font-size:11.5px;color:var(--muted);margin-bottom:6px">固定値：出発倉庫 JP／配送方法 3（簡易検品）／自動決済 Y／SMS N／補償 0／再梱包 1。単価は売値（円・1個あたり）。赤いコード欄は未設定＝選んでください。</div>`+
-    `<div class="tablewrap" style="max-height:52vh"><table><thead><tr><th><input type="checkbox" checked onclick="document.querySelectorAll('#hxBody .hx-chk').forEach(c=>c.checked=this.checked)"></th><th>注文番号</th><th>商品名（原文）</th><th>数量</th><th>単価</th><th>通関品目コード</th><th>国内注文番号／送り状</th><th>受取人</th></tr></thead>`+
+    `<div class="tablewrap" style="max-height:52vh"><table><thead><tr><th><input type="checkbox" checked onclick="document.querySelectorAll('#hxBody .hx-chk').forEach(c=>c.checked=this.checked)"></th><th>注文番号</th><th>商品名（原文・日本語が必要）</th><th>数量</th><th>単価</th><th>通関品目コード</th><th>国内注文番号／送り状</th><th>受取人</th></tr></thead>`+
     `<tbody>${hxRows.map(tr).join("")||`<tr><td class="empty" colspan="8"><b>「仕入れ済み」の注文がありません</b></td></tr>`}</tbody></table></div>`;
 }
 window.hxSetName=(i,v)=>{ if(hxRows[i]) hxRows[i].name=hxClean(v); };
-window.hxSetCode=(i,v)=>{ const x=hxRows[i]; if(!x) return; x.code=parseInt(v,10)||0; x.codeSrc=x.code?"手動":""; const sel=document.querySelectorAll("#hxBody .hx-code")[i]; if(sel) sel.classList.toggle("miss",!x.code); };
+window.hxSetCode=(i,v)=>{ const x=hxRows[i]; if(!x) return; x.code=parseInt(v,10)||0; x.codeSrc=x.code?"手動":""; const sel=document.querySelectorAll("#hxBody .hx-code")[i]; if(sel) sel.classList.toggle("miss",!x.code);
+  /* コードを選んだら、商品名に日本語の品目名が無ければ足す（業者の検証対策） */
+  if(x.code && !HX_JP_RE.test(x.name.replace(/ 商品$/,""))){ x.name=hxProductName(x.title,x.brand,x.model,HX_JA[x.code]||""); const inp=document.querySelectorAll("#hxBody .hx-name")[i]; if(inp) inp.value=x.name; } };
 window.hxToggleRules=()=>{ const el=document.getElementById("hx-rules-box"); el.style.display=el.style.display==="none"?"":"none"; };
 window.hxSaveRules=(v)=>{ localStorage.setItem("kr_hx_rules_v1", String(v||"")); hxRender(); document.getElementById("hx-rules-box").style.display=""; };
 window.hxExport=()=>{
