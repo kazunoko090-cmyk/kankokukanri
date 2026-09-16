@@ -117,6 +117,14 @@ window.CAT_ATTR_JA={"색상": "色", "수량": "数量", "패션의류/잡화 �
   .edit-mark:hover{ opacity:1; color:var(--accent-d); }
   .edit-mark.add{ font-size:13px; opacity:.8; }
   /* ASIN列：ASINリンク＋📋＋✎＋📎仕入れ元 を1つの箱に収め、列が横に伸びないようにする（2026-09-16） */
+  /* 配送申請Excel（HANIRO）のモーダル */
+  #hxBody table{ font-size:12px; }
+  #hxBody th,#hxBody td{ padding:7px 8px; }
+  #hxBody .hx-name{ width:300px; }
+  #hxBody .hx-code{ width:190px; height:28px; border:1px solid var(--line); border-radius:6px; font-size:12px; padding:0 4px; background:var(--surface); }
+  #hxBody .hx-code.miss{ border-color:#e05a4e; background:#fff3f1; }
+  #hxBody tr.hx-ng td{ color:#a3abba; background:#f8f8fa; }
+  #hxBody .hx-rules{ width:100%; height:180px; box-sizing:border-box; font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:12px; line-height:1.5; border:1px solid var(--line); border-radius:8px; padding:8px; resize:vertical; }
   .asinbox{ display:inline-flex; align-items:center; gap:1px; max-width:200px; vertical-align:middle; }
   .asinbox .srclink{ flex:0 1 auto; min-width:0; max-width:none; }
   .asinbox .cbtn,.asinbox .edit-mark{ flex:none; }
@@ -843,6 +851,7 @@ window.CAT_ATTR_JA={"색상": "色", "수량": "数量", "패션의류/잡화 �
       <div class="grow"></div>
       <button class="btn-ghost" id="btn-guide">📖 項目の日本語解説</button>
       <button class="btn-ghost" id="btn-export">CSV出力</button>
+      <button class="btn-ghost" id="btn-hx" title="仕入れ済みの注文から、配送業者（HANIRO）の一括アップロード用Excelを作る">📤 配送申請Excel</button>
       <button class="btn-primary" id="btn-import">📥 Excelを取り込む</button>
       <input type="file" id="file" accept=".xlsx,.xls,.csv" hidden>
     </div>
@@ -1170,6 +1179,12 @@ window.CAT_ATTR_JA={"색상": "色", "수량": "数量", "패션의류/잡화 �
   </div>
 </div>
 
+<div class="overlay" id="hxOverlay">
+  <div class="modal" style="width:1180px">
+    <h3>📤 配送申請Excel（HANIRO 一括アップロード用） <span class="x" id="hxX">✕</span></h3>
+    <div id="hxBody" style="padding:14px 18px 18px"></div>
+  </div>
+</div>
 <div class="overlay" id="overlay">
   <div class="modal">
     <h3>クーパン配送リスト：項目の日本語解説 <span class="x" id="gx">✕</span></h3>
@@ -1627,7 +1642,7 @@ async function cloudDelete(order){ const u=cloudURL(); if(!u) return;
 /* ===== その他データの同期（マニュアル・顧客・出品・ブログ等）：key-value方式 ===== */
 /* kr_hi_（黄色の選択）は同期しない＝端末ごとの目印。
    共有すると①和集合で選択が溜まる②複数人で1つの選択を奪い合う、の両方が起きるため。 */
-const KV_SYNC_PREFIXES=["kr_teb_","kr_bru_","kr_manual_v2","kr_manual_urls","kr_tblman_","kr_cust_","kr_list_attr_","kr_list_cat_","kr_list_brand_","kr_attr_cat_","kr_blog_","kr_catseg_ja","kr_shinfix","kr_tomb","kr_nippo_","kr_stock_smart_v1","kr_stock_st11_v1","kr_oos_","kr_inq_","kr_rvtab_"];
+const KV_SYNC_PREFIXES=["kr_teb_","kr_bru_","kr_manual_v2","kr_manual_urls","kr_tblman_","kr_cust_","kr_list_attr_","kr_list_cat_","kr_list_brand_","kr_attr_cat_","kr_blog_","kr_catseg_ja","kr_shinfix","kr_tomb","kr_nippo_","kr_stock_smart_v1","kr_stock_st11_v1","kr_oos_","kr_inq_","kr_rvtab_","kr_hx_"];
 function isKvSyncKey(k){ return KV_SYNC_PREFIXES.some(p=> k===p || k.indexOf(p)===0 ); }
 let kvReady=false;                 // 初回プル完了まで送信しない（初期シードの誤送信防止）
 const _kvSetItem=localStorage.setItem.bind(localStorage);
@@ -6577,6 +6592,124 @@ document.getElementById("rv-file").addEventListener("change",e=>{
   }catch(err){ alert("取込エラー："+err.message); } e.target.value=""; };
   rd.readAsArrayBuffer(f);
 });
+
+/* ===== 配送申請Excel（HANIRO「エクセルファイルアップロード」様式・2026-09-17） =====
+   顧客管理の「仕入れ済み」で国内注文番号が入っている注文を、業者の34列様式にして .xlsx で出す。
+   決めごと（ずく確認済み）：A=JP／B=3(簡易検品)／単価=売値の円(1個)／商品名=ブランド+名称+型番／
+   通関品目コード=ASIN記憶→ルール表→空欄(赤)／住所は最初の「,」「(」で2分割／W=Y／Z=N／AG=0／AH=1／
+   出した行は「発送手配済み」にする（出力前にチェックで外せる）。 */
+const HX_HEAD=["出発倉庫","配送方法","購入先代表URL","購入先注文番号","送り状番号","商品名(原文)","数量","単価","通関品目コード","ブランド","オプション（サイズ/色）","商品購入先 URL","割引金額","発送国内税金","発送国内配送費","受取人名","受取人住所1","受取人住所2","受取人住所郵便番号","電話番号","通関固有符号","イベント商品コード","自動決済可否","出庫要請日","SMS 受信対象コード","SMS 受信時間コード","宅配会社メッセージ","受取人区分","インボイス除去可否","事業者在庫 商品コード","スリムサービス","elihub 配送コード","HANIRO補償","HANIRO再梱包"];
+const HX_CODES=[[15,"時計、時計部品"],[53,"電子機器（無線あり：Bluetooth/Wi-Fi）"],[54,"各種電子製品（無線なし）・電動工具・有線イヤホン"],[52,"コンピュータ関連（無線なし）"],[45,"コンピュータ部品"],[34,"おもちゃ、運動用品、ゲーム機"],[7,"衣類、帽子、下着"],[8,"靴"],[31,"革、毛皮、かばん"],[13,"紙、印刷物、書籍"],[14,"レジャー、アウトドア用品"],[10,"プラスチック製品、文具類"],[9,"家具"],[17,"自動車、バイク、自転車及び部品"],[46,"映像・音声記録物（CD/DVD/Blu-ray/LP）"],[33,"楽器、楽器部品"],[35,"織物類"]];
+const HX_RULES_DEFAULT=`時計,watch,ウォッチ,시계,G-SHOCK,Seiko,Casio,Skagen,Orient,Citizen=15
+イヤホン,ヘッドホン,ヘッドセット,Bluetooth,블루투스,이어폰,헤드폰,무선,ワイヤレス,wireless,earbuds,buds,スマートウォッチ,스마트워치,Wi-Fi,無線,スピーカー,스피커,AirPods=53
+キーボード,マウス,プリンター,モニター,トラックボール=52
+SSD,HDD,メモリ,CPU,グラボ,マザーボード,USB=45
+DVD,Blu-ray,ブルーレイ,CD,レコード,LP,カセット=46
+炊飯器,電動,ドライヤー,シェーバー,電気,電子,充電器,バッテリー,有線,アイロン,ケトル=54
+フィギュア,피규어,ぬいぐるみ,인형,プラモ,프라모델,ゲーム,게임,Switch,PlayStation,おもちゃ,장난감,玩具,カードゲーム,ボール,ラケット,グローブ,バット,トレーニング=34
+Tシャツ,パーカー,帽子,キャップ,下着,ジャケット,ユニフォーム,靴下,ソックス,服,의류,모자,티셔츠=7
+スニーカー,シューズ,ブーツ,サンダル,靴,신발,운동화=8
+バッグ,財布,革,レザー,かばん,リュック,ポーチ,가방,지갑=31
+雑誌,漫画,書籍,本,画集,写真集=13
+アウトドア,キャンプ,釣り,テント,ランタン,クーラーボックス=14
+文房具,ペン,ノート,プラスチック,ケース,シール,ファイル=10
+家具,椅子,チェア,デスク,棚=9
+車,バイク,自転車,タイヤ,パーツ,ホイール=17
+楽器,ギター,ピアノ,ベース=33
+織物,タオル,生地,布=35`;
+const HX_KEYS={
+  coupang:{name:"Recipient name",phone:"Contact information of buyer for customs clearance purpose",pccc:"Personal Customs Clearance Code (PCCC)",addr:"Recipient address",zip:"Zipcode"},
+  smart:{name:"수취인명",phone:"수취인연락처1",pccc:"개인통관고유부호",addr:"통합배송지",zip:"우편번호"},
+  st11:{name:"수취인",phone:"휴대폰번호",pccc:"세관신고정보",addr:"주소",zip:"우편번호"} };
+function hxClean(v){ return String(v==null?"":v).replace(/['"“”‘’]/g,"").replace(/\s+/g," ").trim(); }   /* 業者側で「'」「"」が弾かれる */
+function hxRules(){ const t=localStorage.getItem("kr_hx_rules_v1"); return (t&&t.trim())?t:HX_RULES_DEFAULT; }
+function hxParseRules(t){ const out=[]; String(t||"").split(/\r?\n/).forEach(line=>{ const m=line.split("="); if(m.length<2) return; const code=parseInt(m[m.length-1],10); if(!(code>0)) return; m.slice(0,-1).join("=").split(",").map(k=>k.trim()).filter(Boolean).forEach(k=>out.push({k:k.toLowerCase(),c:code})); }); return out; }
+function hxAsinMem(){ try{ const d=JSON.parse(localStorage.getItem("kr_hx_asin_v1")); if(d&&typeof d==="object"&&!Array.isArray(d)) return d; }catch(e){} return {}; }
+function hxGuessCode(asin,text){ const mem=hxAsinMem(); if(asin&&mem[asin]>0) return {c:mem[asin],src:"記憶"};
+  const low=String(text||"").toLowerCase(); for(const r of hxParseRules(hxRules())){ if(low.includes(r.k)) return {c:r.c,src:"ルール:"+r.k}; } return {c:0,src:""}; }
+/* 型番らしい語（英数字が混ざった一番長いもの。ASINは除く） */
+function hxModel(title){ const toks=String(title||"").replace(/[\[\]（）()【】「」『』,、。:：/／|｜]/g," ").split(/\s+/); let best="";
+  toks.forEach(t=>{ t=t.replace(/^[-.]+|[-.]+$/g,""); if(t.length<4||t.length>24) return; if(/^B0[A-Z0-9]{8}$/i.test(t)) return;
+    if(!/[0-9]/.test(t)) return; if(!/[A-Za-z]/.test(t) && !/-/.test(t) && t.length<5) return; if(!/^[A-Za-z0-9][A-Za-z0-9\-\/\.]*$/.test(t)) return;
+    if(/^\d+(gb|mb|ml|mm|cm|kg|g|w|v|mah|x|inch|型)$/i.test(t)) return; if(t.length>best.length) best=t; }); return best; }
+function hxBrandOf(title){ const b=(current==="coupang")?brandOf(title):(smartBrandInfo(title).name||""); return hxClean(b).replace(/[\[\]【】()（）「」]/g,"").trim(); }
+function hxProductName(title,brand,model){ let core=hxClean(title).replace(/\[[^\]]*\]|【[^】]*】|\([^)]*\)|（[^）]*）/g," ");
+  if(brand){ const re=new RegExp(brand.replace(/[.*+?^${}()|[\]\\]/g,"\\$&"),"i"); core=core.replace(re," "); }
+  if(model) core=core.replace(model," ");
+  const words=core.replace(/[\s　]+/g," ").trim().split(" ").filter(Boolean).slice(0,4);
+  const out=[brand, words.join(" "), model].filter(Boolean).join(" ").replace(/\s+/g," ").trim();
+  return out.split(" ").length>=2 ? out : (out+" product"); }
+function hxShopHost(url,asin){ const u=String(url||"").trim(); if(!u) return asin?"www.amazon.co.jp":""; try{ return new URL(u).hostname; }catch(e){ return ""; } }
+function hxSplitAddr(a){ a=hxClean(a); const m=a.search(/[,，(（]/); if(m>0){ const a1=a.slice(0,m).replace(/[\s,，]+$/,"").trim(); const a2=a.slice(m).replace(/^[,，\s]+/,"").trim(); return [a1||a, a2||"-"]; } return [a,"-"]; }
+let hxRows=[];
+function hxBuild(){
+  const spec=platforms[current], ok=spec.orderKey, K=HX_KEYS[current]; if(!K) return [];
+  const lmap=ledgerMap(); const rows=load();
+  return rows.filter(r=>r._status==="仕入れ済み").map(r=>{
+    const id=String(r[ok]||""); const s=lmap[id]||{}; const c=calcSale(s,getRate());
+    const title=String(s.title||r[spec.map&&spec.map.title]||"").trim(); const asin=String(s.asin||r[spec.map&&spec.map.asin]||"").trim();
+    const brand=hxBrandOf(title), model=hxModel(title); const g=hxGuessCode(asin,title+" "+brand);
+    const [a1,a2]=hxSplitAddr(r[K.addr]);
+    const url=String(s.url||"").trim() || (asin&&!/^https?:/i.test(asin)?"https://www.amazon.co.jp/dp/"+asin:(/^https?:/i.test(asin)?asin:""));
+    return { id, s, asin, title, brand, model, name:hxProductName(title,brand,model), qty:c.qty||1, unit:c.qty?Math.round(c.saleTotal/c.qty):0,
+      code:g.c, codeSrc:g.src, jpord:hxClean(s.jpord), jptrack:hxClean(s.jptrack), url, host:hxShopHost(s.url,asin),
+      rname:hxClean(r[K.name]), phone:hxClean(r[K.phone]), pccc:hxClean(r[K.pccc]), a1, a2, zip:hxClean(r[K.zip]), exported:s.hxl||"",
+      ng: !hxClean(s.jpord) ? "国内注文番号なし" : (!c.saleTotal ? "売値なし" : "") };
+  });
+}
+function hxRender(){
+  hxRows=hxBuild(); const b=document.getElementById("hxBody");
+  const okRows=hxRows.filter(x=>!x.ng), ngRows=hxRows.filter(x=>x.ng);
+  const codeSel=(x,i)=>`<select class="hx-code${x.code?"":" miss"}" onchange="hxSetCode(${i},this.value)"><option value="0">— 未設定 —</option>${HX_CODES.map(([c,l])=>`<option value="${c}" ${x.code===c?"selected":""}>${c}：${l}</option>`).join("")}</select>${x.codeSrc?`<div style="font-size:10.5px;color:var(--muted)">${esc(x.codeSrc)}</div>`:""}`;
+  const tr=(x,i)=>`<tr class="${x.ng?"hx-ng":""}">`+
+    `<td>${x.ng?"":`<input type="checkbox" class="hx-chk" data-i="${i}" ${x.exported?"":"checked"} title="${x.exported?("出力済み "+esc(x.exported)):""}">`}</td>`+
+    `<td class="mono" style="font-size:11px">${esc(x.id)}${x.exported?`<div style="color:#c0392b;font-size:10.5px">出力済み ${esc(x.exported)}</div>`:""}${x.ng?`<div style="color:#c0392b;font-size:10.5px">${esc(x.ng)}</div>`:""}</td>`+
+    `<td><input class="cellinput hx-name" value="${esc(x.name)}" onchange="hxSetName(${i},this.value)" title="${esc(x.title)}"></td>`+
+    `<td class="mono">${x.qty}</td><td class="money mono">¥${(x.unit||0).toLocaleString("ja-JP")}</td>`+
+    `<td>${codeSel(x,i)}</td>`+
+    `<td class="mono" style="font-size:11px">${esc(x.jpord||"—")}<br><span style="color:var(--muted)">${esc(x.jptrack||"（送り状番号なし）")}</span></td>`+
+    `<td style="font-size:11px">${esc(x.rname)}<br><span style="color:var(--muted)">${esc(x.phone)} / ${esc(x.pccc)}</span></td>`+
+  `</tr>`;
+  b.innerHTML=
+    `<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:10px;font-size:12.5px">`+
+      `<span>対象：<b>${PNAME[current]}</b> の「仕入れ済み」${hxRows.length}件（出せる ${okRows.length}件・出せない ${ngRows.length}件）</span>`+
+      `<div class="grow"></div>`+
+      `<label style="display:flex;gap:6px;align-items:center"><input type="checkbox" id="hx-mark" checked> 出した行を「発送手配済み」にする</label>`+
+      `<button class="btn-ghost btn-sm" onclick="hxToggleRules()">📋 ルール表</button>`+
+      `<button class="btn-primary btn-sm" onclick="hxExport()">📤 Excelを出す</button>`+
+    `</div>`+
+    `<div id="hx-rules-box" style="display:none;margin-bottom:10px"><div style="font-size:11.5px;color:var(--muted);margin-bottom:4px">1行＝「キーワード,キーワード,…=コード」。上の行から順に商品名と照合します。ASINごとに一度選んだコードはこの表より優先して記憶されます。</div><textarea class="hx-rules" id="hx-rules" onchange="hxSaveRules(this.value)">${esc(hxRules())}</textarea><div style="font-size:11.5px;color:var(--muted);margin-top:4px">使えるコード：${HX_CODES.map(([c,l])=>c+"="+l).join("／")}</div></div>`+
+    `<div style="font-size:11.5px;color:var(--muted);margin-bottom:6px">固定値：出発倉庫 JP／配送方法 3（簡易検品）／自動決済 Y／SMS N／補償 0／再梱包 1。単価は売値（円・1個あたり）。赤いコード欄は未設定＝選んでください。</div>`+
+    `<div class="tablewrap" style="max-height:52vh"><table><thead><tr><th><input type="checkbox" checked onclick="document.querySelectorAll('#hxBody .hx-chk').forEach(c=>c.checked=this.checked)"></th><th>注文番号</th><th>商品名（原文）</th><th>数量</th><th>単価</th><th>通関品目コード</th><th>国内注文番号／送り状</th><th>受取人</th></tr></thead>`+
+    `<tbody>${hxRows.map(tr).join("")||`<tr><td class="empty" colspan="8"><b>「仕入れ済み」の注文がありません</b></td></tr>`}</tbody></table></div>`;
+}
+window.hxSetName=(i,v)=>{ if(hxRows[i]) hxRows[i].name=hxClean(v); };
+window.hxSetCode=(i,v)=>{ const x=hxRows[i]; if(!x) return; x.code=parseInt(v,10)||0; x.codeSrc=x.code?"手動":""; const sel=document.querySelectorAll("#hxBody .hx-code")[i]; if(sel) sel.classList.toggle("miss",!x.code); };
+window.hxToggleRules=()=>{ const el=document.getElementById("hx-rules-box"); el.style.display=el.style.display==="none"?"":"none"; };
+window.hxSaveRules=(v)=>{ localStorage.setItem("kr_hx_rules_v1", String(v||"")); hxRender(); document.getElementById("hx-rules-box").style.display=""; };
+window.hxExport=()=>{
+  const picked=[...document.querySelectorAll("#hxBody .hx-chk:checked")].map(c=>hxRows[Number(c.dataset.i)]).filter(Boolean);
+  if(!picked.length){ alert("出す注文にチェックを入れてください。"); return; }
+  const miss=picked.filter(x=>!x.code); if(miss.length){ alert(`通関品目コードが未設定の注文が ${miss.length}件あります（赤い欄）。選んでから出してください。`); return; }
+  const bad=picked.filter(x=>!x.rname||!x.phone||!x.pccc||!x.a1||!x.zip); if(bad.length && !confirm(`受取人情報が欠けている注文が ${bad.length}件あります（名前・電話・通関番号・住所・郵便番号のどれか）。このまま出しますか？`)) return;
+  const aoa=[HX_HEAD].concat(picked.map(x=>["JP",3,x.host,x.jpord,x.jptrack,x.name,x.qty,x.unit,x.code,hxClean(x.brand),"",x.url,"","","",x.rname,x.a1,x.a2,x.zip,x.phone,x.pccc,"","Y","","","N","","","","","","",0,1]));
+  const ws=XLSX.utils.aoa_to_sheet(aoa); ws["!cols"]=HX_HEAD.map((h,i)=>({wch:[6,8,20,20,16,40,5,8,8,14,10,40,8,8,8,12,30,24,10,14,16,8,6,10,6,6,10,6,6,10,6,8,6,6][i]||10}));
+  /* 郵便番号・電話・通関番号は文字列のまま（先頭の0が消えないように） */
+  picked.forEach((x,r)=>{ ["S","T","U","D","E"].forEach(col=>{ const cell=ws[col+(r+2)]; if(cell){ cell.t="s"; cell.v=String(cell.v==null?"":cell.v); } }); });
+  const wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb,ws,"アップロード様式");
+  const d=todayStr(); XLSX.writeFile(wb,`配送申請_${PNAME[current]}_${d}_${picked.length}件.xlsx`);
+  /* ASINごとのコードを記憶（同期される） */
+  const mem=hxAsinMem(); let chg=false; picked.forEach(x=>{ if(x.asin&&x.code&&mem[x.asin]!==x.code){ mem[x.asin]=x.code; chg=true; } }); if(chg) localStorage.setItem("kr_hx_asin_v1",JSON.stringify(mem));
+  /* 出力済みの印（台帳）と、ステータス変更 */
+  const mark=document.getElementById("hx-mark").checked; const l=loadSales(); const touched=[];
+  picked.forEach(x=>{ const s=l.find(y=>String(y.order)===x.id); if(s){ s.hxl=d; touched.push(s); } });
+  if(touched.length){ saveSales(l); pushLedger(touched); }
+  if(mark){ const ok=platforms[current].orderKey; const rows=load(); picked.forEach(x=>{ const r=rows.find(y=>String(y[ok])===x.id); if(r) r._status="発送手配済み"; }); save(rows); picked.forEach(x=>syncSaleStatus(x.id,"発送手配済み")); }
+  document.getElementById("hxOverlay").classList.remove("show"); render();
+  alert(`配送申請Excelを出しました：${picked.length}件${mark?"（ステータスを発送手配済みにしました）":""}\n\n業者の「エクセルファイルアップロード」でこのファイルを選び、データ検証 → 保存 してください。`);
+};
+(function(){ const o=document.getElementById("hxOverlay"); document.getElementById("btn-hx").onclick=()=>{ hxRender(); o.classList.add("show"); };
+  document.getElementById("hxX").onclick=()=>o.classList.remove("show"); o.addEventListener("click",e=>{ if(e.target===o) o.classList.remove("show"); }); })();
 
 /* guide */
 const ov=document.getElementById("overlay");
