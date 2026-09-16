@@ -851,7 +851,7 @@ window.CAT_ATTR_JA={"색상": "色", "수량": "数量", "패션의류/잡화 �
       <div class="grow"></div>
       <button class="btn-ghost" id="btn-guide">📖 項目の日本語解説</button>
       <button class="btn-ghost" id="btn-export">CSV出力</button>
-      <button class="btn-ghost" id="btn-hx" title="仕入れ済みの注文から、配送業者（HANIRO）の一括アップロード用Excelを作る">📤 配送申請Excel</button>
+      <button class="btn-ghost" id="btn-hx" title="仕入れ済みの注文から、HANIROの一括アップロード用Excelを作る">📤 HANIRO申請Excel</button>
       <button class="btn-primary" id="btn-import">📥 Excelを取り込む</button>
       <input type="file" id="file" accept=".xlsx,.xls,.csv" hidden>
     </div>
@@ -1181,7 +1181,7 @@ window.CAT_ATTR_JA={"색상": "色", "수량": "数量", "패션의류/잡화 �
 
 <div class="overlay" id="hxOverlay">
   <div class="modal" style="width:1180px">
-    <h3>📤 配送申請Excel（HANIRO 一括アップロード用） <span class="x" id="hxX">✕</span></h3>
+    <h3>📤 HANIRO申請Excel（一括アップロード用） <span class="x" id="hxX">✕</span></h3>
     <div id="hxBody" style="padding:14px 18px 18px"></div>
   </div>
 </div>
@@ -6695,7 +6695,7 @@ function hxRender(){
     `</div>`+
     `<div id="hx-rules-box" style="display:none;margin-bottom:10px"><div style="font-size:11.5px;color:var(--muted);margin-bottom:4px">1行＝「キーワード,キーワード,…=コード」。上の行から順に商品名と照合します。ASINごとに一度選んだコードはこの表より優先して記憶されます。</div><textarea class="hx-rules" id="hx-rules" onchange="hxSaveRules(this.value)">${esc(hxRules())}</textarea><div style="font-size:11.5px;color:var(--muted);margin-top:4px">使えるコード：${HX_CODES.map(([c,l])=>c+"="+l).join("／")}</div></div>`+
     `<div style="font-size:11.5px;color:var(--muted);margin-bottom:6px">固定値：出発倉庫 JP／配送方法 3（簡易検品）／自動決済 Y／SMS N／補償 0／再梱包 1。単価は売値（円・1個あたり）。赤いコード欄は未設定＝選んでください。</div>`+
-    `<div class="tablewrap" style="max-height:52vh"><table><thead><tr><th><input type="checkbox" checked onclick="document.querySelectorAll('#hxBody .hx-chk').forEach(c=>c.checked=this.checked)"></th><th>注文番号</th><th>商品名（原文・日本語が必要）</th><th>数量</th><th>単価</th><th>通関品目コード</th><th>国内注文番号／送り状</th><th>受取人</th></tr></thead>`+
+    `<div class="tablewrap" style="max-height:52vh"><table><thead><tr><th><input type="checkbox" onclick="document.querySelectorAll('#hxBody .hx-chk').forEach(c=>c.checked=this.checked)" title="全部チェック／全部外す"></th><th>注文番号</th><th>商品名（原文・日本語が必要）</th><th>数量</th><th>単価</th><th>通関品目コード</th><th>国内注文番号／送り状</th><th>受取人</th></tr></thead>`+
     `<tbody>${hxRows.map(tr).join("")||`<tr><td class="empty" colspan="8"><b>「仕入れ済み」の注文がありません</b></td></tr>`}</tbody></table></div>`;
 }
 window.hxSetName=(i,v)=>{ if(hxRows[i]) hxRows[i].name=hxClean(v); };
