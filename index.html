@@ -6683,7 +6683,7 @@ function hxRender(){
     `<td class="mono">${x.qty}</td><td class="money mono">¥${(x.unit||0).toLocaleString("ja-JP")}</td>`+
     `<td>${codeSel(x,i)}</td>`+
     `<td class="mono" style="font-size:11px">${esc(x.jpord||"—")}<br><span style="color:var(--muted)">${esc(x.jptrack||"（送り状番号なし）")}</span></td>`+
-    `<td style="font-size:11px">${esc(x.rname)}<br><span style="color:var(--muted)">${esc(x.phone)} / ${esc(x.pccc)}</span></td>`+
+    `<td style="font-size:11px">${esc(x.rname)} <span class="mono" style="${/^\d{5}$/.test(x.zip)?"color:var(--muted)":"color:#c0392b;font-weight:800"}" title="郵便番号（5桁でないと業者の検証で弾かれます）">〒${esc(x.zip||"—")}</span><br><span style="color:var(--muted)">${esc(x.phone)} / ${esc(x.pccc)}</span></td>`+
   `</tr>`;
   b.innerHTML=
     `<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:10px;font-size:12.5px">`+
