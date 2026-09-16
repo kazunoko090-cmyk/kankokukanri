@@ -6711,8 +6711,9 @@ window.hxExport=()=>{
   const bad=picked.filter(x=>!x.rname||!x.phone||!x.pccc||!x.a1||!x.zip); if(bad.length && !confirm(`受取人情報が欠けている注文が ${bad.length}件あります（名前・電話・通関番号・住所・郵便番号のどれか）。このまま出しますか？`)) return;
   const aoa=[HX_HEAD].concat(picked.map(x=>["JP",3,x.host,x.jpord,x.jptrack,x.name,x.qty,x.unit,x.code,hxClean(x.brand),"",x.url,"","","",x.rname,x.a1,x.a2,x.zip,x.phone,x.pccc,"","Y","","","N","","","","","","",0,1]));
   const ws=XLSX.utils.aoa_to_sheet(aoa); ws["!cols"]=HX_HEAD.map((h,i)=>({wch:[6,8,20,20,16,40,5,8,8,14,10,40,8,8,8,12,30,24,10,14,16,8,6,10,6,6,10,6,6,10,6,8,6,6][i]||10}));
-  /* 郵便番号・電話・通関番号は文字列のまま（先頭の0が消えないように） */
-  picked.forEach((x,r)=>{ ["S","T","U","D","E"].forEach(col=>{ const cell=ws[col+(r+2)]; if(cell){ cell.t="s"; cell.v=String(cell.v==null?"":cell.v); } }); });
+  /* 郵便番号・電話・通関番号は文字列のまま（先頭の0が消えないように）。
+     さらに郵便番号(S)と電話(T)は業者の見本と同じ「文字列(@)」書式にする（Generalだと業者側の読み取りで0が落ちる。2026-09-17実測） */
+  picked.forEach((x,r)=>{ ["S","T","U","D","E"].forEach(col=>{ const cell=ws[col+(r+2)]; if(cell){ cell.t="s"; cell.v=String(cell.v==null?"":cell.v); if(col==="S"||col==="T") cell.z="@"; } }); });
   const wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb,ws,"アップロード様式");
   /* 業者側は同じ中身のファイルを二重アップロードとして弾く（実測 2026-09-17）。
      出し直しできるよう、作成日時を埋め込んで毎回中身を固有にし、ファイル名にも時刻を入れる */
