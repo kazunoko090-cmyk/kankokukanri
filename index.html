@@ -119,7 +119,8 @@ window.CAT_ATTR_JA={"색상": "色", "수량": "数量", "패션의류/잡화 �
   /* ASIN列：ASINリンク＋📋＋✎＋📎仕入れ元 を1つの箱に収め、列が横に伸びないようにする（2026-09-16） */
   /* 配送申請Excel（HANIRO）のモーダル */
   #hxBody table{ font-size:12px; }
-  #hxBody th,#hxBody td{ padding:7px 8px; }
+  #hxBody th,#hxBody td{ padding:7px 8px; vertical-align:middle; }
+  #hxBody th:nth-child(1),#hxBody td:nth-child(1),#hxBody th:nth-child(2),#hxBody td:nth-child(2){ text-align:center; }
   #hxBody .hx-name{ width:300px; }
   #hxBody .hx-code{ width:190px; height:28px; border:1px solid var(--line); border-radius:6px; font-size:12px; padding:0 4px; background:var(--surface); }
   #hxBody .hx-code.miss{ border-color:#e05a4e; background:#fff3f1; }
@@ -6682,7 +6683,7 @@ function hxBuild(){
 function hxRender(){
   hxRows=hxBuild(); const b=document.getElementById("hxBody");
   const okRows=hxRows.filter(x=>!x.ng), ngRows=hxRows.filter(x=>x.ng);
-  const codeSel=(x,i)=>`<select class="hx-code${x.code?"":" miss"}" onchange="hxSetCode(${i},this.value)"><option value="0">— 未設定 —</option>${HX_CODES.map(([c,l])=>`<option value="${c}" ${x.code===c?"selected":""}>${c}：${l}</option>`).join("")}</select>${x.codeSrc?`<div style="font-size:10.5px;color:var(--muted)">${esc(x.codeSrc)}</div>`:""}`;
+  const codeSel=(x,i)=>`<select class="hx-code${x.code?"":" miss"}" onchange="hxSetCode(${i},this.value)" title="${esc(x.codeSrc||"通関品目コード")}"><option value="0">— 未設定 —</option>${HX_CODES.map(([c,l])=>`<option value="${c}" ${x.code===c?"selected":""}>${c}：${l}</option>`).join("")}</select>`;
   const tr=(x,i)=>`<tr class="${x.ng?"hx-ng":""}">`+
     `<td>${x.ng?"":`<input type="checkbox" class="hx-chk" data-i="${i}" ${x.exported?"":"checked"} title="${x.exported?("出力済み "+esc(x.exported)):""}">`}</td>`+
     `<td style="font-weight:800">${esc(HX_MARK[x.plat]||"")}</td>`+
@@ -6690,7 +6691,7 @@ function hxRender(){
     `<td><input class="cellinput hx-name" value="${esc(x.name)}" onchange="hxSetName(${i},this.value)" title="${esc(x.title)}"></td>`+
     `<td class="mono">${x.qty}</td><td class="money mono">¥${(x.unit||0).toLocaleString("ja-JP")}</td>`+
     `<td>${codeSel(x,i)}</td>`+
-    `<td class="mono" style="font-size:11px">${esc(x.jpord||"—")}<br><span style="color:var(--muted)">${esc(x.jptrack||"（送り状番号なし）")}</span></td>`+
+    `<td class="mono" style="font-size:11px" title="送り状番号：${esc(x.jptrack||"—")}">${esc(x.jpord||"—")}</td>`+
     `<td style="font-size:11px">${esc(x.rname)} <span class="mono" style="${/^\d{5}$/.test(x.zip)?"color:var(--muted)":"color:#c0392b;font-weight:800"}" title="郵便番号（5桁でないと業者の検証で弾かれます）">〒${esc(x.zip||"—")}</span><br><span style="color:var(--muted)">${esc(x.phone)} / ${esc(x.pccc)}</span></td>`+
   `</tr>`;
   b.innerHTML=
@@ -6703,7 +6704,7 @@ function hxRender(){
     `</div>`+
     `<div id="hx-rules-box" style="display:none;margin-bottom:10px"><div style="font-size:11.5px;color:var(--muted);margin-bottom:4px">1行＝「キーワード,キーワード,…=コード」。上の行から順に商品名と照合します。ASINごとに一度選んだコードはこの表より優先して記憶されます。</div><textarea class="hx-rules" id="hx-rules" onchange="hxSaveRules(this.value)">${esc(hxRules())}</textarea><div style="font-size:11.5px;color:var(--muted);margin-top:4px">使えるコード：${HX_CODES.map(([c,l])=>c+"="+l).join("／")}</div></div>`+
     `<div style="font-size:11.5px;color:var(--muted);margin-bottom:6px">固定値：出発倉庫 JP／配送方法 3（簡易検品）／自動決済 Y／SMS N／補償 0／再梱包 1。単価は売値（円・1個あたり）。赤いコード欄は未設定＝選んでください。</div>`+
-    `<div class="tablewrap" style="max-height:52vh"><table><thead><tr><th><input type="checkbox" onclick="document.querySelectorAll('#hxBody .hx-chk').forEach(c=>c.checked=this.checked)" title="全部チェック／全部外す"></th><th title="ク=クーパン／ス=スマートストア／11=11番街">モール</th><th>注文番号</th><th>商品名（原文・日本語が必要）</th><th>数量</th><th>単価</th><th>通関品目コード</th><th>国内注文番号／送り状</th><th>受取人</th></tr></thead>`+
+    `<div class="tablewrap" style="max-height:52vh"><table><thead><tr><th><input type="checkbox" onclick="document.querySelectorAll('#hxBody .hx-chk').forEach(c=>c.checked=this.checked)" title="全部チェック／全部外す"></th><th title="ク=クーパン／ス=スマートストア／11=11番街">モール</th><th>注文番号</th><th>商品名（原文・日本語が必要）</th><th>数量</th><th>単価</th><th>通関品目コード</th><th>国内注文番号</th><th>受取人</th></tr></thead>`+
     `<tbody>${hxRows.map(tr).join("")||`<tr><td class="empty" colspan="9"><b>対象がありません</b>「仕入れ済み」で国内追跡番号が入っている注文（3モール共通）がここに出ます。</td></tr>`}</tbody></table></div>`;
 }
 window.hxSetName=(i,v)=>{ if(hxRows[i]) hxRows[i].name=hxClean(v); };
