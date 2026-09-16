@@ -6646,6 +6646,14 @@ const HX_JA={15:"腕時計",53:"電子機器",54:"電子製品",52:"パソコン
 const HX_JP_RE=/[\u3040-\u30ff\u4e00-\u9fff]/;
 function hxJaNoun(code,src){ const kw=String(src||"").replace(/^ルール:/,""); if(src&&src.indexOf("ルール:")===0 && HX_JP_RE.test(kw) && kw.length>=2) return kw; return HX_JA[code]||""; }
 function hxShopHost(url,asin){ const u=String(url||"").trim(); if(!u) return asin?"www.amazon.co.jp":""; try{ return new URL(u).hostname; }catch(e){ return ""; } }
+/* 郵便番号：Excel取込時に数値化されて先頭の0が消えることがある（韓国は5桁。「3712」→「03712」）。
+   電話番号も同じ事故（010→10…）が起きるので0を戻す。実測：2026-09-17 データ検証NG */
+function hxZip(v){ let z=hxClean(v).replace(/[^0-9-]/g,""); const d=z.replace(/-/g,"");
+  if(/^\d+$/.test(d) && d.length>0 && d.length<5) return d.padStart(5,"0");
+  return z||d; }
+function hxPhone(v){ let t=hxClean(v).replace(/[^0-9-]/g,""); const d=t.replace(/-/g,"");
+  if(/^1[016-9]\d{7,8}$/.test(d)) return "0"+d;      /* 10xxxxxxxx → 010xxxxxxxx */
+  return t; }
 function hxSplitAddr(a){ a=hxClean(a); const m=a.search(/[,，(（]/); if(m>0){ const a1=a.slice(0,m).replace(/[\s,，]+$/,"").trim(); const a2=a.slice(m).replace(/^[,，\s]+/,"").trim(); return [a1||a, a2||"-"]; } return [a,"-"]; }
 let hxRows=[];
 function hxBuild(){
@@ -6659,7 +6667,7 @@ function hxBuild(){
     const url=String(s.url||"").trim() || (asin&&!/^https?:/i.test(asin)?"https://www.amazon.co.jp/dp/"+asin:(/^https?:/i.test(asin)?asin:""));
     return { id, s, asin, title, brand, model, name:hxProductName(title,brand,model,ja), qty:c.qty||1, unit:c.qty?Math.round(c.saleTotal/c.qty):0,
       code:g.c, codeSrc:g.src, jpord:hxClean(s.jpord), jptrack:hxClean(s.jptrack), url, host:hxShopHost(s.url,asin),
-      rname:hxClean(r[K.name]), phone:hxClean(r[K.phone]), pccc:hxClean(r[K.pccc]), a1, a2, zip:hxClean(r[K.zip]), exported:s.hxl||"",
+      rname:hxClean(r[K.name]), phone:hxPhone(r[K.phone]), pccc:hxClean(r[K.pccc]), a1, a2, zip:hxZip(r[K.zip]), exported:s.hxl||"",
       deliv: delivOf(s),
       ng: (delivOf(s)!=="H") ? ("配送が "+delivOf(s)+"（HANIRO以外）") : (!hxClean(s.jpord) ? "国内注文番号なし" : (!c.saleTotal ? "売値なし" : "")) };
   });
