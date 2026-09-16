@@ -5710,7 +5710,7 @@ function renderCust(){
   if(custStatusFilter) view2=view2.filter(r=>r._status===custStatusFilter);
 
   thead.innerHTML="<tr>"+
-    `<th class="s0">配送<small>H / D</small></th>`+
+    `<th class="s0">配送<small>H / D / E</small></th>`+
     `<th class="s1">ステータス<small>状態を選択</small></th>`+
     `<th class="s2c">✓</th>`+
     view.map(c=>`<th>${esc(c.jp)}</th>`).join("")+
@@ -6660,7 +6660,8 @@ function hxBuild(){
     return { id, s, asin, title, brand, model, name:hxProductName(title,brand,model,ja), qty:c.qty||1, unit:c.qty?Math.round(c.saleTotal/c.qty):0,
       code:g.c, codeSrc:g.src, jpord:hxClean(s.jpord), jptrack:hxClean(s.jptrack), url, host:hxShopHost(s.url,asin),
       rname:hxClean(r[K.name]), phone:hxClean(r[K.phone]), pccc:hxClean(r[K.pccc]), a1, a2, zip:hxClean(r[K.zip]), exported:s.hxl||"",
-      ng: !hxClean(s.jpord) ? "国内注文番号なし" : (!c.saleTotal ? "売値なし" : "") };
+      deliv: delivOf(s),
+      ng: (delivOf(s)!=="H") ? ("配送が "+delivOf(s)+"（HANIRO以外）") : (!hxClean(s.jpord) ? "国内注文番号なし" : (!c.saleTotal ? "売値なし" : "")) };
   });
 }
 function hxRender(){
