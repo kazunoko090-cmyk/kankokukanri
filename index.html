@@ -96,6 +96,9 @@ window.CAT_ATTR_JA={"색상": "色", "수량": "数量", "패션의류/잡화 �
   /* 国内注文番号：桁が長いので幅を詰める（全部見えなくてOK。欄をクリックすれば全体が見えて、📋で全文コピー） */
   .cellinput.jp{ width:92px; padding:0 6px; font-size:11.5px; font-variant-numeric:tabular-nums; letter-spacing:-.2px; text-overflow:ellipsis; }
   td.jpord{ white-space:nowrap; }
+  /* 入力済みの番号欄は文字として埋め込み、✎で編集（2026-09-16）。空の時だけ入力欄を出す */
+  .cellval{ font-variant-numeric:tabular-nums; letter-spacing:-.1px; }
+  td.txtcell{ white-space:nowrap; }
   td.jptrack{ white-space:nowrap; }
   td.jptrack .carrier{ font-size:10.5px; color:var(--muted); margin-left:3px; }
   #view-sales td{ padding:7px 9px; }
@@ -1450,12 +1453,27 @@ function delivOf(s){ return delivNorm(s&&s.deliv); }   /* 未設定＝H（過去
 function delivSel(id,v,st){ return `<select class="dvsel" data-v="${v}" data-st="${esc(st||"")}" onchange="setDeliv('${id}',this.value)" title="配送（H / D / E）">`+DELIVS.map(x=>`<option ${x===v?"selected":""}>${x}</option>`).join("")+`</select>`; }   /* 色はステータス（data-st）で決まる */
 /* ---- 国内注文番号（日本側＝Amazon・楽天などの注文番号）：台帳を正とし、顧客管理・売上管理の両方に同じ値を出す ---- */
 function jpOrdOf(s){ return (s&&s.jpord)?String(s.jpord):""; }
+/* 番号欄の共通形：値があれば「文字＋📋＋✎」、空なら入力欄。✎で入力欄に切り替えて編集（Enterまたは欄を離れると保存・Escで取消） */
+function valCell(id,v,opt){
+  const ph=opt.ph||"", ttl=opt.title||"", setter=opt.setter, extra=opt.extra||"", cls=opt.cls||"";
+  if(!v) return `<td class="txtcell ${cls}"><input class="cellinput ${opt.inputCls||"jp"}" value="" placeholder="${esc(ph)}" title="${esc(ttl)}" onchange="${setter}('${id}',this.value)"></td>`;
+  return `<td class="txtcell ${cls}" title="${esc(ttl||v)}"><span class="cellval mono">${esc(v)}</span><button class="cbtn" data-copy="${esc(v)}" onclick="copyBtn(this)" title="コピー">📋</button><span class="edit-mark" onclick="cellEdit(this,'${id}','${setter}','${esc(ph)}')" title="編集">✎</span>${extra}</td>`; }
+window.cellEdit=(el,id,setter,ph)=>{ const td=el.closest("td"); if(!td) return; const cur=(td.querySelector(".cellval")||{}).textContent||"";
+  td.innerHTML=`<input class="cellinput jp" value="${esc(cur)}" placeholder="${esc(ph)}">`; const inp=td.querySelector("input"); inp.focus(); inp.select();
+  let done=false; const fin=()=>{ if(done) return; done=true; const v=inp.value.trim(); if(v!==cur && typeof window[setter]==="function") window[setter](id,v); else render(); };
+  inp.addEventListener("keydown",e=>{ if(e.key==="Enter"){ e.preventDefault(); fin(); } if(e.key==="Escape"){ done=true; render(); } });
+  inp.addEventListener("blur",fin); };
 function jpOrdCell(id,s){ const v=jpOrdOf(s);
-  return `<td class="jpord"><input class="cellinput jp" value="${esc(v)}" placeholder="国内No." title="${esc(v||"国内注文番号（Amazon・楽天などの注文番号）を入力")}" onchange="setJpOrd('${id}',this.value)">${v?`<button class="cbtn" data-copy="${esc(v)}" onclick="copyBtn(this)" title="国内注文番号をコピー">📋</button>`:""}</td>`; }
+  return valCell(id,v,{cls:"jpord",ph:"国内No.",title:v||"国内注文番号（Amazon・楽天などの注文番号）を入力",setter:"setJpOrd"}); }
 /* ---- 国内追跡番号（Amazon等の配送業者の伝票番号）：Chrome拡張 amazon-tracking-sync が国内注文番号で照合してWorker経由で入れる。手入力もできる ---- */
 function jpTrackOf(s){ return (s&&s.jptrack)?String(s.jptrack):""; }
 function jpTrackCell(id,s){ const v=jpTrackOf(s), c=(s&&s.jpcarrier)?String(s.jpcarrier):"";
-  return `<td class="jptrack"><input class="cellinput jp" value="${esc(v)}" placeholder="国内追跡" title="${esc(v?(c?c+"　":"")+v:"国内追跡番号（Amazonの配送業者の伝票番号）。Chrome拡張から自動で入ります。手入力も可")}" onchange="setJpTrack('${id}',this.value)">${v?`<button class="cbtn" data-copy="${esc(v)}" onclick="copyBtn(this)" title="国内追跡番号をコピー">📋</button>`:""}${(v&&c)?`<span class="carrier" title="${esc(c)}">${esc(c.length>6?c.slice(0,6)+"…":c)}</span>`:""}</td>`; }
+  return valCell(id,v,{cls:"jptrack",ph:"国内追跡",title:v?((c?c+"　":"")+v):"国内追跡番号（Amazonの配送業者の伝票番号）。Chrome拡張から自動で入ります。手入力も可",setter:"setJpTrack",
+    extra:(v&&c)?`<span class="carrier" title="${esc(c)}">${esc(c.length>6?c.slice(0,6)+"…":c)}</span>`:""}); }
+/* 国際追跡番号：顧客管理・売上管理で同じ形（入力すると自動で発送済みになるのは setSaleField のまま） */
+function trackCell(id,s){ const v=(s&&s.track)?String(s.track):"";
+  return valCell(id,v,{ph:"国際追跡番号",title:v||"国際追跡番号。入力すると自動で発送済みになり、売上管理と共有されます",setter:"setTrack",inputCls:"txt"}); }
+window.setTrack=(id,v)=>setSaleField(id,"track",v);
 function histTip(s){ if(!s||!s.hist||!s.hist.length) return ""; return "ステータス変更履歴\n"+s.hist.slice(-8).map(h=>(h.t||"").slice(0,16).replace("T"," ")+" → "+h.s).join("\n"); }
 /* 顧客データ→売上台帳へ不足分を追加（削除しない=履歴保持／手入力欄は保持） */
 function syncLedger(rows){ const spec=platforms[current], m=spec.map; const l=loadSales(); const map={}; l.forEach(x=>map[String(x.order)]=x); const added=[];
@@ -5586,7 +5604,7 @@ function renderSalesDetail(){
       `<td><span class="clip" title="${esc(s.title||"")}" onclick="toggleClip(this)">${esc(s.title||"")}</span>${s.title?`<button class="cbtn" data-copy="${esc(s.title)}" onclick="copyBtn(this)" title="コピー">📋</button>`:""}</td>`+
       `<td>${esc(md(s.date))}</td>`+
       `<td class="${dcls}">${esc(md(s.deadline))}</td>`+
-      `<td><input class="cellinput txt" value="${esc(s.track)}" onchange="setSaleField('${id}','track',this.value)"></td>`+
+      trackCell(id,s)+
       `<td><input class="cellinput" type="number" value="${s.cost||""}" onchange="setSaleField('${id}','cost',this.value)"></td>`+
       `<td class="mono${c.qty>=2?' qty2':''}">${c.qty}</td>`+
       `<td class="money mono">${yen(c.costTotal)}</td>`+
@@ -5676,7 +5694,7 @@ function renderCust(){
       let v=r[c.key||c.en];
       if(c.jpord){ return jpOrdCell(id,led); }   /* 国内注文番号は台帳（=クラウド同期）が正。売上管理と同じ値が出る */
       if(c.jptrack){ return jpTrackCell(id,led); }
-      if(c.track){ const tv=led?(led.track||""):""; return `<td><input class="cellinput txt" value="${esc(tv)}" placeholder="国際追跡番号" onchange="setSaleField('${id}','track',this.value)" title="入力すると自動で発送済みになり、売上管理と共有されます"></td>`; }
+      if(c.track){ return trackCell(id,led); }
       if(c.money){ const has=v!=null&&String(v)!==""; let wv=num(v); if(c.unit){ const q=num(r[spec.map&&spec.map.qty])||1; if(q>1) wv=Math.round(wv/q); }   /* 販売価格は1個あたり（合計÷数量） */ const rate=(led&&led.rate>0)?led.rate:getRate(); const yen=Math.round(wv*rate);
         return `<td class="money">${esc(won(wv))}${(c.copy&&has)?`<button class="cbtn" data-copy="${esc(wv)}" onclick="copyBtn(this)" title="ウォンをコピー">📋</button>`:""}${has?` = ¥${yen.toLocaleString("ja-JP")}<button class="cbtn" data-copy="${yen}" onclick="copyBtn(this)" title="円をコピー">📋</button>`:""}</td>`; }
       if(c.deadline){ const st=CLOSED.includes(r._status)?"":deadlineStateVal(v); const cls=st==="today"?"dl-today":(st==="over"?"dl-over":""); return `<td class="${cls}">${esc(v)}</td>`; }
