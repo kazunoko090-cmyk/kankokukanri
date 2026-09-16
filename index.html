@@ -6719,7 +6719,9 @@ window.hxExport=()=>{
      出し直しできるよう、作成日時を埋め込んで毎回中身を固有にし、ファイル名にも時刻を入れる */
   const now=new Date(); wb.Props={Title:"配送申請",CreatedDate:now};
   const d=todayStr(), hm=("0"+now.getHours()).slice(-2)+("0"+now.getMinutes()).slice(-2)+("0"+now.getSeconds()).slice(-2);
-  XLSX.writeFile(wb,`配送申請_${PNAME[current]}_${d}_${hm}_${picked.length}件.xlsx`);
+  /* 旧形式.xlsで出す：業者のxlsx読み取りは「03712」のような文字列を数値化して先頭の0を落とすが、
+     xls読み取りは文字列のまま扱う（2026-09-17 実測。A案xlsx=NG／C案xls=OK） */
+  XLSX.writeFile(wb,`配送申請_${PNAME[current]}_${d}_${hm}_${picked.length}件.xls`,{bookType:"biff8"});
   /* ASINごとのコードを記憶（同期される） */
   const mem=hxAsinMem(); let chg=false; picked.forEach(x=>{ if(x.asin&&x.code&&mem[x.asin]!==x.code){ mem[x.asin]=x.code; chg=true; } }); if(chg) localStorage.setItem("kr_hx_asin_v1",JSON.stringify(mem));
   /* 出力済みの印（台帳）と、ステータス変更 */
@@ -6728,7 +6730,7 @@ window.hxExport=()=>{
   if(touched.length){ saveSales(l); pushLedger(touched); }
   if(mark){ const ok=platforms[current].orderKey; const rows=load(); picked.forEach(x=>{ const r=rows.find(y=>String(y[ok])===x.id); if(r) r._status="発送手配済み"; }); save(rows); picked.forEach(x=>syncSaleStatus(x.id,"発送手配済み")); }
   document.getElementById("hxOverlay").classList.remove("show"); render();
-  alert(`配送申請Excelを出しました：${picked.length}件${mark?"（ステータスを発送手配済みにしました）":""}\n\n業者の「エクセルファイルアップロード」でこのファイルを選び、データ検証 → 保存 してください。`);
+  alert(`配送申請Excelを出しました：${picked.length}件${mark?"（ステータスを発送手配済みにしました）":""}\n\n業者の「エクセルファイルアップロード」でこのファイル（.xls）を選び、データ検証 → 保存 してください。`);
 };
 (function(){ const o=document.getElementById("hxOverlay"); document.getElementById("btn-hx").onclick=()=>{ hxRender(); o.classList.add("show"); };
   document.getElementById("hxX").onclick=()=>o.classList.remove("show"); o.addEventListener("click",e=>{ if(e.target===o) o.classList.remove("show"); }); })();
