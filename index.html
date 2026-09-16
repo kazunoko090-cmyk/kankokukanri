@@ -1725,7 +1725,7 @@ const SHOP_LABEL={"amazon.co.jp":"Amazon","amzn.to":"Amazon","item.rakuten.co.jp
   "jp.mercari.com":"メルカリ","mercari.com":"メルカリ","smartstore.naver.com":"スマストア","coupang.com":"クーパン","www.coupang.com":"クーパン",
   "paypayfleamarket.yahoo.co.jp":"Yahoo!フリマ","fleamarket.yahoo.co.jp":"Yahoo!フリマ"};
 /* 📎仕入れ元の短い表記（表を横に伸ばさないため。マウスを乗せると正式名とURLが出る） */
-const SHOP_SHORT={"楽天":"楽","Amazon":"A","ヤフショ":"Y","Yahoo!フリマ":"Yフ","ヤフオク":"Yオ","メルカリ":"メ","スマストア":"S","クーパン":"C"};
+const SHOP_SHORT={"楽天":"楽天","Amazon":"Am","ヤフショ":"ヤフショ","Yahoo!フリマ":"Pフリマ","ヤフオク":"ヤフオク","メルカリ":"メルカリ","スマストア":"スマスト","クーパン":"クーパン"};
 function srcShort(u){ const l=urlLabel(u); if(SHOP_SHORT[l]) return SHOP_SHORT[l]; return l.replace(/\.(co\.jp|com|jp|net)$/,"").slice(0,3); }
 /* 表示用ラベル：ASINはそのまま／URLはショップ名（無ければドメイン）にして表を崩さない */
 function urlLabel(v){
