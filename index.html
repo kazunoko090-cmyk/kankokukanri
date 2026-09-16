@@ -98,6 +98,8 @@ window.CAT_ATTR_JA={"색상": "色", "수량": "数量", "패션의류/잡화 �
   td.jpord{ white-space:nowrap; }
   /* 入力済みの番号欄は文字として埋め込み、✎で編集（2026-09-16）。空の時だけ入力欄を出す */
   .cellval{ font-variant-numeric:tabular-nums; letter-spacing:-.1px; }
+  /* 国内注文番号はコピーできればよいので、表示は一定幅（入力欄と同じ幅）で省略。全文はマウスを乗せると出る */
+  td.jpord .cellval{ display:inline-block; max-width:92px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; vertical-align:middle; }
   td.txtcell{ white-space:nowrap; }
   td.jptrack{ white-space:nowrap; }
   td.jptrack .carrier{ font-size:10.5px; color:var(--muted); margin-left:3px; }
