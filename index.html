@@ -855,7 +855,6 @@ window.CAT_ATTR_JA={"색상": "色", "수량": "数量", "패션의류/잡화 �
       <button class="btn-primary" id="btn-import">📥 Excelを取り込む</button>
       <input type="file" id="file" accept=".xlsx,.xls,.csv" hidden>
     </div>
-    <div class="count" id="cust-pager-top" style="padding-top:0"></div>
     <div class="tablewrap">
       <table id="tbl"><thead id="thead"></thead><tbody id="tbody"></tbody></table>
     </div>
@@ -1490,9 +1489,9 @@ function jpTrackOf(s){ return (s&&s.jptrack)?String(s.jptrack):""; }
 function jpTrackCell(id,s){ const v=jpTrackOf(s), c=(s&&s.jpcarrier)?String(s.jpcarrier):"";
   return valCell(id,v,{cls:"jptrack",ph:"国内追跡",title:v?((c?c+"　":"")+v):"国内追跡番号（Amazonの配送業者の伝票番号）。Chrome拡張から自動で入ります。手入力も可",setter:"setJpTrack",
     extra:(v&&c)?`<span class="carrier" title="${esc(c)}">${esc(c.length>6?c.slice(0,6)+"…":c)}</span>`:""}); }
-/* 国際追跡番号：顧客管理・売上管理で同じ形（入力すると自動で発送済みになるのは setSaleField のまま） */
+/* 国際追跡番号：顧客管理・売上管理で同じ形（自動ステータス変更はしない） */
 function trackCell(id,s){ const v=(s&&s.track)?String(s.track):"";
-  return valCell(id,v,{ph:"国際追跡番号",title:v||"国際追跡番号。入力すると自動で発送済みになり、売上管理と共有されます",setter:"setTrack",inputCls:"txt"}); }
+  return valCell(id,v,{ph:"国際追跡番号",title:v||"国際追跡番号。売上管理と共有されます",setter:"setTrack",inputCls:"txt"}); }
 window.setTrack=(id,v)=>setSaleField(id,"track",v);
 function histTip(s){ if(!s||!s.hist||!s.hist.length) return ""; return "ステータス変更履歴\n"+s.hist.slice(-8).map(h=>(h.t||"").slice(0,16).replace("T"," ")+" → "+h.s).join("\n"); }
 /* 顧客データ→売上台帳へ不足分を追加（削除しない=履歴保持／手入力欄は保持） */
@@ -1821,7 +1820,7 @@ function pwUnlock(){ try{ localStorage.setItem("kr_pw_until_"+pwScope(), String(
 const PAGE_N=100, PAGE_ALL=500; const _pg={};
 /* 顧客管理は50件ずつの左右ページ送り（2026-09-16）。検索・絞り込みは全件にかけてからページに分ける */
 const CUST_PAGE=50; let custPage=0, _custPgKey="";
-window.custPageGo=(d)=>{ custPage=Math.max(0,custPage+d); render(); const el=document.getElementById("cust-pager-top"); if(el&&el.scrollIntoView) el.scrollIntoView({block:"start"}); };
+window.custPageGo=(d)=>{ custPage=Math.max(0,custPage+d); render(); const el=document.querySelector("#view-cust .tablewrap"); if(el&&el.scrollIntoView) el.scrollIntoView({block:"start"}); };
 function custPagerHtml(total,pages){ if(total<=CUST_PAGE) return "";
   const a=custPage*CUST_PAGE+1, b=Math.min(total,(custPage+1)*CUST_PAGE);
   return `<span style="display:inline-flex;gap:8px;align-items:center;margin-left:14px">`+
@@ -5674,7 +5673,7 @@ function renderCust(){
   const thead=document.getElementById("thead"), tbody=document.getElementById("tbody");
   if(!pf.ready){
     thead.innerHTML=""; tbody.innerHTML=`<tr><td class="empty"><b>${current==="smart"?"スマートストア":"11番街"}は準備中です</b>クーパンが完成したら、同じ仕組みでこのタブを作ります。</td></tr>`;
-    document.getElementById("count").textContent=""; const _pt=document.getElementById("cust-pager-top"); if(_pt) _pt.innerHTML="";
+    document.getElementById("count").textContent="";
     ["s-due","s-paid","s-stock","s-arr","s-sent"].forEach(id=>document.getElementById(id).innerHTML='0<small> 件</small>'); return;
   }
   const spec=pf, okey=spec.orderKey, view=spec.view;
@@ -5754,7 +5753,6 @@ function renderCust(){
 
   const pager=custPagerHtml(view2.length,cpages);
   document.getElementById("count").innerHTML=`全 ${rows.length} 件中 ${view2.length} 件${view2.length>CUST_PAGE?`（${CUST_PAGE}件ずつ表示）`:"を表示"}`+pager;
-  document.getElementById("cust-pager-top").innerHTML=pager;
   const cnt=s=>rows.filter(r=>r._status===s).length;
   document.getElementById("s-due").innerHTML=rows.filter(isDue).length+'<small> 件</small>';
   document.getElementById("s-paid").innerHTML=cnt("入金済み")+'<small> 件</small>';
@@ -6062,8 +6060,7 @@ window.setSaleField=(id,f,v)=>{ const l=loadSales(); const s=l.find(x=>String(x.
   s[f]=(f==="track"||f==="url")?v:num(v);
   // 仕入値を入れたら自動で「仕入れ済み」（入金済みのときだけ進める）
   if(f==="cost" && num(v)>0 && s.status==="入金済み") applyStatus(s,"仕入れ済み");
-  // 追跡番号を入れたら自動で「発送済み」（キャンセル/返品は除く）
-  if(f==="track" && String(v).trim()!=="" && s.status!=="発送済み" && !isZeroSale(s.status)) applyStatus(s,"発送済み");
+  /* 2026-09-17：国際追跡番号を入れても自動で「発送済み」にはしない（ずくの指示。ステータスは手で変える） */
   saveSales(l); pushLedger([s]); render();
 };
 function shortUrl(u){ u=String(u||"").replace(/^https?:\/\//,"").replace(/^www\./,""); return u.length>26?u.slice(0,26)+"…":u; }
@@ -6632,7 +6629,7 @@ function hxModel(title){ const toks=String(title||"").replace(/[\[\]（）()【�
   toks.forEach(t=>{ t=t.replace(/^[-.]+|[-.]+$/g,""); if(t.length<4||t.length>24) return; if(/^B0[A-Z0-9]{8}$/i.test(t)) return;
     if(!/[0-9]/.test(t)) return; if(!/[A-Za-z]/.test(t) && !/-/.test(t) && t.length<5) return; if(!/^[A-Za-z0-9][A-Za-z0-9\-\/\.]*$/.test(t)) return;
     if(/^\d+(gb|mb|ml|mm|cm|kg|g|w|v|mah|x|inch|型)$/i.test(t)) return; if(t.length>best.length) best=t; }); return best; }
-function hxBrandOf(title){ const b=(current==="coupang")?brandOf(title):(smartBrandInfo(title).name||""); return hxClean(b).replace(/[\[\]【】()（）「」]/g,"").trim(); }
+function hxBrandOf(title,plat){ const b=((plat||current)==="coupang")?brandOf(title):(smartBrandInfo(title).name||""); return hxClean(b).replace(/[\[\]【】()（）「」]/g,"").trim(); }
 function hxProductName(title,brand,model,ja){ let core=hxClean(title).replace(/\[[^\]]*\]|【[^】]*】|\([^)]*\)|（[^）]*）/g," ");
   if(brand){ const re=new RegExp(brand.replace(/[.*+?^${}()|[\]\\]/g,"\\$&"),"i"); core=core.replace(re," "); }
   if(model) core=core.replace(model," ");
@@ -6656,21 +6653,31 @@ function hxPhone(v){ let t=hxClean(v).replace(/[^0-9-]/g,""); const d=t.replace(
   return t; }
 function hxSplitAddr(a){ a=hxClean(a); const m=a.search(/[,，(（]/); if(m>0){ const a1=a.slice(0,m).replace(/[\s,，]+$/,"").trim(); const a2=a.slice(m).replace(/^[,，\s]+/,"").trim(); return [a1||a, a2||"-"]; } return [a,"-"]; }
 let hxRows=[];
+/* 3モールまとめて対象（2026-09-17）：仕入れ済み × 国内追跡番号あり × 配送H の注文だけを出す */
+const HX_MARK={coupang:"ク",smart:"ス",st11:"11"};
 function hxBuild(){
-  const spec=platforms[current], ok=spec.orderKey, K=HX_KEYS[current]; if(!K) return [];
-  const lmap=ledgerMap(); const rows=load();
-  return rows.filter(r=>r._status==="仕入れ済み").map(r=>{
-    const id=String(r[ok]||""); const s=lmap[id]||{}; const c=calcSale(s,getRate());
-    const title=String(s.title||r[spec.map&&spec.map.title]||"").trim(); const asin=String(s.asin||r[spec.map&&spec.map.asin]||"").trim();
-    const brand=hxBrandOf(title), model=hxModel(title); const g=hxGuessCode(asin,title+" "+brand); const ja=hxJaNoun(g.c,g.src);
-    const [a1,a2]=hxSplitAddr(r[K.addr]);
-    const url=String(s.url||"").trim() || (asin&&!/^https?:/i.test(asin)?"https://www.amazon.co.jp/dp/"+asin:(/^https?:/i.test(asin)?asin:""));
-    return { id, s, asin, title, brand, model, name:hxProductName(title,brand,model,ja), qty:c.qty||1, unit:c.qty?Math.round(c.saleTotal/c.qty):0,
-      code:g.c, codeSrc:g.src, jpord:hxClean(s.jpord), jptrack:hxClean(s.jptrack), url, host:hxShopHost(s.url,asin),
-      rname:hxClean(r[K.name]), phone:hxPhone(r[K.phone]), pccc:hxClean(r[K.pccc]), a1, a2, zip:hxZip(r[K.zip]), exported:s.hxl||"",
-      deliv: delivOf(s),
-      ng: (delivOf(s)!=="H") ? ("配送が "+delivOf(s)+"（HANIRO以外）") : (!hxClean(s.jpord) ? "国内注文番号なし" : (!c.saleTotal ? "売値なし" : "")) };
+  const out=[];
+  Object.keys(platforms).forEach(plat=>{
+    const spec=platforms[plat]; if(!spec||!spec.ready||!HX_KEYS[plat]) return;
+    const K=HX_KEYS[plat], ok=spec.orderKey;
+    let rows=[]; try{ const d=JSON.parse(localStorage.getItem(spec.key)); if(Array.isArray(d)) rows=d; }catch(e){}
+    const lmap={}; loadSales(spec.salesKey).forEach(x=>lmap[String(x.order)]=x);
+    rows.filter(r=>r._status==="仕入れ済み").forEach(r=>{
+      const id=String(r[ok]||""); const s=lmap[id]||{}; const c=calcSale(s,getRate());
+      const jptrack=hxClean(s.jptrack);
+      if(!jptrack) return;                                        /* 国内追跡番号が入っている注文だけ表示 */
+      const title=String(s.title||r[spec.map&&spec.map.title]||"").trim(); const asin=String(s.asin||r[spec.map&&spec.map.asin]||"").trim();
+      const brand=hxBrandOf(title,plat), model=hxModel(title); const g=hxGuessCode(asin,title+" "+brand); const ja=hxJaNoun(g.c,g.src);
+      const [a1,a2]=hxSplitAddr(r[K.addr]);
+      const url=String(s.url||"").trim() || (asin&&!/^https?:/i.test(asin)?"https://www.amazon.co.jp/dp/"+asin:(/^https?:/i.test(asin)?asin:""));
+      out.push({ plat, id, asin, title, brand, model, name:hxProductName(title,brand,model,ja), qty:c.qty||1, unit:c.qty?Math.round(c.saleTotal/c.qty):0,
+        code:g.c, codeSrc:g.src, jpord:hxClean(s.jpord), jptrack, url, host:hxShopHost(s.url,asin),
+        rname:hxClean(r[K.name]), phone:hxPhone(r[K.phone]), pccc:hxClean(r[K.pccc]), a1, a2, zip:hxZip(r[K.zip]), exported:s.hxl||"",
+        deliv: delivOf(s),
+        ng: (delivOf(s)!=="H") ? ("配送が "+delivOf(s)+"（HANIRO以外）") : (!hxClean(s.jpord) ? "国内注文番号なし" : (!c.saleTotal ? "売値なし" : "")) });
+    });
   });
+  return out;
 }
 function hxRender(){
   hxRows=hxBuild(); const b=document.getElementById("hxBody");
@@ -6678,6 +6685,7 @@ function hxRender(){
   const codeSel=(x,i)=>`<select class="hx-code${x.code?"":" miss"}" onchange="hxSetCode(${i},this.value)"><option value="0">— 未設定 —</option>${HX_CODES.map(([c,l])=>`<option value="${c}" ${x.code===c?"selected":""}>${c}：${l}</option>`).join("")}</select>${x.codeSrc?`<div style="font-size:10.5px;color:var(--muted)">${esc(x.codeSrc)}</div>`:""}`;
   const tr=(x,i)=>`<tr class="${x.ng?"hx-ng":""}">`+
     `<td>${x.ng?"":`<input type="checkbox" class="hx-chk" data-i="${i}" ${x.exported?"":"checked"} title="${x.exported?("出力済み "+esc(x.exported)):""}">`}</td>`+
+    `<td style="font-weight:800">${esc(HX_MARK[x.plat]||"")}</td>`+
     `<td class="mono" style="font-size:11px">${esc(x.id)}${x.exported?`<div style="color:#c0392b;font-size:10.5px">出力済み ${esc(x.exported)}</div>`:""}${x.ng?`<div style="color:#c0392b;font-size:10.5px">${esc(x.ng)}</div>`:""}</td>`+
     `<td><input class="cellinput hx-name" value="${esc(x.name)}" onchange="hxSetName(${i},this.value)" title="${esc(x.title)}"></td>`+
     `<td class="mono">${x.qty}</td><td class="money mono">¥${(x.unit||0).toLocaleString("ja-JP")}</td>`+
@@ -6687,7 +6695,7 @@ function hxRender(){
   `</tr>`;
   b.innerHTML=
     `<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:10px;font-size:12.5px">`+
-      `<span>対象：<b>${PNAME[current]}</b> の「仕入れ済み」${hxRows.length}件（出せる ${okRows.length}件・出せない ${ngRows.length}件）</span>`+
+      `<span>対象：<b>3モール共通</b>「仕入れ済み」×「国内追跡番号あり」${hxRows.length}件（出せる ${okRows.length}件・出せない ${ngRows.length}件）</span>`+
       `<div class="grow"></div>`+
       `<label style="display:flex;gap:6px;align-items:center"><input type="checkbox" id="hx-mark" checked> 出した行を「発送手配済み」にする</label>`+
       `<button class="btn-ghost btn-sm" onclick="hxToggleRules()">📋 ルール表</button>`+
@@ -6695,8 +6703,8 @@ function hxRender(){
     `</div>`+
     `<div id="hx-rules-box" style="display:none;margin-bottom:10px"><div style="font-size:11.5px;color:var(--muted);margin-bottom:4px">1行＝「キーワード,キーワード,…=コード」。上の行から順に商品名と照合します。ASINごとに一度選んだコードはこの表より優先して記憶されます。</div><textarea class="hx-rules" id="hx-rules" onchange="hxSaveRules(this.value)">${esc(hxRules())}</textarea><div style="font-size:11.5px;color:var(--muted);margin-top:4px">使えるコード：${HX_CODES.map(([c,l])=>c+"="+l).join("／")}</div></div>`+
     `<div style="font-size:11.5px;color:var(--muted);margin-bottom:6px">固定値：出発倉庫 JP／配送方法 3（簡易検品）／自動決済 Y／SMS N／補償 0／再梱包 1。単価は売値（円・1個あたり）。赤いコード欄は未設定＝選んでください。</div>`+
-    `<div class="tablewrap" style="max-height:52vh"><table><thead><tr><th><input type="checkbox" onclick="document.querySelectorAll('#hxBody .hx-chk').forEach(c=>c.checked=this.checked)" title="全部チェック／全部外す"></th><th>注文番号</th><th>商品名（原文・日本語が必要）</th><th>数量</th><th>単価</th><th>通関品目コード</th><th>国内注文番号／送り状</th><th>受取人</th></tr></thead>`+
-    `<tbody>${hxRows.map(tr).join("")||`<tr><td class="empty" colspan="8"><b>「仕入れ済み」の注文がありません</b></td></tr>`}</tbody></table></div>`;
+    `<div class="tablewrap" style="max-height:52vh"><table><thead><tr><th><input type="checkbox" onclick="document.querySelectorAll('#hxBody .hx-chk').forEach(c=>c.checked=this.checked)" title="全部チェック／全部外す"></th><th title="ク=クーパン／ス=スマートストア／11=11番街">モール</th><th>注文番号</th><th>商品名（原文・日本語が必要）</th><th>数量</th><th>単価</th><th>通関品目コード</th><th>国内注文番号／送り状</th><th>受取人</th></tr></thead>`+
+    `<tbody>${hxRows.map(tr).join("")||`<tr><td class="empty" colspan="9"><b>対象がありません</b>「仕入れ済み」で国内追跡番号が入っている注文（3モール共通）がここに出ます。</td></tr>`}</tbody></table></div>`;
 }
 window.hxSetName=(i,v)=>{ if(hxRows[i]) hxRows[i].name=hxClean(v); };
 window.hxSetCode=(i,v)=>{ const x=hxRows[i]; if(!x) return; x.code=parseInt(v,10)||0; x.codeSrc=x.code?"手動":""; const sel=document.querySelectorAll("#hxBody .hx-code")[i]; if(sel) sel.classList.toggle("miss",!x.code);
@@ -6721,14 +6729,23 @@ window.hxExport=()=>{
   const d=todayStr(), hm=("0"+now.getHours()).slice(-2)+("0"+now.getMinutes()).slice(-2)+("0"+now.getSeconds()).slice(-2);
   /* 旧形式.xlsで出す：業者のxlsx読み取りは「03712」のような文字列を数値化して先頭の0を落とすが、
      xls読み取りは文字列のまま扱う（2026-09-17 実測。A案xlsx=NG／C案xls=OK） */
-  XLSX.writeFile(wb,`配送申請_${PNAME[current]}_${d}_${hm}_${picked.length}件.xls`,{bookType:"biff8"});
+  XLSX.writeFile(wb,`HANIRO申請_${d}_${hm}_${picked.length}件.xls`,{bookType:"biff8"});
   /* ASINごとのコードを記憶（同期される） */
   const mem=hxAsinMem(); let chg=false; picked.forEach(x=>{ if(x.asin&&x.code&&mem[x.asin]!==x.code){ mem[x.asin]=x.code; chg=true; } }); if(chg) localStorage.setItem("kr_hx_asin_v1",JSON.stringify(mem));
-  /* 出力済みの印（台帳）と、ステータス変更 */
-  const mark=document.getElementById("hx-mark").checked; const l=loadSales(); const touched=[];
-  picked.forEach(x=>{ const s=l.find(y=>String(y.order)===x.id); if(s){ s.hxl=d; touched.push(s); } });
-  if(touched.length){ saveSales(l); pushLedger(touched); }
-  if(mark){ const ok=platforms[current].orderKey; const rows=load(); picked.forEach(x=>{ const r=rows.find(y=>String(y[ok])===x.id); if(r) r._status="発送手配済み"; }); save(rows); picked.forEach(x=>syncSaleStatus(x.id,"発送手配済み")); }
+  /* 出力済みの印（台帳）と、ステータス変更（モールごとに保存先が違うので分けて処理） */
+  const mark=document.getElementById("hx-mark").checked;
+  const byPlat={}; picked.forEach(x=>{ (byPlat[x.plat]=byPlat[x.plat]||[]).push(x); });
+  Object.keys(byPlat).forEach(plat=>{
+    const spec=platforms[plat]; const ids=new Set(byPlat[plat].map(x=>x.id));
+    const l=loadSales(spec.salesKey); const touched=[];
+    l.forEach(sr=>{ if(ids.has(String(sr.order))){ sr.hxl=d;
+      if(mark && sr.status!=="発送手配済み"){ sr.hist=sr.hist||[]; sr.hist.push({t:new Date().toISOString(),s:"発送手配済み"}); if(sr.hist.length>30) sr.hist=sr.hist.slice(-30); sr.status="発送手配済み"; }
+      touched.push(sr); } });
+    if(touched.length){ saveSales(l,spec.salesKey); markLocalEdit(touched); if(spec.cloud) cloudPushRows(touched); }
+    if(mark){ try{ const rows=JSON.parse(localStorage.getItem(spec.key))||[]; let ch=false;
+      rows.forEach(r=>{ if(ids.has(String(r[spec.orderKey]))){ r._status="発送手配済み"; ch=true; } });
+      if(ch) localStorage.setItem(spec.key, JSON.stringify(rows)); }catch(e){} }
+  });
   document.getElementById("hxOverlay").classList.remove("show"); render();
   alert(`配送申請Excelを出しました：${picked.length}件${mark?"（ステータスを発送手配済みにしました）":""}\n\n業者の「エクセルファイルアップロード」でこのファイル（.xls）を選び、データ検証 → 保存 してください。`);
 };
