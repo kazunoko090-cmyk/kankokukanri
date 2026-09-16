@@ -1722,7 +1722,11 @@ function calcSale(s,rate){ const cancel=isZeroSale(s.status); const qty=num(s.qt
 function resolveUrl(v){ v=String(v||"").trim(); if(!v) return ""; return /^https?:\/\//i.test(v)?v:"https://www.amazon.co.jp/dp/"+v; }
 const SHOP_LABEL={"amazon.co.jp":"Amazon","amzn.to":"Amazon","item.rakuten.co.jp":"楽天","rakuten.co.jp":"楽天","search.rakuten.co.jp":"楽天",
   "shopping.yahoo.co.jp":"ヤフショ","store.shopping.yahoo.co.jp":"ヤフショ","paypaymall.yahoo.co.jp":"ヤフショ","auctions.yahoo.co.jp":"ヤフオク",
-  "jp.mercari.com":"メルカリ","mercari.com":"メルカリ","smartstore.naver.com":"スマストア","coupang.com":"クーパン","www.coupang.com":"クーパン"};
+  "jp.mercari.com":"メルカリ","mercari.com":"メルカリ","smartstore.naver.com":"スマストア","coupang.com":"クーパン","www.coupang.com":"クーパン",
+  "paypayfleamarket.yahoo.co.jp":"Yahoo!フリマ","fleamarket.yahoo.co.jp":"Yahoo!フリマ"};
+/* 📎仕入れ元の短い表記（表を横に伸ばさないため。マウスを乗せると正式名とURLが出る） */
+const SHOP_SHORT={"楽天":"楽","Amazon":"A","ヤフショ":"Y","Yahoo!フリマ":"Yフ","ヤフオク":"Yオ","メルカリ":"メ","スマストア":"S","クーパン":"C"};
+function srcShort(u){ const l=urlLabel(u); if(SHOP_SHORT[l]) return SHOP_SHORT[l]; return l.replace(/\.(co\.jp|com|jp|net)$/,"").slice(0,3); }
 /* 表示用ラベル：ASINはそのまま／URLはショップ名（無ければドメイン）にして表を崩さない */
 function urlLabel(v){
   v=String(v||"").trim();
@@ -1733,7 +1737,7 @@ function urlLabel(v){
 function srcLinkHtml(id,url){
   const u=String(url||"").trim();
   return u
-    ? ` <a class="srclink" href="${esc(u)}" target="_blank" title="仕入れ元：${esc(urlLabel(u))}　${esc(u)}">📎${esc(urlLabel(u))}</a><span class="edit-mark" onclick="editUrl('${id}')" title="仕入れ元URLを変更">✎</span>`
+    ? ` <a class="srclink" href="${esc(u)}" target="_blank" title="仕入れ元：${esc(urlLabel(u))}　${esc(u)}">📎${esc(srcShort(u))}</a><span class="edit-mark" onclick="editUrl('${id}')" title="仕入れ元URLを変更">✎</span>`
     : ` <span class="edit-mark add" onclick="editUrl('${id}')" title="仕入れ元URL（楽天・ヤフショ等）を入力">📎</span>`;
 }
 
