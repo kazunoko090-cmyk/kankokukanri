@@ -6714,7 +6714,11 @@ window.hxExport=()=>{
   /* 郵便番号・電話・通関番号は文字列のまま（先頭の0が消えないように） */
   picked.forEach((x,r)=>{ ["S","T","U","D","E"].forEach(col=>{ const cell=ws[col+(r+2)]; if(cell){ cell.t="s"; cell.v=String(cell.v==null?"":cell.v); } }); });
   const wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb,ws,"アップロード様式");
-  const d=todayStr(); XLSX.writeFile(wb,`配送申請_${PNAME[current]}_${d}_${picked.length}件.xlsx`);
+  /* 業者側は同じ中身のファイルを二重アップロードとして弾く（実測 2026-09-17）。
+     出し直しできるよう、作成日時を埋め込んで毎回中身を固有にし、ファイル名にも時刻を入れる */
+  const now=new Date(); wb.Props={Title:"配送申請",CreatedDate:now};
+  const d=todayStr(), hm=("0"+now.getHours()).slice(-2)+("0"+now.getMinutes()).slice(-2)+("0"+now.getSeconds()).slice(-2);
+  XLSX.writeFile(wb,`配送申請_${PNAME[current]}_${d}_${hm}_${picked.length}件.xlsx`);
   /* ASINごとのコードを記憶（同期される） */
   const mem=hxAsinMem(); let chg=false; picked.forEach(x=>{ if(x.asin&&x.code&&mem[x.asin]!==x.code){ mem[x.asin]=x.code; chg=true; } }); if(chg) localStorage.setItem("kr_hx_asin_v1",JSON.stringify(mem));
   /* 出力済みの印（台帳）と、ステータス変更 */
