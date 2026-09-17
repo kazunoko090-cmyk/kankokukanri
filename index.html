@@ -670,6 +670,10 @@ window.CAT_ATTR_JA={"색상": "色", "수량": "数量", "패션의류/잡화 �
     .inq-side{ position:static; }
     .inq-text{ min-height:260px; }
   }
+  /* クーパン発送Excelモーダル：中央揃えの型（th中央・td上下中央・チェック列は上下左右中央） */
+  #cpBody th,#cpBody td{ padding:7px 8px; vertical-align:middle; }
+  #cpBody th{ text-align:center; }
+  #cpBody th:nth-child(1),#cpBody td:nth-child(1){ text-align:center; }
   /* 上部カードを押すとそのステータスに絞り込める（顧客管理・売上管理 2026-09-17）。絞り込み中は枠で示す */
   .cardbtn{ cursor:pointer; user-select:none; transition:box-shadow .12s; }
   .cardbtn:hover{ box-shadow:var(--sh-sm),0 0 0 2px var(--ring); }
@@ -876,9 +880,11 @@ window.CAT_ATTR_JA={"색상": "色", "수량": "数量", "패션의류/잡화 �
   <div class="panel">
     <div class="toolbar">
       <span class="searchwrap"><input type="text" id="search" placeholder="🔍 韓国注文番号・国内注文番号・追跡番号・名前・商品名・住所・備考などで検索"><button class="search-clear" id="search-clear" title="検索の文字を消す">✕</button></span>
+      <button class="btn-ghost btn-sm" onclick="hiClear()" title="行のチェック（✓）を全部外す">選択解除</button>
       <div class="grow"></div>
-      <button class="btn-ghost" id="btn-hxwbl" title="HANIROの配送申請内訳から出したエクセル（送り状一覧）を取り込み、注文番号で照合して国際追跡番号を自動入力します">🚚 HANIRO送り状</button>
       <button class="btn-ghost" id="btn-hx" title="仕入れ済みの注文から、HANIROの一括アップロード用Excelを作る">📤 HANIRO申請</button>
+      <button class="btn-ghost" id="btn-hxwbl" title="HANIROの配送申請内訳から出したエクセル（送り状一覧）を取り込み、注文番号で照合して国際追跡番号を自動入力します">🚚 HANIRO送り状</button>
+      <button class="btn-ghost" id="btn-cpship" title="チェックした注文（国際追跡番号あり×配送H）から、WINGの一括発送処理用Excelを作る" style="display:none">📦 クーパン送り状</button>
       <button class="btn-primary" id="btn-import">📥 Excelを取り込む</button>
       <input type="file" id="file" accept=".xlsx,.xls,.csv" hidden>
     </div>
@@ -927,6 +933,7 @@ window.CAT_ATTR_JA={"색상": "色", "수량": "数量", "패션의류/잡화 �
         </span>
         <span id="ctl-search" style="display:flex;gap:10px;align-items:center;margin-left:10px">
           <span class="searchwrap"><input type="text" id="sv-search" placeholder="🔍 韓国注文番号・国内注文番号・追跡番号・商品タイトル・備考などで検索" style="height:36px;border:1px solid var(--line);border-radius:7px;padding:0 32px 0 10px;font-size:13px;min-width:250px"><button class="search-clear" id="sv-search-clear" title="検索の文字を消す">✕</button></span>
+          <button class="btn-ghost btn-sm" onclick="hiClear()" title="行のチェック（✓）を全部外す">選択解除</button>
         </span>
         <div class="grow"></div>
         <button class="btn-ghost" id="btn-import-ship" title="HANIROの送り状Excelを取り込み、送り状番号(H列)で追跡番号を照合し、料金(S列)×100を発送料金へ自動入力します">📥 HANIRO取込</button>
@@ -1208,6 +1215,12 @@ window.CAT_ATTR_JA={"색상": "色", "수량": "数量", "패션의류/잡화 �
   <div class="modal" style="width:1180px">
     <h3>📤 HANIRO申請Excel（一括アップロード用） <span class="x" id="hxX">✕</span></h3>
     <div id="hxBody" style="padding:14px 18px 18px"></div>
+  </div>
+</div>
+<div class="overlay" id="cpOverlay">
+  <div class="modal" style="width:900px">
+    <h3>📦 クーパン送り状（WING一括発送処理用Excel） <span class="x" id="cpX">✕</span></h3>
+    <div id="cpBody" style="padding:14px 18px 18px"></div>
   </div>
 </div>
 <div class="overlay" id="tsOverlay">
@@ -1661,8 +1674,7 @@ async function cloudPushRows(rows){ const u=cloudURL(); if(!u||!rows||!rows.leng
 async function cloudDelete(order){ const u=cloudURL(); if(!u) return;
   try{ const r=await fetch(u,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify({action:"delete",order:String(order)})}); noteSync(r.ok); }catch(e){ console.warn("cloudDelete",e); noteSync(false); } }
 /* ===== その他データの同期（マニュアル・顧客・出品・ブログ等）：key-value方式 ===== */
-/* kr_hi_（黄色の選択）は同期しない＝端末ごとの目印。
-   共有すると①和集合で選択が溜まる②複数人で1つの選択を奪い合う、の両方が起きるため。 */
+/* 行のチェック（黄色の選択）は2026-09-17からメモリだけ＝保存も同期もしない（再読み込みで解除。ずくの指定） */
 const KV_SYNC_PREFIXES=["kr_teb_","kr_bru_","kr_manual_v2","kr_manual_urls","kr_tblman_","kr_cust_","kr_list_attr_","kr_list_cat_","kr_list_brand_","kr_attr_cat_","kr_blog_","kr_catseg_ja","kr_shinfix","kr_tomb","kr_nippo_","kr_stock_smart_v1","kr_stock_st11_v1","kr_oos_","kr_inq_","kr_rvtab_","kr_hx_"];
 function isKvSyncKey(k){ return KV_SYNC_PREFIXES.some(p=> k===p || k.indexOf(p)===0 ); }
 let kvReady=false;                 // 初回プル完了まで送信しない（初期シードの誤送信防止）
@@ -1794,21 +1806,14 @@ function isDue(row){ const s=deadlineState(row); return (s==="today"||s==="over"
 
 function load(){ try{ const d=JSON.parse(localStorage.getItem(platforms[current].key)); if(Array.isArray(d)) return d; }catch(e){} return current==="coupang"?seed():[]; }
 function save(rows){ localStorage.setItem(platforms[current].key, JSON.stringify(rows)); }
-/* 配送指示チェック用ハイライト（クリックで黄色トグル） */
-const HI_KEY="kr_hi_coupang";
-/* 黄色の選択は常に1個以下。読み書きの両方で上限をかけるので、
-   古い端末が複数件を残していても最新1件に自動で収束する（末尾＝最後に選んだもの）。 */
-function hiSet(){ try{ const a=JSON.parse(localStorage.getItem(HI_KEY)); return new Set((Array.isArray(a)?a:[]).slice(-1).map(String)); }catch(e){ return new Set(); } }
-function saveHi(s){ localStorage.setItem(HI_KEY, JSON.stringify([...s].slice(-1).map(String))); }
-window.setHi=(cb,id)=>{
-  if(cb.checked){
-    /* 黄色チェックは常に1つだけ：他の行のチェックと色を全て外す（顧客管理・売上管理共通） */
-    document.querySelectorAll("input.rowchk:checked").forEach(o=>{ if(o!==cb){ o.checked=false; const r=o.closest("tr"); if(r) r.classList.remove("hi"); } });
-    saveHi(new Set([String(id)]));
-  } else {
-    const set=hiSet(); set.delete(String(id)); saveHi(set);
-  }
+/* 行のチェック（✓・黄色）2026-09-17改：複数チェックOK。保存しない＝再読み込みすると解除。
+   「選択解除」ボタンで全部外せる。チェックした状態でステータスを1つ変えると、選択中の全行に一括反映（下のsetStatus/setSaleStatus） */
+let _hiSel=new Set();
+function hiSet(){ return _hiSel; }
+window.setHi=(cb,id)=>{ id=String(id);
+  if(cb.checked) _hiSel.add(id); else _hiSel.delete(id);
   const tr=cb.closest("tr"); if(tr) tr.classList.toggle("hi", cb.checked); };
+window.hiClear=()=>{ _hiSel.clear(); render(); };
 function purge(rows){ return rows.filter(r=>{ const dl=daysLeft(r); return dl===null||dl>0; }); }
 /* 発送期日が近い順（上から）。ただし発送済みは最下部。期日なしは日付ありの後。 */
 function sortRows(rows){ const BIG=8.64e15; const df=deadlineField(); return rows.slice().sort((a,b)=>{
@@ -5746,7 +5751,7 @@ function renderSalesDetail(){
     return `<tr${cls?` class="${cls}"`:""}>`+
       `<td class="s0">${delivSel(id,delivOf(s),s.status)}</td>`+
       `<td class="s1">${sel}</td>`+
-      `<td class="s2c"><input type="checkbox" class="rowchk" ${checked} onclick="setHi(this,'${id}')" title="チェックで色付け"></td>`+
+      `<td class="s2c"><input type="checkbox" class="rowchk" ${checked} onclick="setHi(this,'${id}')" title="チェック（複数OK・再読み込みで解除）。ステータスを1つ変えると選択中すべてに反映"></td>`+
       `<td ondblclick="editAsin('${id}')"><span class="asinbox">${asinCell}</span></td>`+
       jpOrdCell(id,s)+
       jpTrackCell(id,s)+
@@ -5787,6 +5792,7 @@ function renderSalesDetail(){
 /* ===== 顧客管理 ===== */
 function renderCust(){
   const pf=platforms[current];
+  const cpBtn=document.getElementById("btn-cpship"); if(cpBtn) cpBtn.style.display= current==="coupang"?"":"none";   /* クーパン専用（WINGの一括発送処理） */
   const thead=document.getElementById("thead"), tbody=document.getElementById("tbody");
   if(!pf.ready){
     thead.innerHTML=""; tbody.innerHTML=`<tr><td class="empty"><b>${current==="smart"?"スマートストア":"11番街"}は準備中です</b>クーパンが完成したら、同じ仕組みでこのタブを作ります。</td></tr>`;
@@ -5843,7 +5849,7 @@ function renderCust(){
     const sel=`<select class="stsel" data-v="${esc(r._status)}" onchange="setStatus('${id}',this.value)">`+
       STATUSES.map(s=>`<option ${s===r._status?"selected":""}>${s}</option>`).join("")+`</select>`;
     const checked=hi.has(String(r[okey]))?"checked":"";
-    const chk=`<td class="s2c"><input type="checkbox" class="rowchk" ${checked} onclick="setHi(this,'${id}')" title="配送指示チェック（コピペ用に色付け）"></td>`;
+    const chk=`<td class="s2c"><input type="checkbox" class="rowchk" ${checked} onclick="setHi(this,'${id}')" title="チェック（複数OK・再読み込みで解除）。ステータス一括変更や📦クーパン送り状の対象になります"></td>`;
     const cells=view.map(c=>{
       let v=r[c.key||c.en];
       if(c.jpord){ return jpOrdCell(id,led); }   /* 国内注文番号は台帳（=クラウド同期）が正。売上管理と同じ値が出る */
@@ -5880,7 +5886,12 @@ function renderCust(){
   document.getElementById("s-sent").innerHTML=cnt("発送済み")+'<small> 件</small>';
 }
 
-window.setStatus=(id,val)=>{ const ok=platforms[current].orderKey; const rows=load(); const r=rows.find(x=>String(x[ok])===String(id)); if(r){ r._status=val; save(rows); syncSaleStatus(id,val); render(); } };
+window.setStatus=(id,val)=>{
+  /* チェック（✓）した行の1つでステータスを変えると、選択中の全行に一括反映（2026-09-17） */
+  const ids=(_hiSel.has(String(id)) && _hiSel.size>1)? [..._hiSel] : [String(id)];
+  const ok=platforms[current].orderKey; const rows=load(); let hit=false;
+  ids.forEach(tid=>{ const r=rows.find(x=>String(x[ok])===String(tid)); if(r){ r._status=val; hit=true; } });
+  if(hit){ save(rows); ids.forEach(tid=>syncSaleStatus(tid,val)); render(); } };
 window.setSaleMsg=(id,val)=>setSaleMsg(id,val);
 window.delRow=id=>{ const _l=ledgerMap()[String(id)];
   if(askDel("注文", "注文番号 "+id+(_l&&_l.title?("　/　"+String(_l.title).slice(0,40)):""), "売上台帳からも同時に消えます。"+UNDO_ORDER)){ const ok=platforms[current].orderKey; let rows=load().filter(x=>String(x[ok])!==String(id)); save(rows); removeSale(id); render(); } };
@@ -6203,8 +6214,10 @@ window.setJpOrd=(id,val)=>{ const l=loadSales(); const s=l.find(x=>String(x.orde
   saveSales(l); pushLedger([s]); render(); };
 window.setJpTrack=(id,val)=>{ const l=loadSales(); const s=l.find(x=>String(x.order)===String(id)); if(!s) return;
   s.jptrack=String(val==null?"":val).trim(); if(!s.jptrack) s.jpcarrier=""; saveSales(l); pushLedger([s]); render(); };
-window.setSaleStatus=(id,val)=>{ syncSaleStatus(id,val);
-  updateCustField(id,"status",val);
+window.setSaleStatus=(id,val)=>{
+  /* チェック（✓）した行の1つでステータスを変えると、選択中の全行に一括反映（2026-09-17） */
+  const ids=(_hiSel.has(String(id)) && _hiSel.size>1)? [..._hiSel] : [String(id)];
+  ids.forEach(tid=>{ syncSaleStatus(tid,val); updateCustField(tid,"status",val); });
   render(); };
 window.delSaleRow=(id)=>{ const _s=loadSales().find(x=>String(x.order)===String(id));
   if(!askDel("売上行", "注文番号 "+id+(_s?("　/　"+String(_s.date||"").slice(0,10)+"　/　"+(_s.title?String(_s.title).slice(0,30):"（商品名なし）")):""), UNDO_ORDER)) return; removeSale(id); render(); };
@@ -6904,6 +6917,102 @@ async function hxWaybillFile(inp){
     (miss.length?`\n台帳に見つからなかった注文：${miss.length}件\n（${miss.slice(0,5).join("、")}${miss.length>5?" ほか":""}）`:""));
 }
 document.getElementById("btn-hxwbl").onclick=()=>hxWaybillPick();
+
+/* ===== 📦 クーパン送り状（2026-09-17） =====
+   WINGの一括発送処理テンプレ formV4（41列・シート名 form）を顧客管理クーパンから作る。
+   ・対象＝表でチェック（✓）した行のうち「国際追跡番号あり」×「配送H（HANIRO）」。それ以外は理由を出して弾く
+   ・Courier 1＝하이브시티（ずくはこの1社だけ。WINGのプルダウンの表記に合わせる）、Invoice 1＝国際追跡番号
+   ・テンプレの決まり：.xlsx／送り状番号は数字のみ／まとめ配送番号ごとに送り状番号必須／見出しはテンプレと同一
+   ・まとめ配送番号・注文番号などが数値化で丸まらないよう、全セルを文字列で出す */
+const CP_FORM_HEAD=["Number","Bundle delivery number","Order number","Courier 1","Invoice 1","Courier 2","Invoice 2","Split delivery Y/N","Expected shipment date for split delivery ","Expected shipment date upon order","Shipping date","Order date","Registered product name","Registered option name","Displayed product name (option name)","Displayed product ID","Option ID","Option name initially registered","Vendor product code","Bar code","Paid amount","Shipping fee classification","Shipping fee","Extra shipping fee for remote areas","Purchased qty","Option price (unit sales price)","Buyer","Buyer phone number","Recipient name","Recipient phone number","Zipcode","Recipient address","Delivery message","Additional message per product","Additional message from the buyer","Expected delivery completion date","Purchase confirm date","Personal Customs Clearance Code (PCCC)","Contact information of buyer for customs clearance purpose","Others","Payment location"];
+const CP_COURIER="하이브시티";
+function cpVal(r,en){ const k=String(en).trim();
+  if(r[en]!=null&&r[en]!=="") return r[en];
+  if(r[k]!=null&&r[k]!=="") return r[k];
+  const c=COUPANG_COLS.find(x=>x.en===k);           /* 韓国語見出しで届いたファイルにも対応 */
+  if(c&&r[c.kr]!=null) return r[c.kr];
+  return ""; }
+let cpRows=[];
+function cpBuild(){
+  const spec=platforms.coupang, sel=hiSet();
+  let rows=[]; try{ const d=JSON.parse(localStorage.getItem(spec.key)); if(Array.isArray(d)) rows=d; }catch(e){}
+  const lmap={}; loadSales(spec.salesKey).forEach(x=>lmap[String(x.order)]=x);
+  const out=[];
+  rows.forEach(r=>{
+    const id=String(cpVal(r,"Order number")||""); if(!sel.has(id)) return;   /* 表でチェックした行だけ */
+    const s=lmap[id]||{};
+    const track=String(s.track||"").trim(); const dv=delivOf(s);
+    const bundle=String(cpVal(r,"Bundle delivery number")||"").trim();
+    out.push({ id, r, track, bundle,
+      title:String(s.title||cpVal(r,"Displayed product name (option name)")||"").trim(),
+      exported:s.cpl||"",
+      ng: !track ? "国際追跡番号なし"
+        : (dv!=="H" ? ("配送が "+dv+"（HANIROのHではない）")
+        : (!bundle ? "まとめ配送番号なし"
+        : (/\D/.test(track) ? "追跡番号に数字以外（クーパンは数字のみ）" : ""))) });
+  });
+  return out;
+}
+function cpRender(){
+  cpRows=cpBuild(); const b=document.getElementById("cpBody");
+  const okRows=cpRows.filter(x=>!x.ng), ngRows=cpRows.filter(x=>x.ng);
+  if(!cpRows.length){
+    b.innerHTML=`<div class="empty"><b>チェックした注文がありません</b>顧客管理の表で行の ✓ にチェック（複数OK）を入れてから、もう一度「📦 クーパン送り状」を押してください。</div>`;
+    return;
+  }
+  const tr=(x)=>`<tr class="${x.ng?"hx-ng":""}">`+
+    `<td style="font-weight:700;${x.ng?"color:#c0392b":"color:#12a866"}">${x.ng?"弾く":"出す"}</td>`+
+    `<td class="mono" style="font-size:11px">${esc(x.bundle||"—")}</td>`+
+    `<td class="mono" style="font-size:11px">${esc(x.id)}${x.exported?`<div style="color:#c0392b;font-size:10.5px">出力済み ${esc(x.exported)}</div>`:""}${x.ng?`<div style="color:#c0392b;font-size:10.5px">${esc(x.ng)}</div>`:""}</td>`+
+    `<td style="font-size:12px;max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(x.title)}">${esc(x.title||"—")}</td>`+
+    `<td class="mono" style="font-size:11px">${esc(x.track||"—")}</td>`+
+  `</tr>`;
+  b.innerHTML=
+    `<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:10px;font-size:12.5px">`+
+      `<span>チェックした ${cpRows.length}件のうち、出せる <b>${okRows.length}件</b>・弾く ${ngRows.length}件（条件：国際追跡番号あり × 配送H）</span>`+
+      `<div class="grow"></div>`+
+      `<label style="display:flex;gap:6px;align-items:center"><input type="checkbox" id="cp-mark" checked> 出した行を「発送済み」にする</label>`+
+      `<button class="btn-primary btn-sm" onclick="cpExport()" ${okRows.length?"":"disabled"}>📦 Excelを出す（${okRows.length}件）</button>`+
+    `</div>`+
+    `<div style="font-size:11.5px;color:var(--muted);margin-bottom:6px">配送業者は <b>${esc(CP_COURIER)}</b> 固定。WINGの「発送処理 → 一括発送処理（Excelアップロード）」でこのファイル（.xlsx）を選んでください。</div>`+
+    `<div class="tablewrap" style="max-height:52vh"><table><thead><tr><th>判定</th><th>まとめ配送番号</th><th>注文番号</th><th>商品</th><th>国際追跡番号（Invoice 1）</th></tr></thead>`+
+    `<tbody>${cpRows.map(tr).join("")}</tbody></table></div>`;
+}
+window.cpExport=()=>{
+  const picked=cpRows.filter(x=>!x.ng);
+  if(!picked.length){ alert("出せる注文がありません（国際追跡番号あり×配送Hが対象です）。"); return; }
+  const aoa=[CP_FORM_HEAD].concat(picked.map((x,i)=>CP_FORM_HEAD.map(h=>{
+    const k=h.trim();
+    if(k==="Number") return String(i+1);
+    if(k==="Courier 1") return CP_COURIER;
+    if(k==="Invoice 1") return x.track;
+    if(k==="Courier 2"||k==="Invoice 2") return "";
+    if(k==="Split delivery Y/N"){ const v=String(cpVal(x.r,h)||"").trim(); return v||"N"; }   /* 分割配送はしない */
+    return String(cpVal(x.r,h)??"");
+  })));
+  /* 全セル文字列＝テキストセルで出す（まとめ配送番号・注文番号の桁が丸まらない） */
+  const ws=XLSX.utils.aoa_to_sheet(aoa);
+  const wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb,ws,"form");   /* シート名はテンプレと同じ */
+  const now=new Date(); wb.Props={Title:"クーパン送り状",CreatedDate:now};
+  const d=todayStr(), hm=("0"+now.getHours()).slice(-2)+("0"+now.getMinutes()).slice(-2);
+  XLSX.writeFile(wb,`クーパン送り状_${d}_${hm}_${picked.length}件.xlsx`);
+  /* 出力済みの印（台帳 cpl）と、ステータスを発送済みへ */
+  const mark=document.getElementById("cp-mark").checked;
+  const spec=platforms.coupang, ids=new Set(picked.map(x=>x.id));
+  const l=loadSales(spec.salesKey); const touched=[];
+  l.forEach(sr=>{ if(ids.has(String(sr.order))){ sr.cpl=d;
+    if(mark && sr.status!=="発送済み"){ sr.hist=sr.hist||[]; sr.hist.push({t:new Date().toISOString(),s:"発送済み"}); if(sr.hist.length>30) sr.hist=sr.hist.slice(-30); sr.status="発送済み"; }
+    touched.push(sr); } });
+  if(touched.length){ saveSales(l,spec.salesKey); markLocalEdit(touched); if(spec.cloud) cloudPushRows(touched); }
+  if(mark){ try{ const rows=JSON.parse(localStorage.getItem(spec.key))||[]; let ch=false;
+    rows.forEach(r=>{ if(ids.has(String(cpVal(r,"Order number")))){ r._status="発送済み"; ch=true; } });
+    if(ch) localStorage.setItem(spec.key, JSON.stringify(rows)); }catch(e){} }
+  ids.forEach(id=>_hiSel.delete(String(id)));   /* 出した行はチェックを外す */
+  document.getElementById("cpOverlay").classList.remove("show"); render();
+  alert(`クーパン送り状Excelを出しました：${picked.length}件${mark?"（ステータスを発送済みにしました）":""}\n\nWINGの一括発送処理でこのファイル（.xlsx）をアップロードしてください。`);
+};
+(function(){ const o=document.getElementById("cpOverlay"); document.getElementById("btn-cpship").onclick=()=>{ cpRender(); o.classList.add("show"); };
+  document.getElementById("cpX").onclick=()=>o.classList.remove("show"); o.addEventListener("click",e=>{ if(e.target===o) o.classList.remove("show"); }); })();
 /* 検索窓の✕：文字を消して一覧を戻す（顧客管理・売上管理） */
 (function(){ [["search-clear","search"],["sv-search-clear","sv-search"]].forEach(([bid,iid])=>{
   const b=document.getElementById(bid), i=document.getElementById(iid);
