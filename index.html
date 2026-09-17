@@ -670,13 +670,17 @@ window.CAT_ATTR_JA={"색상": "色", "수량": "数量", "패션의류/잡화 �
     .inq-side{ position:static; }
     .inq-text{ min-height:260px; }
   }
-  /* 顧客管理の検索窓：文字が入っている時だけ✕（消す）ボタンを出す（2026-09-17） */
+  /* 上部カードを押すとそのステータスに絞り込める（顧客管理・売上管理 2026-09-17）。絞り込み中は枠で示す */
+  .cardbtn{ cursor:pointer; user-select:none; transition:box-shadow .12s; }
+  .cardbtn:hover{ box-shadow:var(--sh-sm),0 0 0 2px var(--ring); }
+  .card.filt-on{ box-shadow:var(--sh-sm),0 0 0 2px var(--accent); }
+  /* 検索窓（顧客管理・売上管理）：文字が入っている時だけ✕（消す）ボタンを出す（2026-09-17） */
   .searchwrap{ position:relative; display:inline-flex; align-items:center; }
-  .searchwrap #search{ padding-right:32px; }
+  .searchwrap input[type=text]{ padding-right:32px; }
   .search-clear{ position:absolute; right:9px; border:none; background:transparent; color:var(--muted); cursor:pointer; font-size:13px; padding:2px 4px; line-height:1; }
   .search-clear:hover{ color:var(--ink,#1c2438); }
-  .searchwrap #search:placeholder-shown ~ .search-clear{ display:none; }   /* 空＝placeholderが見えている間は隠す */
-  @media (max-width:768px){ #view-cust .searchwrap{ flex:1 1 100%; } }
+  .searchwrap input[type=text]:placeholder-shown ~ .search-clear{ display:none; }   /* 空＝placeholderが見えている間は隠す */
+  @media (max-width:768px){ #view-cust .searchwrap{ flex:1 1 100%; } #view-sales .searchwrap{ flex:1; min-width:0; } }
   /* ===== 管理表マニュアル：トラブルシューティング（2026-09-17） ===== */
   #ts-tabs{ margin-bottom:14px; }
   .ts-cat{ background:var(--surface); border:1px solid var(--line); border-radius:12px; margin-bottom:16px; overflow:hidden; }
@@ -860,11 +864,11 @@ window.CAT_ATTR_JA={"색상": "色", "수량": "数量", "패션의류/잡화 �
     </div>
   </div>
   <div class="stats">
-    <div class="card alert"><div class="label">🚨 発送期日 本日／超過</div><div class="num" id="s-due">0<small> 件</small></div></div>
-    <div class="card"><div class="label">入金済み</div><div class="num" id="s-paid">0<small> 件</small></div></div>
-    <div class="card"><div class="label">仕入れ済み</div><div class="num" id="s-stock">0<small> 件</small></div></div>
-    <div class="card"><div class="label">発送手配済み</div><div class="num" id="s-arr">0<small> 件</small></div></div>
-    <div class="card"><div class="label">発送済み</div><div class="num" id="s-sent">0<small> 件</small></div></div>
+    <div class="card alert cardbtn" id="card-due" onclick="setCustStatus('__due')" title="押すと発送期日が本日／超過の行だけに絞ります（下の「全体」で戻す）"><div class="label">🚨 発送期日 本日／超過</div><div class="num" id="s-due">0<small> 件</small></div></div>
+    <div class="card cardbtn" id="card-paid" onclick="setCustStatus('入金済み')" title="押すと入金済みだけに絞ります"><div class="label">入金済み</div><div class="num" id="s-paid">0<small> 件</small></div></div>
+    <div class="card cardbtn" id="card-stock" onclick="setCustStatus('仕入れ済み')" title="押すと仕入れ済みだけに絞ります"><div class="label">仕入れ済み</div><div class="num" id="s-stock">0<small> 件</small></div></div>
+    <div class="card cardbtn" id="card-arr" onclick="setCustStatus('発送手配済み')" title="押すと発送手配済みだけに絞ります"><div class="label">発送手配済み</div><div class="num" id="s-arr">0<small> 件</small></div></div>
+    <div class="card cardbtn" id="card-sent" onclick="setCustStatus('発送済み')" title="押すと発送済みだけに絞ります"><div class="label">発送済み</div><div class="num" id="s-sent">0<small> 件</small></div></div>
   </div>
 
   <div class="chips" id="cust-chips"></div>
@@ -892,9 +896,9 @@ window.CAT_ATTR_JA={"색상": "色", "수량": "数量", "패션의류/잡화 �
       <div class="card"><div class="label">還付金込み利益 <small style="color:var(--muted);font-weight:600">仕入れ+9%</small></div><div class="num" id="sv-refund">¥0</div></div>
       <div class="card"><div class="label">売上（ウォン）</div><div class="num" id="sv-won">₩0</div></div>
       <div class="card"><div class="label">売上（円）</div><div class="num" id="sv-yen">¥0</div></div>
-      <div class="card"><div class="label">発送件数</div><div class="num" id="sv-ship">0<small> 件</small></div></div>
-      <div class="card"><div class="label">キャンセル件数</div><div class="num" id="sv-cancel">0<small> 件</small></div></div>
-      <div class="card"><div class="label">返品件数</div><div class="num" id="sv-return">0<small> 件</small></div></div>
+      <div class="card cardbtn" id="card-ship" onclick="setSalesStatus('発送済み')" title="押すと発送済みだけに絞ります"><div class="label">発送件数</div><div class="num" id="sv-ship">0<small> 件</small></div></div>
+      <div class="card cardbtn" id="card-cancel" onclick="setSalesStatus('__cancel')" title="押すとキャンセル・キャンセル返品だけに絞ります"><div class="label">キャンセル件数</div><div class="num" id="sv-cancel">0<small> 件</small></div></div>
+      <div class="card cardbtn" id="card-return" onclick="setSalesStatus('返品')" title="押すと返品だけに絞ります"><div class="label">返品件数</div><div class="num" id="sv-return">0<small> 件</small></div></div>
     </div>
     <div class="panel">
       <div class="toolbar">
@@ -922,10 +926,9 @@ window.CAT_ATTR_JA={"색상": "色", "수량": "数量", "패션의류/잡화 �
           <button class="cbtn" id="sv-cvt-copy" onclick="copyBtn(this)" title="円をコピー" style="display:none">📋</button>
         </span>
         <span id="ctl-search" style="display:flex;gap:10px;align-items:center;margin-left:10px">
-          <input type="text" id="sv-search" placeholder="🔍 韓国注文番号・国内注文番号・追跡番号・商品タイトル・備考などで検索" style="height:36px;border:1px solid var(--line);border-radius:7px;padding:0 10px;font-size:13px;min-width:250px">
+          <span class="searchwrap"><input type="text" id="sv-search" placeholder="🔍 韓国注文番号・国内注文番号・追跡番号・商品タイトル・備考などで検索" style="height:36px;border:1px solid var(--line);border-radius:7px;padding:0 32px 0 10px;font-size:13px;min-width:250px"><button class="search-clear" id="sv-search-clear" title="検索の文字を消す">✕</button></span>
         </span>
         <div class="grow"></div>
-        <button class="btn-ghost" id="btn-sexport">CSV出力</button>
         <button class="btn-ghost" id="btn-import-ship" title="HANIROの送り状Excelを取り込み、送り状番号(H列)で追跡番号を照合し、料金(S列)×100を発送料金へ自動入力します">📥 HANIRO取込</button>
         <button class="btn-primary" id="btn-import-sales" title="精算明細Excelを取り込み、手数料などを自動入力します">📥 売上取込</button>
         <button class="btn-ghost" id="btn-import-fee" title="精算明細（MSF_PAYMENT_REVENUE_DETAIL等）を取り込み、Order ID(A列)で注文番号を照合し、Sales commission(N列/ウォン)を各注文のレートで円換算して手数料へ入力します">📥 手数料取込</button>
@@ -5715,7 +5718,11 @@ function renderSalesDetail(){
   /* ステータス絞り込みチップ（件数は当月/検索の集合が基準） */
   const cc={__all:rows.length}; STATUSES.forEach(st=>cc[st]=rows.filter(x=>x.status===st).length);
   document.getElementById("sales-chips").innerHTML=statusChips(cc,salesStatusFilter,"setSalesStatus");
-  const vrows = salesStatusFilter? rows.filter(s=>s.status===salesStatusFilter): rows;
+  /* __cancel＝上の「キャンセル件数」カードからの絞り込み（キャンセル＋キャンセル返品の両方） */
+  const vrows = salesStatusFilter? rows.filter(s=> salesStatusFilter==="__cancel"? (s.status==="キャンセル"||s.status==="キャンセル返品") : s.status===salesStatusFilter): rows;
+  const svFiltLabel = salesStatusFilter==="__cancel"? "キャンセル・キャンセル返品" : salesStatusFilter;
+  [["card-ship","発送済み"],["card-cancel","__cancel"],["card-return","返品"]]
+    .forEach(([id,v])=>{ const el=document.getElementById(id); if(el) el.classList.toggle("filt-on", salesStatusFilter===v); });
   /* 上部カードは当月全体で集計（絞り込みに左右されない） */
   let pSum=0,cSum=0,wSum=0,ySum=0; rows.forEach(s=>{ const c=calcSale(s,rate); pSum+=c.profit; cSum+=c.costTotal; wSum+=c.won; ySum+=c.saleTotal; });
   const hi=hiSet();
@@ -5763,11 +5770,11 @@ function renderSalesDetail(){
       `<td><input class="notein" value="${esc(s.note||"")}" placeholder="備考…" onchange="setNote('${id}',this.value)"></td>`+
       `<td><button class="rowbtn del btn-sm" onclick="delSaleRow('${id}')" title="この行を削除">削除</button></td>`+
     `</tr>`;
-  }).join("")+pageMoreRow("sales",vrows.length,COL) : `<tr><td class="empty" colspan="${COL}"><b>該当する売上データがありません</b>${salesStatusFilter?`「${salesStatusFilter}」の注文はこの期間にありません。`:"顧客管理でExcelを取り込むと、購入日の月ごとにここへ自動で入ります。"}</td></tr>`;
+  }).join("")+pageMoreRow("sales",vrows.length,COL) : `<tr><td class="empty" colspan="${COL}"><b>該当する売上データがありません</b>${salesStatusFilter?`「${svFiltLabel}」の注文はこの期間にありません。`:"顧客管理でExcelを取り込むと、購入日の月ごとにここへ自動で入ります。"}</td></tr>`;
 
   const ym=svMonth.split("-"); const monthLbl=ym.length===2?`${ym[0]}年${Number(ym[1])}月`:svMonth;
   document.getElementById("sv-head").innerHTML= q? `🔍 検索結果 <small>「${esc(q)}」・全期間から ${rows.length}件</small>` : `${monthLbl} <small>${rows.length}件</small>`;
-  document.getElementById("scount").textContent= salesStatusFilter? `${scope} ・ ${vrows.length}/${rows.length}件（${salesStatusFilter}）` : `${scope} ・ ${rows.length}件`;
+  document.getElementById("scount").textContent= salesStatusFilter? `${scope} ・ ${vrows.length}/${rows.length}件（${svFiltLabel}）` : `${scope} ・ ${rows.length}件`;
   document.getElementById("sv-profit").textContent=yen(pSum);
   document.getElementById("sv-won").textContent="₩"+Math.round(wSum).toLocaleString("ja-JP");
   document.getElementById("sv-yen").textContent=yen(ySum);
@@ -5816,11 +5823,13 @@ function renderCust(){
   /* ステータス絞り込みチップ（件数は検索後の集合を基準） */
   const cc={__all:view2.length}; STATUSES.forEach(s=>cc[s]=view2.filter(r=>r._status===s).length);
   document.getElementById("cust-chips").innerHTML=statusChips(cc,custStatusFilter,"setCustStatus");
-  if(custStatusFilter) view2=view2.filter(r=>r._status===custStatusFilter);
+  if(custStatusFilter) view2=view2.filter(custStatusFilter==="__due"? isDue : (r=>r._status===custStatusFilter));   /* __due＝上の「発送期日」カードからの絞り込み */
+  [["card-due","__due"],["card-paid","入金済み"],["card-stock","仕入れ済み"],["card-arr","発送手配済み"],["card-sent","発送済み"]]
+    .forEach(([id,v])=>{ const el=document.getElementById(id); if(el) el.classList.toggle("filt-on", custStatusFilter===v); });
 
   thead.innerHTML="<tr>"+
-    `<th class="s0">配送<small>H / D / E</small></th>`+
-    `<th class="s1">ステータス<small>状態を選択</small></th>`+
+    `<th class="s0">配送</th>`+
+    `<th class="s1">ステータス</th>`+
     `<th class="s2c">✓</th>`+
     view.map(c=>`<th>${esc(c.jp)}</th>`).join("")+
     `<th>備考</th><th>操作</th></tr>`;
@@ -6200,31 +6209,7 @@ window.setSaleStatus=(id,val)=>{ syncSaleStatus(id,val);
 window.delSaleRow=(id)=>{ const _s=loadSales().find(x=>String(x.order)===String(id));
   if(!askDel("売上行", "注文番号 "+id+(_s?("　/　"+String(_s.date||"").slice(0,10)+"　/　"+(_s.title?String(_s.title).slice(0,30):"（商品名なし）")):""), UNDO_ORDER)) return; removeSale(id); render(); };
 
-/* 売上CSV出力（表示中のタブに応じて） */
-function dl(name,csv){ const blob=new Blob(["﻿"+csv],{type:"text/csv;charset=utf-8"}); const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download=name; a.click(); }
-document.getElementById("btn-sexport").onclick=()=>{
-  const rate=getRate(), l=loadSales();
-  if(salesTab==="year"){
-    const H=["月","仕入れ額","利益額","還付金込み利益","売上（ウォン）","売上高（円）","発送件数","キャンセル件数","返品件数","注文件数"]; const lines=[];
-    for(let m=1;m<=12;m++){ const mkk=svYear+"-"+String(m).padStart(2,"0"); const g=l.filter(s=>monthKey(s.date)===mkk);
-      let rev=0,cost=0,prof=0,won=0; g.forEach(s=>{const c=calcSale(s,rate);rev+=c.saleTotal;cost+=c.costTotal;prof+=c.profit;won+=c.won;});
-      lines.push([m+"月",Math.round(cost),Math.round(prof),Math.round(prof+cost*REFUND_RATE),Math.round(won),Math.round(rev),g.filter(s=>s.status==="発送済み").length,g.filter(s=>s.status==="キャンセル"||s.status==="キャンセル返品").length,g.filter(s=>s.status==="返品").length,g.length].join(",")); }
-    dl("売上管理_クーパン_"+svYear+"年.csv", H.join(",")+"\n"+lines.join("\n")); return;
-  }
-  if(salesTab==="rank"){
-    const src=l.filter(s=>monthKey(s.date)===svMonth && !isZeroSale(s.status)); const g={};
-    src.forEach(s=>{ const key=(s.asin||"").trim(); if(!key) return; /* ASINが無い注文はランキングから除外 */ if(!g[key]) g[key]={asin:key,title:s.title||"",qty:0,orders:0,rev:0};
-      g[key].qty+=num(s.qty)||1; g[key].orders++; g[key].rev+=calcSale(s,rate).saleTotal; if(!g[key].title&&s.title) g[key].title=s.title; });
-    const arr=Object.values(g).filter(x=>x.qty>=2).sort((a,b)=>b.qty-a.qty||b.rev-a.rev);
-    const H=["順位","ASIN","商品名","販売個数","注文件数","売上高"];
-    const lines=arr.map((x,i)=>[i+1,x.asin,x.title,x.qty,x.orders,Math.round(x.rev)].map(v=>{const t=String(v??"");return /[",\n]/.test(t)?'"'+t.replace(/"/g,'""')+'"':t;}).join(","));
-    dl("売上ランキング_クーパン_"+svMonth+".csv", H.join(",")+"\n"+lines.join("\n")); return;
-  }
-  const rows=l.filter(s=>monthKey(s.date)===svMonth).sort((a,b)=>{const x=parseDate(a.date),y=parseDate(b.date);return (y?y.getTime():0)-(x?x.getTime():0);});
-  const H=["ステータス","ASIN","国内注文番号","国内追跡番号","韓国注文番号","商品タイトル","販売日","発送期日","国際追跡番号","仕入れ値","仕入れ数量","仕入れ額","売値(ウォン)","売上数","売値合計","発送料金","経費","手数料","発送料+手数料","純利益","備考"];
-  const body=rows.map(s=>{const c=calcSale(s,rate);return [s.status,s.asin,jpOrdOf(s),jpTrackOf(s),s.order,s.title,s.date,s.deadline,s.track,c.cost,c.qty,c.costTotal,c.won,c.cancel?0:c.qty,c.saleTotal,c.ship,c.exp,c.fee,c.shipFee,c.profit,s.note||""].map(v=>{const t=String(v??"");return /[",\n]/.test(t)?'"'+t.replace(/"/g,'""')+'"':t;}).join(",");}).join("\n");
-  dl("売上管理_クーパン_"+svMonth+".csv", H.join(",")+"\n"+body);
-};
+/* 売上のCSV出力は2026-09-17に削除（ずくの指示。顧客管理のCSV出力と一緒に廃止） */
 
 /* ===== リサーチ（商品リサーチ・クーパン） ===== */
 const RESEARCH_KEY="kr_research_coupang_v1";
@@ -6919,9 +6904,10 @@ async function hxWaybillFile(inp){
     (miss.length?`\n台帳に見つからなかった注文：${miss.length}件\n（${miss.slice(0,5).join("、")}${miss.length>5?" ほか":""}）`:""));
 }
 document.getElementById("btn-hxwbl").onclick=()=>hxWaybillPick();
-/* 検索窓の✕：文字を消して一覧を戻す */
-(function(){ const b=document.getElementById("search-clear"), i=document.getElementById("search");
-  if(b&&i) b.onclick=()=>{ i.value=""; render(); i.focus(); }; })();
+/* 検索窓の✕：文字を消して一覧を戻す（顧客管理・売上管理） */
+(function(){ [["search-clear","search"],["sv-search-clear","sv-search"]].forEach(([bid,iid])=>{
+  const b=document.getElementById(bid), i=document.getElementById(iid);
+  if(b&&i) b.onclick=()=>{ i.value=""; render(); i.focus(); }; }); })();
 
 /* 「項目の日本語解説」モーダルと「CSV出力」は2026-09-17に削除（ずくの指示。代わりに🚚HANIRO送り状） */
 
