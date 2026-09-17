@@ -5409,7 +5409,9 @@ window.attrSet=(id,f,v)=>{ const l=loadAttr(); const r=l.find(x=>x.id===id); if(
 window.attrEdit=(id)=>{ editingAttr.add(id); renderList(); };
 window.attrEditDone=(id)=>{ editingAttr.delete(id); renderList(); };
 window.attrDel=(id)=>{ if(!askDel("項目", delLabel(loadAttr().find(x=>x.id===id),["kr","bid","jp","val"]), UNDO_NG)) return; saveAttr(loadAttr().filter(x=>x.id!==id)); addTomb(attrStore,id); editingAttr.delete(id); renderList(); };
-window.attrAdd=()=>{ const l=loadAttr(); const nid=uid(); l.push({id:nid,kr:"",jp:"",val:""}); saveAttr(l); editingAttr.add(nid); renderList();
+window.attrAdd=()=>{ const l=loadAttr(); const nid=uid(); l.push({id:nid,kr:"",jp:"",val:""}); saveAttr(l); editingAttr.add(nid);
+  attrQuery=""; attrPage=Math.floor(Math.max(0,l.length-1)/ATTR_PAGE);   /* 追加した行が見えるページへ */
+  renderList();
   const el=document.querySelector(`#attrtbl tr[data-id="${nid}"] input.attr-in`); if(el) el.focus(); };
 /* 表の絞り込み。3つの欄（韓国語／日本語・ID／記入欄）のどれかに当たれば残す */
 window.tblFilter=(id,v)=>{
@@ -5425,9 +5427,29 @@ window.tblFilter=(id,v)=>{
   const c=document.getElementById("tbl-count");
   if(c) c.textContent = q ? (total+"件中 "+shown+"件") : (total+(id==="brandtbl"?"件":"項目"));
 };
+/* Attributes表の軽量化（2026-09-17）：2,000行を一度に描くと重いので300件ずつの左右ページ送り。
+   検索はDOMで隠す方式（tblFilter）をやめ、全データに掛けてから描画する＝どのページの行も必ず引っかかる */
+const ATTR_PAGE=300; let attrPage=0, attrQuery="", _attrPgKey="", _attrQT=null, _attrFocus=false;
+window.attrSearch=(v)=>{ attrQuery=String(v||""); attrPage=0;
+  clearTimeout(_attrQT); _attrQT=setTimeout(()=>{ _attrFocus=true; renderList(); },160); };
+window.attrPageGo=(d)=>{ attrPage=Math.max(0,attrPage+d); renderList();
+  const el=document.querySelector("#attr-host .tablewrap"); if(el&&el.scrollIntoView) el.scrollIntoView({block:"start"}); };
+function attrPagerHtml(total,pages){ if(total<=ATTR_PAGE) return "";
+  const a=attrPage*ATTR_PAGE+1, b=Math.min(total,(attrPage+1)*ATTR_PAGE);
+  return `<span style="display:inline-flex;gap:8px;align-items:center;margin-left:14px">`+
+    `<button class="btn-ghost btn-sm" onclick="attrPageGo(-1)" ${attrPage<=0?"disabled":""}>◀ 前の${ATTR_PAGE}件</button>`+
+    `<span style="font-weight:700">${attrPage+1} / ${pages}</span>`+
+    `<button class="btn-ghost btn-sm" onclick="attrPageGo(1)" ${attrPage>=pages-1?"disabled":""}>次の${ATTR_PAGE}件 ▶</button>`+
+    `<span>${a.toLocaleString("ja-JP")}〜${b.toLocaleString("ja-JP")}件目</span></span>`; }
 function renderAttr(body){
-  const rows=loadAttr();
-  const head=`<div class="toolbar"><input class="attr-q" placeholder="🔍 韓国語・日本語・記入欄のどれでも検索" oninput="tblFilter('attrtbl',this.value)"><div class="grow"></div><button class="btn-ghost btn-sm" onclick="attrImport()">📥 Excel/CSV取込</button><button class="btn-ghost btn-sm" onclick="attrAdd()">＋ 項目を追加</button></div>
+  if(_attrPgKey!==attrStore){ _attrPgKey=attrStore; attrPage=0; attrQuery=""; }   /* タブが変わったら1ページ目・検索なしから */
+  const all=loadAttr();
+  const q=attrQuery.trim().toLowerCase();
+  const hits=q? all.filter(r=>[r.kr,r.jp,r.val].map(x=>String(x==null?"":x)).join(" ").toLowerCase().indexOf(q)>=0): all;
+  const pages=Math.max(1,Math.ceil(hits.length/ATTR_PAGE));
+  if(attrPage>pages-1) attrPage=pages-1;
+  const rows=hits.slice(attrPage*ATTR_PAGE,(attrPage+1)*ATTR_PAGE);
+  const head=`<div class="toolbar"><input class="attr-q" value="${esc(attrQuery)}" placeholder="🔍 韓国語・日本語・記入欄のどれでも検索" oninput="attrSearch(this.value)"><div class="grow"></div><button class="btn-ghost btn-sm" onclick="attrImport()">📥 Excel/CSV取込</button><button class="btn-ghost btn-sm" onclick="attrAdd()">＋ 項目を追加</button></div>
     <div class="lst-hint" style="display:block;margin:0 0 10px">各欄はそのまま直接編集できます（<b>📋</b> でコピー）。「Excel/CSV取込」で記入欄を一括更新できます（列：ハングル/日本語/記入欄）。</div>`;
   const th=`<thead><tr><th>韓国語</th><th>日本語</th><th>記入欄</th><th>操作</th></tr></thead>`;
   const tb=rows.map(r=>{ const id=esc(r.id);
@@ -5439,7 +5461,10 @@ function renderAttr(body){
     `</tr>`;
   }).join("");
   const boxTitle=(attrStore===ATTR_KEY)?"Attributes":"カテゴリー";
-  body.innerHTML=head+`<div class="attrbox"><div class="attr-title">${esc(boxTitle)}</div><div class="tablewrap"><table id="attrtbl">${th}<tbody>${tb}</tbody></table></div></div><div class="count" id="tbl-count">${rows.length}項目</div>`;
+  const counter=q? `${all.length.toLocaleString("ja-JP")}件中 ${hits.length.toLocaleString("ja-JP")}件` : `${all.length.toLocaleString("ja-JP")}項目`;
+  body.innerHTML=head+`<div class="attrbox"><div class="attr-title">${esc(boxTitle)}</div><div class="tablewrap"><table id="attrtbl">${th}<tbody>${tb}</tbody></table></div></div><div class="count" id="tbl-count">${counter}${attrPagerHtml(hits.length,pages)}</div>`;
+  if(_attrFocus){ _attrFocus=false; const s=body.querySelector(".attr-q");
+    if(s){ s.focus(); const n=s.value.length; try{ s.setSelectionRange(n,n); }catch(e){} } }   /* 検索の打ち込み中に描き直してもカーソルを失わない */
 }
 
 /* ===== 出品：カテゴリーDB（クーパン全カテゴリー検索＋必須属性の記入例） ===== */
