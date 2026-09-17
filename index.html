@@ -670,6 +670,20 @@ window.CAT_ATTR_JA={"색상": "色", "수량": "数量", "패션의류/잡화 �
     .inq-side{ position:static; }
     .inq-text{ min-height:260px; }
   }
+  /* ===== 管理表マニュアル：トラブルシューティング（2026-09-17） ===== */
+  #ts-tabs{ margin-bottom:14px; }
+  .ts-cat{ background:var(--surface); border:1px solid var(--line); border-radius:12px; margin-bottom:16px; overflow:hidden; }
+  .ts-cat-head{ padding:12px 16px; font-weight:800; font-size:14px; background:var(--line-2); border-bottom:1px solid var(--line); }
+  .ts-row{ display:flex; align-items:center; gap:10px; padding:10px 16px; border-bottom:1px solid var(--line); }
+  .ts-row:last-child{ border-bottom:none; }
+  .ts-title{ flex:1 1 auto; font-weight:700; font-size:13.5px; min-width:0; }
+  .ts-video{ font-weight:700; white-space:nowrap; }
+  .ts-empty{ padding:36px 20px; text-align:center; color:var(--muted); font-size:13.5px; background:var(--surface); border:1px dashed var(--line); border-radius:12px; }
+  .ts-art{ padding:18px 24px 26px; font-size:13.5px; line-height:1.9; white-space:pre-wrap; word-break:break-word; }
+  @media (max-width:768px){
+    .ts-row{ flex-wrap:wrap; }
+    .ts-title{ flex:1 1 100%; }
+  }
 </style>
 </head>
 <body>
@@ -760,6 +774,7 @@ window.CAT_ATTR_JA={"색상": "色", "수량": "数量", "패션의류/잡화 �
         <a data-sec="tblman" data-p="smart"><span class="dot"></span>スマートストア</a>
         <a data-sec="tblman" data-p="st11"><span class="dot"></span>11番街</a>
         <a id="nav-tblman-hassou"><span class="dot"></span>発送管理</a>
+        <a id="nav-tblman-ts"><span class="dot"></span>トラブルシューティング</a>
       </div>
     </div>
     <div class="navgroup" data-g="banned">
@@ -1184,6 +1199,12 @@ window.CAT_ATTR_JA={"색상": "色", "수량": "数量", "패션의류/잡화 �
   <div class="modal" style="width:1180px">
     <h3>📤 HANIRO申請Excel（一括アップロード用） <span class="x" id="hxX">✕</span></h3>
     <div id="hxBody" style="padding:14px 18px 18px"></div>
+  </div>
+</div>
+<div class="overlay" id="tsOverlay">
+  <div class="modal" style="width:720px">
+    <h3><span id="tsArtTitle">トラブルシューティング</span> <span class="x" id="tsX">✕</span></h3>
+    <div class="ts-art" id="tsArtBody"></div>
   </div>
 </div>
 <div class="overlay" id="overlay">
@@ -1803,7 +1824,7 @@ function todayStr(){ const d=new Date(); return d.getFullYear()+"-"+String(d.get
 /* ===== router ===== */
 /* ===== パスワードロック（モール別・対象5画面のみ／端末ごとに約6か月間は再入力不要・クラウド非同期） ===== */
 const PW_MS=183*24*60*60*1000;                                   /* 約6か月 */
-let tblmanKey=null;   /* 管理表マニュアルで「発送管理」を開いている時だけ "hassou"。モール別の3つは null */
+let tblmanKey=null;   /* 管理表マニュアルの共通ページ："hassou"=発送管理 / "ts"=トラブルシューティング。モール別の3つは null */
 const PW_PROTECTED=new Set(["cust","sales","research","list","tblman","stock"]);
 const PW_PINS={coupang:"9980", smart:"3810", st11:"1183", hassou:"8130"};   /* モールごとの暗証番号＋発送管理マニュアル */
 const PW_NAMES={cust:"顧客管理",sales:"売上管理",research:"リサーチ",list:"出品",tblman:"管理表マニュアル",stock:"在庫管理"};
@@ -1848,7 +1869,7 @@ function render(){
   if(_locked){
     ["view-home","view-cust","view-sales","view-research","view-list","view-banned","view-banlist","view-shortcut","view-blog","view-manual","view-tblman","view-cs","view-faq","view-shipfee","view-stock","view-profit","view-nippo","view-inq"].forEach(id=>{ const el=document.getElementById(id); if(el) el.style.display="none"; });
     const lm=document.getElementById("lockMsg"); if(lm) lm.textContent= (pwScope()==="hassou")
-      ? "「管理表マニュアル 発送管理」を開くには暗証番号を入力してください"
+      ? "「管理表マニュアル "+(tblmanKey==="ts"?"トラブルシューティング":"発送管理")+"」を開くには暗証番号を入力してください"
       : "「"+(PW_PLATNAMES[current]||"")+" "+(PW_NAMES[section]||"")+"」を開くには暗証番号を入力してください";
     const li=document.getElementById("lockInput"); if(li) setTimeout(()=>{ try{ li.focus(); }catch(e){} },40);
     return;
@@ -1880,13 +1901,79 @@ function render(){
 /* ===== 管理表マニュアル（ブログマニュアルと同じフォーマット・モール別） ===== */
 const TBLMAN_SEED=[{title:"",url:""},{title:"",url:""},{title:"",url:""},{title:"",url:""}];
 function renderTblMan(){
-  const p=current, hassou=(tblmanKey==="hassou");   /* 発送管理はモール別ではない4つ目 */
+  const p=current, hassou=(tblmanKey==="hassou");   /* 発送管理・トラブルシューティングはモール別ではない共通ページ */
+  if(tblmanKey==="ts"){
+    document.getElementById("tblman-head").innerHTML=`管理表マニュアル：トラブルシューティング <small>困った時の対処。モール別タブ（開くと必ずクーパンから）</small>`;
+    renderTsMan(); return;
+  }
   document.getElementById("tblman-head").innerHTML= hassou
     ? `管理表マニュアル：発送管理 <small>モール共通。発送まわりの動画をここにまとめます</small>`
     : `管理表マニュアル：${PNAME[p]||p} <small>管理表マニュアルを準備します</small>`;
   document.getElementById("tblman-body").innerHTML=`<div class="man-note">タイトルを入れ、動画URL（Loom等）を貼るとその場で再生できます。「＋ 項目を追加」で箱を増やせます。</div><div id="tblman-list"></div>`;
   renderManInto("tblman-list", hassou?"kr_tblman_hassou":("kr_tblman_"+p), TBLMAN_SEED, true);   /* 管理表マニュアルは並べ替えできる */
 }
+/* ===== 管理表マニュアル：トラブルシューティング（2026-09-17） =====
+   ・タブ＝クーパン／スマートストア／11番街。開くたびクーパンに戻す（メインのため）
+   ・記事（本文）はずくがチャットで送った文章をClaudeがまとめ、TS_DATAに書き込んで公開する
+   ・「内容」＝記事モーダル。本文がまだ無い見出しはボタンを押せない
+   ・動画は「＋動画」からURLを貼ると「▶ 動画」というリンク文字になる（URLはそのまま見せない）
+     貼ったURLは kr_tblman_ts_video_v1 に保存＝kr_tblman_ 接頭辞なのでクラウド同期に自動で乗る */
+const TS_TABS=[["coupang","クーパン"],["smart","スマートストア"],["st11","11番街"]];
+let tsTab="coupang";
+const TS_DATA={
+  coupang:[
+    {cat:"キャンセル", items:[
+      {id:"cp-cancel-1", t:"1. 仕入れ前のキャンセル", body:"", video:""}
+    ]}
+  ],
+  smart:[],
+  st11:[]
+};
+const TS_VKEY="kr_tblman_ts_video_v1";
+function tsVideos(){ try{ return JSON.parse(localStorage.getItem(TS_VKEY)||"{}")||{}; }catch(e){ return {}; } }
+function tsItem(id){ let hit=null; Object.keys(TS_DATA).forEach(p=>TS_DATA[p].forEach(c=>c.items.forEach(it=>{ if(it.id===id) hit=it; }))); return hit; }
+function tsVideoOf(it){ const m=tsVideos(); return Object.prototype.hasOwnProperty.call(m,it.id)? (m[it.id]||"") : (it.video||""); }
+window.tsTabGo=(k)=>{ tsTab=k; render(); };
+window.tsSetVideo=(id)=>{ const it=tsItem(id); if(!it) return;
+  const cur=tsVideoOf(it);
+  const v=prompt("動画のURLを貼り付けてください（空にするとリンクを消します）", cur);
+  if(v===null) return;
+  const u=v.trim();
+  if(u && !/^https?:\/\//.test(u)){ alert("URLは https:// から始まる形で貼ってください"); return; }
+  const m=tsVideos(); m[id]=u; localStorage.setItem(TS_VKEY, JSON.stringify(m));   /* setItemのラッパがクラウドへ送る */
+  render();
+};
+window.tsOpen=(id)=>{ const it=tsItem(id); if(!it||!it.body) return;
+  document.getElementById("tsArtTitle").textContent=it.t;
+  document.getElementById("tsArtBody").textContent=it.body;
+  document.getElementById("tsOverlay").classList.add("show");
+};
+function renderTsMan(){
+  const cats=TS_DATA[tsTab]||[];
+  const tabs=`<div class="seg" id="ts-tabs">`+TS_TABS.map(([k,n])=>`<button class="segbtn ${k===tsTab?"active":""}" onclick="tsTabGo('${k}')">${n}</button>`).join("")+`</div>`;
+  const note=`<div class="man-note">記事は、ずくがチャットで送った文章をまとめて載せていきます。「＋動画」にURLを貼ると「▶ 動画」のリンクになります。</div>`;
+  let body;
+  if(!cats.length){
+    body=`<div class="ts-empty">${esc(TS_TABS.find(x=>x[0]===tsTab)[1])}の項目はまだありません。<br>困りごとが出たら、チャットで文章を送ってもらえればここに記事を足します。</div>`;
+  } else {
+    body=cats.map(c=>`<div class="ts-cat"><div class="ts-cat-head">${esc(c.cat)}</div>`+
+      c.items.map(it=>{
+        const v=tsVideoOf(it);
+        const btn= it.body
+          ? `<button class="btn-ghost btn-sm" onclick="tsOpen('${it.id}')">内容</button>`
+          : `<button class="btn-ghost btn-sm" disabled title="記事はまだ入っていません（チャットで文章を送ってもらえれば載せます）" style="opacity:.45">内容</button>`;
+        const vd= v
+          ? `<a class="ts-video" href="${esc(v)}" target="_blank" rel="noopener" title="${esc(v)}">▶ 動画</a><span class="edit-mark" onclick="tsSetVideo('${it.id}')" title="動画URLを変更">✎</span>`
+          : `<button class="btn-ghost btn-sm" onclick="tsSetVideo('${it.id}')" title="動画URLを貼ると「▶ 動画」のリンクになります">＋動画</button>`;
+        return `<div class="ts-row"><div class="ts-title">${esc(it.t)}</div>${btn}${vd}</div>`;
+      }).join("")+`</div>`).join("");
+  }
+  document.getElementById("tblman-body").innerHTML=tabs+note+body;
+}
+(function(){ const o=document.getElementById("tsOverlay"), x=document.getElementById("tsX");
+  if(x) x.addEventListener("click",()=>o.classList.remove("show"));
+  if(o) o.addEventListener("click",ev=>{ if(ev.target===o) o.classList.remove("show"); });
+})();
 /* ===== 在庫管理（出品ツールの「修正必要商品リスト表」を取り込み、やることだけを抽出する） =====
    ・対象はスマートストアと11番街の2つ。Excelはモールが混ざって届くので、マーケット列で確実に振り分ける
      （クーパンの行は取り込まない＝対象外。何件飛ばしたかだけ知らせる）
@@ -5830,6 +5917,17 @@ document.querySelectorAll(".navsub a.soon-item").forEach(a=>a.addEventListener("
     document.querySelectorAll(".navsub a").forEach(x=>x.classList.remove("active"));
     a.classList.add("active");
     document.getElementById("crumb").innerHTML=`HOME / <b>管理表マニュアル</b> / 発送管理`;
+    const sb=document.getElementById("search"); if(sb) sb.value="";
+    render();
+  });
+})();
+/* 管理表マニュアル：トラブルシューティング（発送管理と同じ鍵。開くたびクーパンのタブに戻す） */
+(function(){ const a=document.getElementById("nav-tblman-ts"); if(!a) return;
+  a.addEventListener("click",()=>{
+    section="tblman"; tblmanKey="ts"; tsTab="coupang";
+    document.querySelectorAll(".navsub a").forEach(x=>x.classList.remove("active"));
+    a.classList.add("active");
+    document.getElementById("crumb").innerHTML=`HOME / <b>管理表マニュアル</b> / トラブルシューティング`;
     const sb=document.getElementById("search"); if(sb) sb.value="";
     render();
   });
