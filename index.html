@@ -687,7 +687,9 @@ window.CAT_ATTR_JA={"색상": "色", "수량": "数量", "패션의류/잡화 �
   @media (max-width:768px){ #view-cust .searchwrap{ flex:1 1 100%; } #view-sales .searchwrap{ flex:1; min-width:0; } }
   /* ===== 管理表マニュアル：トラブルシューティング（2026-09-17） ===== */
   #ts-tabs{ margin-bottom:14px; }
-  .ts-cat{ background:var(--surface); border:1px solid var(--line); border-radius:12px; margin-bottom:16px; overflow:hidden; }
+  .ts-grid{ display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:16px; align-items:start; }
+  @media (max-width:768px){ .ts-grid{ grid-template-columns:1fr; } }
+  .ts-cat{ background:var(--surface); border:1px solid var(--line); border-radius:12px; overflow:hidden; }
   .ts-cat-head{ padding:12px 16px; font-weight:800; font-size:14px; background:var(--line-2); border-bottom:1px solid var(--line); }
   .ts-row{ display:flex; align-items:center; gap:10px; padding:10px 16px; border-bottom:1px solid var(--line); }
   .ts-row:last-child{ border-bottom:none; }
@@ -1961,7 +1963,7 @@ function renderTsMan(){
   if(!cats.length){
     body=`<div class="ts-empty">${esc(TS_TABS.find(x=>x[0]===tsTab)[1])}の項目はまだありません。<br>困りごとが出たら、チャットで文章を送ってもらえればここに記事を足します。</div>`;
   } else {
-    body=cats.map(c=>`<div class="ts-cat"><div class="ts-cat-head">${esc(c.cat)}</div>`+
+    body=`<div class="ts-grid">`+cats.map(c=>`<div class="ts-cat"><div class="ts-cat-head">${esc(c.cat)}</div>`+
       c.items.map(it=>{
         const v=tsVideoOf(it);
         const btn= it.body
@@ -1971,7 +1973,7 @@ function renderTsMan(){
           ? `<a class="ts-video" href="${esc(v)}" target="_blank" rel="noopener" title="${esc(v)}">▶ 動画</a><span class="edit-mark" onclick="tsSetVideo('${it.id}')" title="動画URLを変更">✎</span>`
           : `<button class="btn-ghost btn-sm" onclick="tsSetVideo('${it.id}')" title="動画URLを貼ると「▶ 動画」のリンクになります">＋動画</button>`;
         return `<div class="ts-row"><div class="ts-title">${esc(it.t)}</div>${btn}${vd}</div>`;
-      }).join("")+`</div>`).join("");
+      }).join("")+`</div>`).join("")+`</div>`;
   }
   document.getElementById("tblman-body").innerHTML=tabs+note+body;
 }
