@@ -422,7 +422,10 @@ window.CAT_ATTR_JA={"색상": "色", "수량": "数量", "패션의류/잡화 �
  #view-cs #cs-body{ display:grid; grid-template-columns:1fr 1fr; gap:16px; align-items:start; }
  #view-cs .cs-note{ grid-column:1 / -1; margin-bottom:0; }
  #view-cs #cs-body .cs-card{ margin-bottom:0; }
- #view-cs #cs-body .cs-ta{ min-height:240px; }
+ #view-cs #cs-body .cs-ta{ min-height:180px; }
+ #view-cs #cs-body .cs-ta-s{ min-height:130px; }
+ #view-cs .cs-outhead{ display:flex; align-items:center; gap:10px; font-weight:800; font-size:13px; color:var(--txt); margin:12px 0 8px; }
+ #view-cs .cs-outhead .cs-actions{ margin-left:auto; }
  @media (max-width:1100px){ #view-cs #cs-body{ grid-template-columns:1fr; } }
  #view-cs .cs-head{ display:flex; align-items:center; gap:10px; margin-bottom:10px; }
  #view-cs .cs-flag{ font-weight:800; font-size:14px; color:var(--txt); }
@@ -2754,12 +2757,55 @@ async function csTr(text,sl,tl){
   for(const p of parts){ res.push(p.trim()?await csTr1(p,sl,tl):""); }
   return res.join("\n");
 }
-function csSave(){ try{ localStorage.setItem(CS_KEY, JSON.stringify({ja:csEl("cs-ja").value, ko:csEl("cs-ko").value, raw:csRaw, vals:csVals})); }catch(e){} }
 function csEl(id){ return document.getElementById(id); }
+function csV(id){ const e=csEl(id); return e?e.value:""; }
+function csSave(){ try{ localStorage.setItem(CS_KEY, JSON.stringify({ja:csV("cs-ja"), ko:csV("cs-ko"), raw:csRaw, vals:csVals, inko:csV("cs-in-ko"), outja:csV("cs-out-ja")})); }catch(e){} }
 function csPapago(){
-  const ja=csEl("cs-ja").value, ko=csEl("cs-ko").value;
-  csEl("cs-pa-ja").href="https://papago.naver.com/?sk=ja&tk=ko&st="+encodeURIComponent(ja.slice(0,900));
-  csEl("cs-pa-ko").href="https://papago.naver.com/?sk=ko&tk=ja&st="+encodeURIComponent(ko.slice(0,900));
+  const a=csEl("cs-pa-ja"); if(a) a.href="https://papago.naver.com/?sk=ja&tk=ko&st="+encodeURIComponent(csV("cs-ja").slice(0,900));
+  const b=csEl("cs-pa-ko"); if(b) b.href="https://papago.naver.com/?sk=ko&tk=ja&st="+encodeURIComponent(csV("cs-in-ko").slice(0,900));
+}
+/* ===== 自動翻訳（2026-09-18・eBayのチャット風） =====
+   左：日本語を打つと、手を止めて約1秒で下の韓国語に自動反映。
+       ただし韓国語欄にテンプレや手書きの文があるときは勝手に消さず、「置き換える」ボタンを出す。
+   右：韓国語を貼ると自動で日本語に。どちらも打ち直し中の古い結果では上書きしない（seq判定） */
+let _csT1=null,_csSeq1=0,_csLastJa="",_csLastAutoKo="";
+let _csT2=null,_csSeq2=0,_csLastKo="";
+function csAutoJa(){
+  clearTimeout(_csT1);
+  _csT1=setTimeout(async()=>{
+    const src=csV("cs-ja").trim(), m=csEl("cs-msg1");
+    if(!src){ _csLastJa=""; if(m) m.textContent=""; return; }
+    if(src===_csLastJa || src.length<2) return;
+    const cur=csV("cs-ko").trim();
+    if(cur && cur!==_csLastAutoKo.trim()){
+      if(m) m.innerHTML=`下の韓国語に別の文が入っています。<button class="btn-ghost btn-sm" onclick="csForceJa()">→ 翻訳で置き換える</button>`;
+      return;
+    }
+    csForceJa();
+  },900);
+}
+window.csForceJa=async()=>{
+  const src=csV("cs-ja").trim(), m=csEl("cs-msg1"); if(!src) return;
+  const seq=++_csSeq1; if(m) m.textContent="翻訳中…";
+  const r=await csTr(src,"ja","ko");
+  if(seq!==_csSeq1) return;
+  if(!r){ if(m) m.textContent="翻訳できませんでした（Papago↗をどうぞ）"; return; }
+  _csLastJa=src; csSetKo(r); _csLastAutoKo=csV("cs-ko");
+  if(m) m.textContent= csEng==="AI" ? "訳しました（AI・下の文は直せます）" : "訳しました（無料翻訳・共有データ未接続）";
+};
+function csAutoKo(){
+  clearTimeout(_csT2);
+  _csT2=setTimeout(async()=>{
+    const src=csV("cs-in-ko").trim(), m=csEl("cs-msg2");
+    if(!src){ _csLastKo=""; const o=csEl("cs-out-ja"); if(o) o.value=""; if(m) m.textContent=""; csSave(); return; }
+    if(src===_csLastKo || src.length<2) return;
+    const seq=++_csSeq2; if(m) m.textContent="翻訳中…";
+    const r=await csTr(src,"ko","ja");
+    if(seq!==_csSeq2) return;
+    if(!r){ if(m) m.textContent="翻訳できませんでした（Papago↗をどうぞ）"; return; }
+    _csLastKo=src; const o=csEl("cs-out-ja"); if(o) o.value=r; csSave();
+    if(m) m.textContent= csEng==="AI" ? "日本語にしました（AI）" : "日本語にしました（無料翻訳）";
+  },700);
 }
 /* 注文番号・商品名の欄は、押した時だけ開く。テンプレに { } があれば自動で開く */
 let csPhOpen=false;
@@ -2847,25 +2893,15 @@ function renderCs(){
   const saved=(()=>{ try{ return JSON.parse(localStorage.getItem(CS_KEY)||"{}")||{}; }catch(e){ return {}; } })();
   csRaw=saved.raw||saved.ko||""; csVals=saved.vals||{};
   csEl("cs-body").innerHTML=`
-    <div class="cs-note">左に日本語を書いて「🇰🇷 韓国語に翻訳する」を押すと、右に韓国語が出ます。届いた韓国語は右に貼って「🇯🇵 日本語に翻訳する」。<b>翻訳はAI（Claude）が自然な敬語に訳します</b>（1回1円未満。つながらない時は自動で無料翻訳に切り替え）。<br>注文番号・商品名の欄は「<b>この欄を埋めると、下の韓国語に入ります</b>」を押すと開きます。テンプレを使わないときは「<b>＋ 注文番号・商品名の2行を入れる</b>」を押してください。</div>
+    <div class="cs-note">左＝<b>お客様へ送る</b>：日本語を打つと、手を止めた約1秒後に下へ韓国語が<b>自動で</b>出ます。右＝<b>届いた文を読む</b>：韓国語を貼ると自動で日本語になります。<b>翻訳はAI（Claude）</b>（1回1円未満。つながらない時は無料翻訳に自動切替）。<br>注文番号・商品名の欄は「<b>この欄を埋めると、下の韓国語に入ります</b>」を押すと開きます。テンプレを使わないときは「<b>＋ 注文番号・商品名の2行を入れる</b>」を押してください。</div>
     <div class="panel cs-card">
-      <div class="cs-head"><span class="cs-flag">🇯🇵 日本語</span>
+      <div class="cs-head"><span class="cs-flag">🇯🇵 ➜ 🇰🇷 お客様へ送る</span>
         <span class="cs-actions">
           <a class="cs-ext" id="cs-pa-ja" href="https://papago.naver.com/?sk=ja&tk=ko" target="_blank" title="Papagoで開く">Papago↗</a>
-          <button class="btn-ghost btn-sm" onclick="csCopy('cs-ja',this)">コピー</button>
-          <button class="btn-ghost btn-sm" onclick="csClear('ja')">消す</button>
+          <button class="btn-ghost btn-sm" onclick="csClear('send')">消す</button>
         </span></div>
-      <textarea id="cs-ja" class="cs-ta" placeholder="お客様へ送りたい内容を、日本語で書いてください。&#10;例）ご注文ありがとうございます。本日発送いたしました。"></textarea>
-      <div class="cs-go"><button class="btn-primary" id="cs-to-ko">🇰🇷 韓国語に翻訳する</button>
-        <span class="cs-hint" id="cs-msg1"></span></div>
-    </div>
-    <div class="panel cs-card">
-      <div class="cs-head"><span class="cs-flag">🇰🇷 韓国語（お客様に送る文）</span>
-        <span class="cs-actions">
-          <a class="cs-ext" id="cs-pa-ko" href="https://papago.naver.com/?sk=ko&tk=ja" target="_blank" title="Papagoで開く">Papago↗</a>
-          <button class="btn-ghost btn-sm" onclick="csCopy('cs-ko',this)">コピー</button>
-          <button class="btn-ghost btn-sm" onclick="csClear('ko')">消す</button>
-        </span></div>
+      <textarea id="cs-ja" class="cs-ta cs-ta-s" placeholder="日本語で打つと、下に韓国語が自動で出ます。&#10;例）ご注文ありがとうございます。本日発送いたしました。"></textarea>
+      <div class="cs-hint" id="cs-msg1" style="margin:7px 0 10px;min-height:18px"></div>
       <button class="cs-tog" data-t="all"><span class="cs-arw">▸</span>定型文<small>押すと開きます。選ぶとそのまま下に入ります（<b>{ }</b> はあとから埋められます）</small></button>
       <div class="cs-tplwrap" data-w="all" style="display:none">
       ${["よく使う","おすすめ"].map(g=>`<button class="cs-tog cs-tog2" data-t="${esc(g)}"><span class="cs-arw">▸</span>${esc(g)}</button>`+
@@ -2873,14 +2909,32 @@ function renderCs(){
         CS_TPL.map((t,i)=>t.g===g?`<button class="cs-chip" data-i="${i}">${esc(t.n)}</button>`:"").join("")+`</div>`).join("")}
       </div>
       <div id="cs-ph" class="cs-phbox"></div>
-      <textarea id="cs-ko" class="cs-ta" placeholder="韓国語の文がここに出ます。&#10;お客様から届いた韓国語を貼り付けて「翻訳する」を押すと、上に日本語が出ます。"></textarea>
-      <div class="cs-go"><button class="btn-primary" id="cs-to-ja">🇯🇵 日本語に翻訳する</button>
-        <span class="cs-hint" id="cs-msg2"></span></div>
+      <div class="cs-outhead">🇰🇷 韓国語（この文をお客様に送る）
+        <span class="cs-actions"><button class="btn-ghost btn-sm" onclick="csCopy('cs-ko',this)">コピー</button></span></div>
+      <textarea id="cs-ko" class="cs-ta" placeholder="ここに韓国語が自動で出ます。手で直してもOK。定型文もここに入ります。"></textarea>
+    </div>
+    <div class="panel cs-card">
+      <div class="cs-head"><span class="cs-flag">🇰🇷 ➜ 🇯🇵 届いた文を読む</span>
+        <span class="cs-actions">
+          <a class="cs-ext" id="cs-pa-ko" href="https://papago.naver.com/?sk=ko&tk=ja" target="_blank" title="Papagoで開く">Papago↗</a>
+          <button class="btn-ghost btn-sm" onclick="csClear('read')">消す</button>
+        </span></div>
+      <textarea id="cs-in-ko" class="cs-ta cs-ta-s" placeholder="お客様から届いた韓国語を、ここに貼り付けてください。&#10;自動で下に日本語が出ます。"></textarea>
+      <div class="cs-hint" id="cs-msg2" style="margin:7px 0 10px;min-height:18px"></div>
+      <div class="cs-outhead">🇯🇵 日本語（意味）
+        <span class="cs-actions"><button class="btn-ghost btn-sm" onclick="csCopy('cs-out-ja',this)">コピー</button></span></div>
+      <textarea id="cs-out-ja" class="cs-ta" placeholder="日本語の意味がここに出ます。"></textarea>
     </div>`;
   csEl("cs-ja").value=saved.ja||"";
+  csEl("cs-in-ko").value=saved.inko||"";
+  csEl("cs-out-ja").value=saved.outja||"";
+  _csLastJa=csEl("cs-ja").value.trim(); _csLastKo=csEl("cs-in-ko").value.trim();   /* 開いた直後に勝手に訳し直さない */
   csApply();
+  _csLastAutoKo=csEl("cs-ko").value;
   csEl("cs-ko").addEventListener("input",()=>{ csRaw=csEl("cs-ko").value; csPhRender(); csPapago(); csSave(); });
-  csEl("cs-ja").addEventListener("input",()=>{ csPapago(); csSave(); });
+  csEl("cs-ja").addEventListener("input",()=>{ csPapago(); csSave(); csAutoJa(); });
+  csEl("cs-in-ko").addEventListener("input",()=>{ csPapago(); csSave(); csAutoKo(); });
+  csEl("cs-out-ja").addEventListener("input",csSave);
   csEl("cs-body").querySelectorAll(".cs-tog").forEach(b=>b.addEventListener("click",()=>{
     const w=csEl("cs-body").querySelector('[data-w="'+b.dataset.t+'"]'); if(!w) return;
     const open=(w.style.display==="none");
@@ -2892,27 +2946,15 @@ function renderCs(){
     if(csEl("cs-ko").value.trim() && !confirm("下の韓国語を、この定型文で置きかえますか？")) return;
     csSetKo(t.t);
   }));
-  csEl("cs-to-ko").onclick=async()=>{
-    const b=csEl("cs-to-ko"), m=csEl("cs-msg1"), src=csEl("cs-ja").value.trim();
-    if(!src){ m.textContent="上の欄に日本語を入れてください"; return; }
-    b.disabled=true; m.textContent="翻訳中…";
-    const r=await csTr(src,"ja","ko"); b.disabled=false;
-    if(!r){ m.textContent="翻訳できませんでした。Papago↗ を使ってください"; return; }
-    m.textContent= csEng==="AI" ? "AIが訳しました（文は直せます）" : "無料翻訳で訳しました（共有データ未接続のためAIは使えません）"; csSetKo(r);
-  };
-  csEl("cs-to-ja").onclick=async()=>{
-    const b=csEl("cs-to-ja"), m=csEl("cs-msg2"), src=csEl("cs-ko").value.trim();
-    if(!src){ m.textContent="下の欄に韓国語を入れてください"; return; }
-    b.disabled=true; m.textContent="翻訳中…";
-    const r=await csTr(src,"ko","ja"); b.disabled=false;
-    if(!r){ m.textContent="翻訳できませんでした。Papago↗ を使ってください"; return; }
-    m.textContent= csEng==="AI" ? "日本語にしました（AI翻訳）" : "日本語にしました（無料翻訳）"; csEl("cs-ja").value=r; csPapago(); csSave();
-  };
   csBuilt=true;
 }
 window.csCopy=(id,btn)=>{ const t=csEl(id).value; if(!t.trim()) return;
   navigator.clipboard.writeText(t).then(()=>{ const o=btn.textContent; btn.textContent="コピーしました"; setTimeout(()=>btn.textContent=o,1200); }).catch(()=>{}); };
-window.csClear=(w)=>{ if(w==="ja"){ csEl("cs-ja").value=""; } else { csSetKo(""); } csPapago(); csSave(); };
+window.csClear=(w)=>{
+  if(w==="send"||w==="ja"){ csEl("cs-ja").value=""; _csLastJa=""; csSetKo(""); _csLastAutoKo=""; const m=csEl("cs-msg1"); if(m) m.textContent=""; }
+  else if(w==="read"){ csEl("cs-in-ko").value=""; csEl("cs-out-ja").value=""; _csLastKo=""; const m=csEl("cs-msg2"); if(m) m.textContent=""; }
+  else { csSetKo(""); _csLastAutoKo=""; }
+  csPapago(); csSave(); };
 /* テンプレを使わない時に、注文番号・商品名の2行だけを先頭に入れる */
 window.csAddIds=()=>{
   const m=csEl("cs-msg2");
