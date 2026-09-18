@@ -2604,11 +2604,13 @@ function renderStock(){
     bd.innerHTML=chipsBar+`<div class="panel">${toolbar}<div class="empty"><b>データがありません</b>右上の「📥 修正必要リストを取り込む」から、ツールでダウンロードしたExcelを選んでください。何日分かをまとめて選べます。<br>マーケット列を見て、スマートストアと11番街へ自動で振り分けます（クーパンの行は取り込みません）。</div></div>`;
     return;
   }
+  /* 上のカードも押せる＝下のボタン（タブ）と同じ絞り込み（2026-09-18）。絞り込み中は枠で示す */
+  const card=(id,label,extra)=>`<div class="card cardbtn${extra||""}${stockTab===id?" filt-on":""}" onclick="setStockTab('${id}')" title="押すと「${label}」に絞ります"><div class="label">${label}</div><div class="num">${of(id).length}<small> 件</small></div></div>`;
   const cards=`<div class="stats s4">`+
-    `<div class="card"><div class="label">全体</div><div class="num">${of("all").length}<small> 件</small></div></div>`+
-    `<div class="card${of("stop").length?" alert":""}"><div class="label">出品停止が必要</div><div class="num">${of("stop").length}<small> 件</small></div></div>`+
-    `<div class="card"><div class="label">値段調整（適正価格へ）</div><div class="num">${of("price").length}<small> 件</small></div></div>`+
-    `<div class="card"><div class="label">在庫復活</div><div class="num">${of("revive").length}<small> 件</small></div></div>`+
+    card("all","全体")+
+    card("stop","出品停止が必要", of("stop").length?" alert":"")+
+    card("price","値段調整（適正価格へ）")+
+    card("revive","在庫復活")+
   `</div>`;
   const chips=chipsBar;
   const CATLB={stop:"出品停止",price:"値段調整",revive:"在庫復活"};
