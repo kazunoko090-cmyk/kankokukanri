@@ -2938,6 +2938,13 @@ function renderCs(){
   csEl("cs-body").querySelectorAll(".cs-tog").forEach(b=>b.addEventListener("click",()=>{
     const w=csEl("cs-body").querySelector('[data-w="'+b.dataset.t+'"]'); if(!w) return;
     const open=(w.style.display==="none");
+    /* 分類（配送関連・商品など）は1つだけ開く：別の分類を開いたら、開いていたものは自動で閉じる（2026-09-18） */
+    if(open && b.classList.contains("cs-tog2")){
+      csEl("cs-body").querySelectorAll(".cs-tog2").forEach(o=>{ if(o===b) return;
+        const ow=csEl("cs-body").querySelector('[data-w="'+o.dataset.t+'"]');
+        if(ow) ow.style.display="none";
+        const a=o.querySelector(".cs-arw"); if(a) a.textContent="▸"; });
+    }
     w.style.display=open?"":"none";
     b.querySelector(".cs-arw").textContent=open?"▾":"▸";
   }));
