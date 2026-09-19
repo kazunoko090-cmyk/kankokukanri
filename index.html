@@ -273,7 +273,11 @@ window.CAT_ATTR_JA={"색상": "色", "수량": "数量", "패션의류/잡화 �
   #view-research .rvname-t{ display:inline-block; max-width:190px; font-size:13px; font-weight:700; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; vertical-align:middle; line-height:32px; }
   .rvurl:focus{ outline:none; border-color:var(--accent); box-shadow:0 0 0 3px var(--ring); }
   .rvmemo{ width:180px; height:32px; border:1px solid var(--line); border-radius:7px; padding:0 8px; font-size:12px; font-family:inherit; }
-  .rvauto{ display:inline-block; font-size:12.5px; font-weight:700; color:#1e2a4a; line-height:32px; padding:0 4px; max-width:170px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; vertical-align:middle; }
+  .rvauto{ display:inline-block; font-size:12.5px; font-weight:700; color:#1e2a4a; line-height:32px; padding:0 2px; max-width:120px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; vertical-align:middle; }
+  #view-research td.rvtight{ white-space:nowrap; width:1%; padding-left:8px; padding-right:8px; }   /* カテゴリー・韓国語ブランド・ブランドIDは中身ぶんだけ（2026-09-19） */
+  #view-research td.rvtight .cbtn{ margin-left:3px; }
+  .rvcat{ width:82px; }     /* 5桁の番号 */
+  .rvbr{ width:104px; }
   .rvmemo:focus{ outline:none; border-color:var(--accent); box-shadow:0 0 0 3px var(--ring); }
   .rvsm{ width:90px; height:32px; border:1px solid var(--line); border-radius:7px; padding:0 8px; font-size:12px; font-family:inherit; }
   .rvsm:focus{ outline:none; border-color:var(--accent); box-shadow:0 0 0 3px var(--ring); }
@@ -6782,10 +6786,10 @@ function renderResearch(){
     }
     const rakCell=urlCellFor(r,'rakuten','楽天 URL');
     const bm=rvBrandLookup(bmap,r.name);
-    const catCell=`<td><input class="rvmemo" value="${esc(r.cat||"")}" placeholder="カテゴリー" onchange="rvSet('${id}','cat',this.value)"></td>`;
+    const catCell=`<td class="rvtight"><input class="rvmemo rvcat" value="${esc(r.cat||"")}" placeholder="カテゴリー" inputmode="numeric" onchange="rvSet('${id}','cat',this.value)"></td>`;   /* 5桁の番号＝細く */
     const autoCell=(f,ph,auto)=> auto
-      ? `<td><span class="rvauto" title="出品のブランド表から自動で入っています">${esc(auto)}</span><button class="cbtn" data-copy="${esc(auto)}" onclick="copyBtn(this)" title="コピー">📋</button></td>`
-      : `<td><input class="rvmemo" style="width:130px" value="${esc(r[f]||"")}" placeholder="${ph}" title="出品のブランド表に同じブランド名があれば自動で入ります。無ければここに手入力" onchange="rvSet('${id}','${f}',this.value)"></td>`;
+      ? `<td class="rvtight"><span class="rvauto" title="出品のブランド表から自動で入っています">${esc(auto)}</span><button class="cbtn" data-copy="${esc(auto)}" onclick="copyBtn(this)" title="コピー">📋</button></td>`
+      : `<td class="rvtight"><input class="rvmemo rvbr" value="${esc(r[f]||"")}" placeholder="${ph}" title="出品のブランド表に同じブランド名があれば自動で入ります。無ければここに手入力" onchange="rvSet('${id}','${f}',this.value)"></td>`;
     return `<tr data-id="${id}">${chk}${nameCell}${amzCell}${rakCell}${catCell}${autoCell("krb","韓国語ブランド",bm&&bm.kr)}${autoCell("bid","ブランドID",bm&&bm.bid)}${dateCell}${memoCell}${opCell(id)}</tr>`;
   }).join("") : `<tr><td class="empty" colspan="${colspan}"><b>まだ登録がありません</b>右上の「＋ 行を追加」または「CSV取込」で${seller?'セラー':'ブランド'}を登録してください。</td></tr>`;
   document.getElementById("rv-head").innerHTML=`${esc(rvLabel(cat))} <small>${rows.length}件</small>`;
