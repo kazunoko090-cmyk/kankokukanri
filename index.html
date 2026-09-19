@@ -7008,11 +7008,15 @@ document.getElementById("btn-hxwbl").onclick=()=>hxWaybillPick();
 /* ===== 📦 クーパン送り状（2026-09-17） =====
    WINGの一括発送処理テンプレ formV4（41列・シート名 form）を顧客管理クーパンから作る。
    ・対象＝表でチェック（✓）した行のうち「国際追跡番号あり」×「配送H（HANIRO）」。それ以外は理由を出して弾く
-   ・Courier 1＝하이브시티（ずくはこの1社だけ。WINGのプルダウンの表記に合わせる）、Invoice 1＝国際追跡番号
+   ・Courier 1＝Hive City（ずくはこの1社だけ。テンプレ備考5「Courier field should be in English」＝英語WINGの表記。
+     2026-09-19 実測：「하이브시티」だと WING が「Select a courier」で弾く。公式コード表：HIVECITY＝Hive City、送り状10桁か12桁）
+     表記は画面の欄から変えられる（kr_hx_cp_courier に保存・クラウド同期あり）、Invoice 1＝国際追跡番号
    ・テンプレの決まり：.xlsx／送り状番号は数字のみ／まとめ配送番号ごとに送り状番号必須／見出しはテンプレと同一
    ・まとめ配送番号・注文番号などが数値化で丸まらないよう、全セルを文字列で出す */
 const CP_FORM_HEAD=["Number","Bundle delivery number","Order number","Courier 1","Invoice 1","Courier 2","Invoice 2","Split delivery Y/N","Expected shipment date for split delivery ","Expected shipment date upon order","Shipping date","Order date","Registered product name","Registered option name","Displayed product name (option name)","Displayed product ID","Option ID","Option name initially registered","Vendor product code","Bar code","Paid amount","Shipping fee classification","Shipping fee","Extra shipping fee for remote areas","Purchased qty","Option price (unit sales price)","Buyer","Buyer phone number","Recipient name","Recipient phone number","Zipcode","Recipient address","Delivery message","Additional message per product","Additional message from the buyer","Expected delivery completion date","Purchase confirm date","Personal Customs Clearance Code (PCCC)","Contact information of buyer for customs clearance purpose","Others","Payment location"];
-const CP_COURIER="하이브시티";
+const CP_COURIER_DEFAULT="Hive City", CP_COURIER_KEY="kr_hx_cp_courier";
+function cpCourier(){ const v=String(localStorage.getItem(CP_COURIER_KEY)||"").trim(); return v||CP_COURIER_DEFAULT; }
+window.cpCourierSet=(v)=>{ v=String(v||"").trim(); if(v&&v!==CP_COURIER_DEFAULT) localStorage.setItem(CP_COURIER_KEY,v); else localStorage.removeItem(CP_COURIER_KEY); };
 function cpVal(r,en){ const k=String(en).trim();
   if(r[en]!=null&&r[en]!=="") return r[en];
   if(r[k]!=null&&r[k]!=="") return r[k];
@@ -7061,17 +7065,21 @@ function cpRender(){
       `<label style="display:flex;gap:6px;align-items:center"><input type="checkbox" id="cp-mark" checked> 出した行を「発送済み」にする</label>`+
       `<button class="btn-primary btn-sm" onclick="cpExport()" ${okRows.length?"":"disabled"}>📦 Excelを出す（${okRows.length}件）</button>`+
     `</div>`+
-    `<div style="font-size:11.5px;color:var(--muted);margin-bottom:6px">配送業者は <b>${esc(CP_COURIER)}</b> 固定。WINGの「発送処理 → 一括発送処理（Excelアップロード）」でこのファイル（.xlsx）を選んでください。</div>`+
+    `<div style="font-size:11.5px;color:var(--muted);margin-bottom:6px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">`+
+      `<span>Courier（配送業者）</span><input id="cp-courier" value="${esc(cpCourier())}" style="width:130px;font-size:12px" onchange="cpCourierSet(this.value)" title="WINGの一括発送処理のプルダウンと同じ英語表記（例：Hive City）。弾かれたらここを直す">`+
+      `<span>← WINGの表記と同じ英語で。WINGの「発送処理 → 一括発送処理（Excelアップロード）」でこのファイル（.xlsx）を選んでください。</span></div>`+
     `<div class="tablewrap" style="max-height:52vh"><table><thead><tr><th>判定</th><th>まとめ配送番号</th><th>注文番号</th><th>商品</th><th>国際追跡番号（Invoice 1）</th></tr></thead>`+
     `<tbody>${cpRows.map(tr).join("")}</tbody></table></div>`;
 }
 window.cpExport=()=>{
   const picked=cpRows.filter(x=>!x.ng);
   if(!picked.length){ alert("出せる注文がありません（国際追跡番号あり×配送Hが対象です）。"); return; }
+  const ci=document.getElementById("cp-courier"); if(ci) cpCourierSet(ci.value);
+  const courier=cpCourier();
   const aoa=[CP_FORM_HEAD].concat(picked.map((x,i)=>CP_FORM_HEAD.map(h=>{
     const k=h.trim();
     if(k==="Number") return String(i+1);
-    if(k==="Courier 1") return CP_COURIER;
+    if(k==="Courier 1") return courier;
     if(k==="Invoice 1") return x.track;
     if(k==="Courier 2"||k==="Invoice 2") return "";
     if(k==="Split delivery Y/N"){ const v=String(cpVal(x.r,h)||"").trim(); return v||"N"; }   /* 分割配送はしない */
