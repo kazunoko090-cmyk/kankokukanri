@@ -304,6 +304,10 @@ window.CAT_ATTR_JA={"색상": "色", "수량": "数量", "패션의류/잡화 �
   .attr-jp b{ color:var(--txt); font-weight:700; }
   .attr-v{ font-weight:700; color:var(--accent-d); }
   .attr-in{ height:30px; border:1px solid var(--line); border-radius:6px; padding:0 8px; font-size:13px; font-family:inherit; width:150px; }
+  /* 入力済みの欄は文字だけで見せ、行の「✎」で入力欄に戻す（2026-09-19 ずく指示） */
+  .attr-txt{ display:inline-block; min-width:150px; max-width:260px; font-size:13px; line-height:30px; padding:0 4px; vertical-align:middle; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .attr-txt.empty{ color:var(--muted); }
+  .rowbtn.edit{ color:var(--accent-d); border-color:#cdd6ff; }
   .attr-in:focus{ outline:none; border-color:var(--accent); box-shadow:0 0 0 3px var(--ring); }
   /* 小さめコピーボタン */
   /* 在庫管理：分類バッジと済の行 */
@@ -5526,6 +5530,19 @@ function copyText(t){ t=String(t==null?"":t);
 function flashBtn(btn){ if(!btn) return; const o=btn.textContent; btn.textContent="✓"; setTimeout(()=>{ btn.textContent=o; },900); }
 window.copyBtn=(btn)=>{ copyText(btn&&btn.dataset?btn.dataset.copy:""); flashBtn(btn); };
 window.attrCopy=(id,field,btn)=>{ const r=loadAttr().find(x=>x.id===id); if(!r) return; copyText(r[field]); flashBtn(btn); };
+/* 欄の描き方：編集中（editingAttr）か行が空なら入力欄、それ以外は文字だけ＋📋。Enterで確定して文字に戻る */
+function attrCellHtml(id,f,val,ph,editing,copyTitle){
+  val=String(val==null?"":val);
+  const copy=copyTitle?`<button class="cbtn" onclick="attrCopy('${id}','${f}',this)" title="${copyTitle}">📋</button>`:"";
+  if(editing) return `<input class="attr-in" value="${esc(val)}" placeholder="${ph}" onchange="attrSet('${id}','${f}',this.value)" onkeydown="if(event.key==='Enter'){event.preventDefault();attrSet('${id}','${f}',this.value);attrEditDone('${id}');}">`+copy;
+  return `<span class="attr-txt${val?"":" empty"}" title="${esc(val||ph)}" ondblclick="attrEdit('${id}')">${esc(val)||ph}</span>`+(val?copy:"");
+}
+function attrRowEditing(r,fields){ return editingAttr.has(r.id) || fields.every(f=>!String(r[f]==null?"":r[f]).trim()); }
+function attrOpsHtml(id,editing,delTitle){
+  return editing ? `<button class="rowbtn btn-sm" onclick="attrEditDone('${id}')" title="入力を終える">✓ 完了</button>`
+                 : `<button class="rowbtn edit btn-sm" onclick="attrEdit('${id}')" title="この行を編集">✎</button>`+
+    `<button class="rowbtn del btn-sm" onclick="attrDel('${id}')" title="${delTitle}">削除</button>`;
+}
 window.attrSet=(id,f,v)=>{ const l=loadAttr(); const r=l.find(x=>x.id===id); if(r){ r[f]=v; saveAttr(l); } };
 window.attrEdit=(id)=>{ editingAttr.add(id); renderList(); };
 window.attrEditDone=(id)=>{ editingAttr.delete(id); renderList(); };
@@ -5541,7 +5558,7 @@ window.tblFilter=(id,v)=>{
   let shown=0, total=0;
   tb.querySelectorAll("tbody tr").forEach(tr=>{
     total++;
-    const t=[...tr.querySelectorAll("input")].map(i=>i.value).join(" ").toLowerCase();
+    const t=([...tr.querySelectorAll("input")].map(i=>i.value).join(" ")+" "+[...tr.querySelectorAll(".attr-txt")].map(e=>e.textContent).join(" ")).toLowerCase();
     const hit=(!q || t.indexOf(q)>=0);
     tr.style.display=hit?"":"none"; if(hit) shown++;
   });
@@ -5573,14 +5590,14 @@ function renderAttr(body){
   const rows=hits.slice(attrPage*ATTR_PAGE,(attrPage+1)*ATTR_PAGE);
   const head=`<div class="toolbar"><input class="attr-q" value="${esc(attrQuery)}" placeholder="🔍 韓国語・日本語・記入欄のどれでも検索（Enterで検索）" onkeydown="if(event.key==='Enter'){event.preventDefault();attrSearch(this.value);}" onchange="attrSearch(this.value)" title="文字を入れて Enter で絞り込み。空にして Enter で全件に戻る">`+
     `<button class="btn-ghost btn-sm" onclick="attrSearch('')" title="検索を消して全件に戻す" ${attrQuery?"":"disabled"}>✕</button><div class="grow"></div><button class="btn-ghost btn-sm" onclick="attrImport()">📥 Excel/CSV取込</button><button class="btn-ghost btn-sm" onclick="attrAdd()">＋ 項目を追加</button></div>
-    <div class="lst-hint" style="display:block;margin:0 0 10px">各欄はそのまま直接編集できます（<b>📋</b> でコピー）。「Excel/CSV取込」で記入欄を一括更新できます（列：ハングル/日本語/記入欄）。</div>`;
+    <div class="lst-hint" style="display:block;margin:0 0 10px">行の <b>✎</b> で編集（Enterで確定）、<b>📋</b> でコピー。「Excel/CSV取込」で記入欄を一括更新できます（列：ハングル/日本語/記入欄）。</div>`;
   const th=`<thead><tr><th>韓国語</th><th>日本語</th><th>記入欄</th><th>操作</th></tr></thead>`;
-  const tb=rows.map(r=>{ const id=esc(r.id);
+  const tb=rows.map(r=>{ const id=esc(r.id), ed=attrRowEditing(r,["kr","jp","val"]);
     return `<tr data-id="${id}">`+
-      `<td><input class="attr-in" value="${esc(r.kr)}" placeholder="韓国語" onchange="attrSet('${id}','kr',this.value)"><button class="cbtn" onclick="attrCopy('${id}','kr',this)" title="韓国語をコピー">📋</button></td>`+
-      `<td><input class="attr-in" value="${esc(r.jp)}" placeholder="日本語" onchange="attrSet('${id}','jp',this.value)"></td>`+
-      `<td><input class="attr-in" value="${esc(r.val)}" placeholder="記入欄（未設定）" onchange="attrSet('${id}','val',this.value)"><button class="cbtn" onclick="attrCopy('${id}','val',this)" title="記入欄をコピー">📋</button></td>`+
-      `<td class="rvop"><button class="rowbtn del btn-sm" onclick="attrDel('${id}')" title="この項目を削除">削除</button></td>`+
+      `<td>${attrCellHtml(id,"kr",r.kr,"韓国語",ed,"韓国語をコピー")}</td>`+
+      `<td>${attrCellHtml(id,"jp",r.jp,"日本語",ed,"")}</td>`+
+      `<td>${attrCellHtml(id,"val",r.val,"記入欄（未設定）",ed,"記入欄をコピー")}</td>`+
+      `<td class="rvop">${attrOpsHtml(id,ed,"この項目を削除")}</td>`+
     `</tr>`;
   }).join("");
   const boxTitle=(attrStore===ATTR_KEY)?"Attributes":"カテゴリー";
@@ -5662,14 +5679,14 @@ window.brandAdd=()=>{ const l=loadAttr(); const nid=uid(); l.push({id:nid,kr:"",
 function renderBrand(body){
   const rows=loadAttr();
   const head=`<div class="toolbar"><input class="attr-q" placeholder="🔍 韓国語・ブランドID・日本語のどれでも検索" oninput="tblFilter('brandtbl',this.value)"><div class="grow"></div><button class="btn-ghost btn-sm" onclick="brandImport()">📥 Excel/CSV取込</button><button class="btn-ghost btn-sm" onclick="brandAdd()">＋ ブランドを追加</button></div>
-    <div class="lst-hint" style="display:block;margin:0 0 10px">各欄はそのまま直接編集できます（<b>📋</b> でコピー）。「Excel/CSV取込」で一括追加できます（列：ブランド（韓国語）／ブランドID／ブランド（日本語））。</div>`;
+    <div class="lst-hint" style="display:block;margin:0 0 10px">行の <b>✎</b> で編集（Enterで確定）、<b>📋</b> でコピー。「Excel/CSV取込」で一括追加できます（列：ブランド（韓国語）／ブランドID／ブランド（日本語））。</div>`;
   const th=`<thead><tr><th>ブランド（韓国語）</th><th>ブランドID</th><th>ブランド（日本語）</th><th>操作</th></tr></thead>`;
-  const tb=rows.map(r=>{ const id=esc(r.id);
+  const tb=rows.map(r=>{ const id=esc(r.id), ed=attrRowEditing(r,["kr","bid","jp"]);
     return `<tr data-id="${id}">`+
-      `<td><input class="attr-in" value="${esc(r.kr)}" placeholder="韓国語" onchange="attrSet('${id}','kr',this.value)"><button class="cbtn" onclick="attrCopy('${id}','kr',this)" title="韓国語をコピー">📋</button></td>`+
-      `<td><input class="attr-in" value="${esc(r.bid||"")}" placeholder="ブランドID" onchange="attrSet('${id}','bid',this.value)"><button class="cbtn" onclick="attrCopy('${id}','bid',this)" title="ブランドIDをコピー">📋</button></td>`+
-      `<td><input class="attr-in" value="${esc(r.jp)}" placeholder="日本語" onchange="attrSet('${id}','jp',this.value)"><button class="cbtn" onclick="attrCopy('${id}','jp',this)" title="日本語をコピー">📋</button></td>`+
-      `<td class="rvop"><button class="rowbtn del btn-sm" onclick="attrDel('${id}')" title="このブランドを削除">削除</button></td>`+
+      `<td>${attrCellHtml(id,"kr",r.kr,"韓国語",ed,"韓国語をコピー")}</td>`+
+      `<td>${attrCellHtml(id,"bid",r.bid||"","ブランドID",ed,"ブランドIDをコピー")}</td>`+
+      `<td>${attrCellHtml(id,"jp",r.jp,"日本語",ed,"日本語をコピー")}</td>`+
+      `<td class="rvop">${attrOpsHtml(id,ed,"このブランドを削除")}</td>`+
     `</tr>`;
   }).join("");
   const empty=`<div class="empty" style="margin:0"><b>まだ1件も入っていません</b>「＋ ブランドを追加」で1件ずつ、または「📥 Excel/CSV取込」でまとめて入れられます。<br>列の並びは <b>ブランド（韓国語）／ブランドID／ブランド（日本語）</b> です。</div>`;
