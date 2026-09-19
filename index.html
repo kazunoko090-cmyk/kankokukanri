@@ -53,7 +53,7 @@ window.CAT_ATTR_JA={"색상": "色", "수량": "数量", "패션의류/잡화 �
   .field input{ height:40px; border:1px solid var(--line); border-radius:9px; padding:0 12px; font-size:13px; font-family:inherit; }
   .field input:focus{ outline:none; border-color:var(--accent); box-shadow:0 0 0 3px var(--ring); }
 
-  .crumb{ color:var(--muted); font-size:12.5px; font-weight:600; margin-bottom:16px; letter-spacing:.01em; }
+  .crumb{ display:none; }   /* パンくず（HOME / 顧客管理 / …）は表示しない（2026-09-19 ずく指示。書き込み先の要素は残す） */
   .crumb b{ color:var(--txt); }
 
   /* sidebar */
@@ -536,7 +536,6 @@ window.CAT_ATTR_JA={"색상": "色", "수량": "数量", "패션의류/잡화 �
     #hdr-menu{ width:38px; height:38px; font-size:17px; }
     .side{ width:78vw; max-width:288px; }
     .main{ padding:14px 12px 36px; }
-    .crumb{ font-size:12px; margin-bottom:12px; }
     .overlay{ padding:16px 10px; }
     .modal{ border-radius:14px; }
 
