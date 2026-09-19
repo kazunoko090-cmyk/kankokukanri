@@ -4322,12 +4322,17 @@ async function oosImport(fileList){
   }
   const t=new Date(), z=n=>String(n).padStart(2,"0");
   d.t=t.getFullYear()+"-"+z(t.getMonth()+1)+"-"+z(t.getDate())+" "+z(t.getHours())+":"+z(t.getMinutes());
-  d.rows=Object.values(map); oosSave(d); oosSelBy={}; render();
+  d.rows=Object.values(map); oosSave(d); oosSelBy={};
+  /* クーパンの在庫Excelを取り込んだ日は、福村さんの日報カレンダーに「在庫管理」と記録する（2026-09-19 ずく指示。クラウド同期に乗る） */
+  if(add||upd){ try{ const nd=nippoLoad(), who=(NIPPO_MALL.coupang||{}).who||"fukumura", k=d.t.slice(0,10)+"|"+who+"|stock";
+    if(!nd[k]){ nd[k]=1; localStorage.setItem(NIPPO_KEY,JSON.stringify(nd)); } }catch(e){} }
+  render();
   const sm=oosSoldMap(), s=d.rows.filter(r=>num(sm[r.id])>0).length;
   const msg=[];
   if(add||upd) msg.push(`在庫リスト：新しく ${add}件・更新 ${upd}件（合計 ${d.rows.length}件）`);
   if(pastTot) msg.push(`過去の販売ASIN：${pastTot}件のうち ${pastAdd}件を追加（残りは登録済みなのでスルー）`);
   msg.push(`SOLD商品 ${s}件 ／ 在庫切れ ${d.rows.length-s}件`);
+  if(add||upd) msg.push("日報（福村）の今日に「在庫管理」を記録しました");
   alert("取り込みました。\n"+msg.join("\n")+(bad.length?("\n\n読めなかったファイル:\n"+bad.join("\n")):""));
 }
 /* 補充済み：一覧から外す（データは残す＝取り込み直すと、まだ在庫切れなら戻ってくる） */
