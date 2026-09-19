@@ -505,32 +505,28 @@ window.CAT_ATTR_JA={"색상": "色", "수량": "数量", "패션의류/잡화 �
   /* ===== 左メニューの折りたたみ（ミニサイドバー＝アイコンだけの細い状態） ===== */
   .navhead .nav-ico{ flex:0 0 20px; width:20px; text-align:center; font-size:15px; line-height:1; }
   .navhead .nav-txt{ flex:1; margin-left:9px; }
-  #side-toggle{ position:absolute; top:12px; right:-13px; width:26px; height:26px; padding:0; border-radius:50%;
-    border:1px solid var(--line); background:#fff; color:var(--muted); font-size:11px; line-height:1; font-family:inherit;
-    display:flex; align-items:center; justify-content:center; cursor:pointer; box-shadow:var(--sh-sm); z-index:50;
-    transition:color .15s, border-color .15s; }
-  #side-toggle:hover{ color:var(--accent-d); border-color:var(--accent); }
   .brand{ cursor:pointer; }
-  @media (min-width:769px){
-    body.sidemini .side{ width:66px; flex:0 0 66px; padding:52px 9px 16px; z-index:19; }   /* 上の余白は◀▶ボタンの場所 */
-    body.sidemini .navhead{ justify-content:center; padding:11px 0; }
-    body.sidemini .navhead .nav-txt, body.sidemini .navhead .arw{ display:none; }
-    body.sidemini .navhead .nav-ico{ font-size:18px; }
-    body.sidemini .navgroup{ position:relative; }
-    body.sidemini .navgroup .navsub{ display:none; }   /* 開いたままのグループも一旦しまう */
-    /* アイコンに触れている間だけ、その中身を右側に出す（フライアウト） */
-    body.sidemini .navgroup:hover > .navsub{ display:block !important; position:absolute; left:calc(100% + 9px); top:-6px;
-      min-width:198px; padding:9px 10px 9px 15px; background:var(--surface); border:1px solid var(--line);
-      border-radius:12px; box-shadow:var(--sh-lg); z-index:45; }
-    body.sidemini .navgroup:hover > .navsub::before{ content:attr(data-label); display:block;
-      font-size:11px; font-weight:800; color:var(--muted); letter-spacing:.04em; padding:1px 3px 7px; }
-  }
+  /* ===== 左メニュー＝引き出し式（パソコンもスマホも同じ。基本は閉じていて、ヘッダーの ☰ で開く。2026-09-19 ずく指示） ===== */
+  #hdr-menu{ display:inline-flex; align-items:center; justify-content:center; flex:0 0 auto;
+    width:40px; height:38px; padding:0; font-size:19px; line-height:1; border-radius:9px; cursor:pointer; font-family:inherit;
+    background:var(--surface); border:1.5px solid var(--line); color:var(--txt); transition:border-color .15s, box-shadow .15s; }
+  #hdr-menu:hover, body.navopen #hdr-menu{ border-color:var(--accent); box-shadow:0 0 0 2px var(--ring); }
+  .side{ position:fixed; top:0; left:0; bottom:0; height:100%; min-height:0;
+    width:288px; max-width:82vw; z-index:60; overflow-y:auto; padding:14px 12px 30px;
+    box-shadow:var(--sh-lg); transform:translateX(-103%); transition:transform .22s ease; }
+  body.navopen .side{ transform:translateX(0); }
+  #navmask{ display:block; position:fixed; inset:0; background:rgba(20,28,50,.42); z-index:55;
+    opacity:0; pointer-events:none; transition:opacity .22s; }
+  body.navopen #navmask{ opacity:1; pointer-events:auto; }
+  body.navopen{ overflow:hidden; }
+  .side-head{ display:flex; align-items:center; justify-content:space-between; padding:2px 6px 10px; margin-bottom:6px; border-bottom:1px solid var(--line); }
+  .side-head b{ font-size:13.5px; }
+  #side-close{ width:32px; height:32px; padding:0; border-radius:8px; border:1px solid var(--line); background:#fff; color:var(--muted); font-size:15px; cursor:pointer; font-family:inherit; }
+  #side-close:hover{ color:var(--accent-d); border-color:var(--accent); }
 
   /* ===================== ここから下はスマホ専用 =====================
      画面の横幅が 768px 以下（＝スマホ）のときだけ効きます。
      パソコン（769px以上）ではこのブロックは1行も適用されないので、今までの見た目は一切変わりません。 */
-  #hdr-menu{ display:none; }    /* ☰ボタン：パソコンでは出さない */
-  #navmask{ display:none; }     /* メニューを開いた時の暗い幕：パソコンでは出さない */
   @media (max-width:768px){
     .man-grip{ font-size:21px; padding:7px 9px; }   /* 指でつまめる大きさにする */
     /* --- 共通の枠（ヘッダー・左メニュー・余白） --- */
@@ -539,20 +535,8 @@ window.CAT_ATTR_JA={"색상": "色", "수량": "数量", "패션의류/잡화 �
     .brand-badge{ width:30px; height:30px; font-size:14px; border-radius:9px; }
     .userchip{ display:none; }
     header .btn-sm{ padding:0 9px; }
-    #side-toggle{ display:none; }
-    #hdr-menu{ display:inline-flex; align-items:center; justify-content:center; flex:0 0 auto;
-      width:38px; height:38px; padding:0; font-size:17px; border-radius:9px;
-      background:var(--surface); border:1px solid var(--line); color:var(--txt); }
-
-    /* 左メニューは引き出し式（☰で開く／項目を選ぶと自動で閉じる） */
-    .side{ position:fixed; top:0; left:0; bottom:0; height:100%; min-height:0;
-      width:78vw; max-width:288px; z-index:60; overflow-y:auto; padding:14px 12px 30px;
-      box-shadow:var(--sh-lg); transform:translateX(-103%); transition:transform .22s ease; }
-    body.navopen .side{ transform:translateX(0); }
-    #navmask{ display:block; position:fixed; inset:0; background:rgba(20,28,50,.42); z-index:55;
-      opacity:0; pointer-events:none; transition:opacity .22s; }
-    body.navopen #navmask{ opacity:1; pointer-events:auto; }
-    body.navopen{ overflow:hidden; }
+    #hdr-menu{ width:38px; height:38px; font-size:17px; }
+    .side{ width:78vw; max-width:288px; }
     .main{ padding:14px 12px 36px; }
     .crumb{ font-size:12px; margin-bottom:12px; }
     .overlay{ padding:16px 10px; }
@@ -725,7 +709,7 @@ window.CAT_ATTR_JA={"색상": "色", "수량": "数量", "패션의류/잡화 �
 
 <div class="layout">
   <aside class="side" id="side">
-    <button id="side-toggle" type="button" title="メニューをアイコンだけにする" aria-label="メニューをアイコンだけにする">◀</button>
+    <div class="side-head"><b>メニュー</b><button id="side-close" type="button" title="閉じる" aria-label="メニューを閉じる">✕</button></div>
     <div class="navgroup" data-g="cust">
       <div class="navhead" title="顧客管理"><span class="nav-ico">👥</span><span class="nav-txt">顧客管理</span><span class="arw">▶</span></div>
       <div class="navsub" data-label="顧客管理">
@@ -5992,30 +5976,17 @@ const PNAME={coupang:"クーパン",smart:"スマートストア",st11:"11番街
 document.querySelectorAll(".navhead").forEach(h=>h.addEventListener("click",()=>{
   h.parentElement.classList.toggle("open");
 }));
-/* スマホ：左メニューを☰で開け閉め（パソコンの幅では☰ボタン自体が出ないので、これまでと何も変わらない） */
+/* 左メニュー＝引き出し式（パソコン・スマホ共通）。ヘッダーの ☰ で開く／項目を選ぶ・✕・暗い幕・Esc で閉じる。基本は閉じている（2026-09-19）
+   ※以前の「◀でアイコンだけの細いメニュー」は廃止（kr_sidemini_v1 は使わない） */
 (function(){
   const setNav=v=>document.body.classList.toggle("navopen", !!v);
-  const btn=document.getElementById("hdr-menu"), mask=document.getElementById("navmask"), side=document.getElementById("side");
+  const btn=document.getElementById("hdr-menu"), mask=document.getElementById("navmask"), side=document.getElementById("side"), cls=document.getElementById("side-close");
   if(btn)  btn.addEventListener("click",()=>setNav(!document.body.classList.contains("navopen")));
   if(mask) mask.addEventListener("click",()=>setNav(false));
-  if(side) side.addEventListener("click",e=>{ if(window.innerWidth<=768 && e.target.closest(".navsub a")) setNav(false); });  /* 項目を選んだら閉じる */
-  window.addEventListener("resize",()=>{ if(window.innerWidth>768) setNav(false); });                                        /* 幅が広がったら必ず元に戻す */
-})();
-/* 左メニューの折りたたみ（ミニサイドバー）。◀で細く＝アイコンだけ、▶で元に戻す。設定はこの端末だけに残る */
-(function(){
-  const K="kr_sidemini_v1", btn=document.getElementById("side-toggle");
-  const paint=()=>{ if(!btn) return; const on=document.body.classList.contains("sidemini");
-    btn.textContent=on?"▶":"◀";
-    btn.title=on?"メニューを元に戻す":"メニューをアイコンだけにする";
-    btn.setAttribute("aria-label",btn.title); };
-  try{ if(localStorage.getItem(K)==="1") document.body.classList.add("sidemini"); }catch(e){}
-  paint();
-  if(btn) btn.addEventListener("click",()=>{
-    const on=!document.body.classList.contains("sidemini");
-    document.body.classList.toggle("sidemini",on);
-    try{ localStorage.setItem(K,on?"1":"0"); }catch(e){}
-    paint();
-  });
+  if(cls)  cls.addEventListener("click",()=>setNav(false));
+  if(side) side.addEventListener("click",e=>{ if(e.target.closest(".navsub a, a[id^='nav-']")) setNav(false); });  /* 項目を選んだら閉じる */
+  document.addEventListener("keydown",e=>{ if(e.key==="Escape" && document.body.classList.contains("navopen")) setNav(false); });
+  try{ localStorage.removeItem("kr_sidemini_v1"); }catch(e){}
 })();
 /* 左上のロゴ「韓国輸出管理表」を押したらトップページ（顧客管理／クーパン）へ戻る */
 (function(){
