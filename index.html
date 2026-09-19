@@ -79,8 +79,9 @@ window.CAT_ATTR_JA={"색상": "色", "수량": "数量", "패션의류/잡화 �
   .navsub a[target="_blank"]{ text-decoration:none; }
 
   .stats{ display:grid; grid-template-columns:repeat(5,1fr); gap:14px; margin-bottom:18px; }
-  .xlink{ display:flex; justify-content:flex-end; margin:-8px 0 14px; }   /* カード列の右下：顧客管理⇄売上管理の行き来ボタン（2026-09-19） */
-  .xlink button{ font-weight:700; }
+  /* 顧客管理⇄売上管理の行き来ボタン：カード列の中の「発送件数／発送済み」の真下（5列目）に置く（2026-09-19） */
+  .stats .xlink{ grid-column:5; display:flex; justify-content:flex-end; align-items:flex-start; }
+  .xlink button{ font-weight:800; font-size:15px; height:44px; padding:0 18px; }
   .stats.s4{ grid-template-columns:repeat(4,1fr); }
   td.mono{ font-variant-numeric:tabular-nums; }
   td.neg{ color:var(--red); }
@@ -547,6 +548,7 @@ window.CAT_ATTR_JA={"색상": "色", "수량": "数量", "패션의류/잡화 �
 
     /* 数字カード：5〜6枚を2列に */
     #view-cust .stats, #view-sales .stats{ grid-template-columns:repeat(2,1fr); gap:9px; margin-bottom:13px; }
+    .stats .xlink{ grid-column:2; }
     #view-cust .card, #view-sales .card{ padding:11px 12px; border-radius:12px; }
     #view-cust .card:hover, #view-sales .card:hover{ transform:none; box-shadow:var(--sh-sm); }
     #view-cust .card .label, #view-sales .card .label{ font-size:10.5px; line-height:1.45; }
@@ -873,8 +875,8 @@ window.CAT_ATTR_JA={"색상": "色", "수량": "数量", "패션의류/잡화 �
     <div class="card cardbtn" id="card-stock" onclick="setCustStatus('仕入れ済み')" title="押すと仕入れ済みだけに絞ります"><div class="label">仕入れ済み</div><div class="num" id="s-stock">0<small> 件</small></div></div>
     <div class="card cardbtn" id="card-arr" onclick="setCustStatus('発送手配済み')" title="押すと発送手配済みだけに絞ります"><div class="label">発送手配済み</div><div class="num" id="s-arr">0<small> 件</small></div></div>
     <div class="card cardbtn" id="card-sent" onclick="setCustStatus('発送済み')" title="押すと発送済みだけに絞ります"><div class="label">発送済み</div><div class="num" id="s-sent">0<small> 件</small></div></div>
+    <div class="xlink"><button class="btn-ghost" onclick="goSection('sales')" title="同じモールの売上管理を開きます">📊 売上管理へ →</button></div>
   </div>
-  <div class="xlink"><button class="btn-ghost btn-sm" onclick="goSection('sales')" title="同じモールの売上管理を開きます">📊 売上管理へ →</button></div>
 
   <div class="chips" id="cust-chips"></div>
 
@@ -906,8 +908,8 @@ window.CAT_ATTR_JA={"색상": "色", "수량": "数量", "패션의류/잡화 �
       <div class="card cardbtn" id="card-ship" onclick="setSalesStatus('発送済み')" title="押すと発送済みだけに絞ります"><div class="label">発送件数</div><div class="num" id="sv-ship">0<small> 件</small></div></div>
       <div class="card cardbtn" id="card-cancel" onclick="setSalesStatus('__cancel')" title="押すとキャンセル・キャンセル返品だけに絞ります"><div class="label">キャンセル件数</div><div class="num" id="sv-cancel">0<small> 件</small></div></div>
       <div class="card cardbtn" id="card-return" onclick="setSalesStatus('返品')" title="押すと返品だけに絞ります"><div class="label">返品件数</div><div class="num" id="sv-return">0<small> 件</small></div></div>
+      <div class="xlink"><button class="btn-ghost" onclick="goSection('cust')" title="同じモールの顧客管理を開きます">👥 顧客管理へ →</button></div>
     </div>
-    <div class="xlink"><button class="btn-ghost btn-sm" onclick="goSection('cust')" title="同じモールの顧客管理を開きます">👥 顧客管理へ →</button></div>
     <div class="panel">
       <div class="toolbar">
         <div class="seg">
@@ -3284,8 +3286,6 @@ function renderHome(){
     `<div class="hm-sec">💼 売上ステータス</div>`+
     `<div class="hm-grid">${cards}</div>`+
     `<div class="hm-row">`+
-      `<button class="hm-chip" style="min-width:200px" onclick="homeGoNippo()">`+
-        `<span class="hm-chip-n" style="font-size:16px">📝 日報</span><span class="hm-chip-s">›</span></button>`+
       `<div>`+
         `<div class="hm-sec" style="margin:0 2px 14px">📊 在庫管理 <span class="hm-sec-s">最後にチェックした日</span></div>`+
         `<div class="hm-chips">${stock}</div>`+
@@ -3315,7 +3315,25 @@ function renderHome(){
       `<button class="hm-chip" onclick="homeGoBrushup()">`+
         `<span class="hm-chip-n">未投稿</span><b style="color:var(--accent-d)">${bruTodoCount("smart").toLocaleString("ja-JP")}件</b>`+
         `<span class="hm-chip-s">ブラッシュアップへ ›</span></button>`+
+      `<button class="hm-chip" style="min-width:200px" onclick="homeGoNippo()">`+
+        `<span class="hm-chip-n" style="font-size:16px">📝 日報</span><span class="hm-chip-s">›</span></button>`+
+      `<button class="hm-chip" style="min-width:200px" id="hm-cwpoint" onclick="homePointReq(this)" title="チャットワークのグループチャットに「HANIROLINE ポイント追加申請」をずく宛で送ります">`+
+        `<span class="hm-chip-n" style="font-size:16px">💬 ポイント申請</span><span class="hm-chip-s">チャットワークへ ›</span></button>`+
     `</div>`;
+/* ポイント申請：Worker（action:cwpoint）経由でチャットワークへ定型文を送る。本文はWorker側で固定 */
+window.homePointReq=async(btn)=>{
+  const u=cloudURL(); if(!u){ alert("共有データに接続されていません。管理者から届いた専用リンクから開いてください。"); return; }
+  if(!confirm("チャットワークのグループチャットに、ずく宛で\n「HANIROLINE ポイント追加申請」を送ります。よろしいですか？")) return;
+  if(btn) btn.disabled=true;
+  try{
+    const r=await fetch(u,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify({action:"cwpoint"})});
+    const j=await r.json().catch(()=>({}));
+    if(r.ok&&j&&j.ok) alert("送りました。チャットワークを確認してください。");
+    else if(r.status===503) alert("チャットワークの設定がまだ入っていません（管理者に連絡してください）。");
+    else alert("送れませんでした："+((j&&j.error)||("HTTP "+r.status)));
+  }catch(e){ alert("送れませんでした（通信エラー）："+e.message); }
+  if(btn) btn.disabled=false;
+};
 }
 window.homeGo=(sec,p,st)=>{ if(sec==="sales") salesStatusFilter=String(st||"");
   if(sec==="cust") custStatusFilter=String(st||"");
