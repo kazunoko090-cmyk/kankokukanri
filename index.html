@@ -5551,8 +5551,9 @@ window.tblFilter=(id,v)=>{
 /* Attributes表の軽量化（2026-09-17）：2,000行を一度に描くと重いので300件ずつの左右ページ送り。
    検索はDOMで隠す方式（tblFilter）をやめ、全データに掛けてから描画する＝どのページの行も必ず引っかかる */
 const ATTR_PAGE=300; let attrPage=0, attrQuery="", _attrPgKey="", _attrQT=null, _attrFocus=false;
-window.attrSearch=(v)=>{ attrQuery=String(v||""); attrPage=0;
-  clearTimeout(_attrQT); _attrQT=setTimeout(()=>{ _attrFocus=true; renderList(); },160); };
+/* 検索は Enter（または欄を離れたとき）で実行。1文字ごとに作り直すと日本語入力（変換中）が切れて打てないため（2026-09-19 ずく報告） */
+window.attrSearch=(v)=>{ v=String(v||""); if(v===attrQuery){ return; } attrQuery=v; attrPage=0;
+  clearTimeout(_attrQT); _attrFocus=true; renderList(); };
 window.attrPageGo=(d)=>{ attrPage=Math.max(0,attrPage+d); renderList();
   const el=document.querySelector("#attr-host .tablewrap"); if(el&&el.scrollIntoView) el.scrollIntoView({block:"start"}); };
 function attrPagerHtml(total,pages){ if(total<=ATTR_PAGE) return "";
@@ -5570,7 +5571,8 @@ function renderAttr(body){
   const pages=Math.max(1,Math.ceil(hits.length/ATTR_PAGE));
   if(attrPage>pages-1) attrPage=pages-1;
   const rows=hits.slice(attrPage*ATTR_PAGE,(attrPage+1)*ATTR_PAGE);
-  const head=`<div class="toolbar"><input class="attr-q" value="${esc(attrQuery)}" placeholder="🔍 韓国語・日本語・記入欄のどれでも検索" oninput="attrSearch(this.value)"><div class="grow"></div><button class="btn-ghost btn-sm" onclick="attrImport()">📥 Excel/CSV取込</button><button class="btn-ghost btn-sm" onclick="attrAdd()">＋ 項目を追加</button></div>
+  const head=`<div class="toolbar"><input class="attr-q" value="${esc(attrQuery)}" placeholder="🔍 韓国語・日本語・記入欄のどれでも検索（Enterで検索）" onkeydown="if(event.key==='Enter'){event.preventDefault();attrSearch(this.value);}" onchange="attrSearch(this.value)" title="文字を入れて Enter で絞り込み。空にして Enter で全件に戻る">`+
+    `<button class="btn-ghost btn-sm" onclick="attrSearch('')" title="検索を消して全件に戻す" ${attrQuery?"":"disabled"}>✕</button><div class="grow"></div><button class="btn-ghost btn-sm" onclick="attrImport()">📥 Excel/CSV取込</button><button class="btn-ghost btn-sm" onclick="attrAdd()">＋ 項目を追加</button></div>
     <div class="lst-hint" style="display:block;margin:0 0 10px">各欄はそのまま直接編集できます（<b>📋</b> でコピー）。「Excel/CSV取込」で記入欄を一括更新できます（列：ハングル/日本語/記入欄）。</div>`;
   const th=`<thead><tr><th>韓国語</th><th>日本語</th><th>記入欄</th><th>操作</th></tr></thead>`;
   const tb=rows.map(r=>{ const id=esc(r.id);
