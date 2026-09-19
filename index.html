@@ -267,6 +267,10 @@ window.CAT_ATTR_JA={"색상": "色", "수량": "数量", "패션의류/잡화 �
   .rvname:focus{ outline:none; border-color:var(--accent); box-shadow:0 0 0 3px var(--ring); }
   .rvurl{ width:150px; min-height:32px; height:32px; border:1px solid var(--line); border-radius:7px; padding:6px 8px; font-size:12px; font-family:inherit; resize:vertical; line-height:1.4; vertical-align:middle; }
   #view-research .srclink{ max-width:96px; }
+  #view-research td.rvurlc{ white-space:nowrap; width:1%; }           /* URL列は中身ぶんだけ（できるだけ細く） */
+  #view-research .rvurl-a{ font-size:12.5px; padding:2px 6px; border:1px solid #cdd6ff; border-radius:6px; background:#eef2ff; }
+  #view-research .rvurl{ width:96px; }
+  #view-research .rvname-t{ display:inline-block; max-width:190px; font-size:13px; font-weight:700; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; vertical-align:middle; line-height:32px; }
   .rvurl:focus{ outline:none; border-color:var(--accent); box-shadow:0 0 0 3px var(--ring); }
   .rvmemo{ width:180px; height:32px; border:1px solid var(--line); border-radius:7px; padding:0 8px; font-size:12px; font-family:inherit; }
   .rvauto{ display:inline-block; font-size:12.5px; font-weight:700; color:#1e2a4a; line-height:32px; padding:0 4px; max-width:170px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; vertical-align:middle; }
@@ -6469,17 +6473,28 @@ function rvBulkOpen(){ const rows=filteredResearchRows();
 
 /* URLセル（Amazon/楽天共通）：入力済みは小ボタン表示、未入力・編集中は入力欄 */
 /* 出品→クーパン→ブランド表（kr_list_brand_coupang_v1）を、日本語名・韓国語名のどちらでも引ける形に */
-function rvBrandMap(){ const m={}; let rows=[]; try{ rows=JSON.parse(localStorage.getItem(BRAND_KEY))||[]; }catch(e){}
-  const norm=v=>String(v||"").trim().toLowerCase().replace(/\s+/g," ");
+function rvNorm(v){ return String(v||"").trim().toLowerCase().replace(/\s+/g," "); }
+function rvFirstWord(v){ return rvNorm(v).split(/[\s／/・,、()（）]+/)[0]||""; }   /* 1語目（例：「Takara Tomy 公式」→ takara） */
+function rvBrandMap(){ const m={}, f={}; let rows=[]; try{ rows=JSON.parse(localStorage.getItem(BRAND_KEY))||[]; }catch(e){}
   rows.forEach(r=>{ const kr=String(r.kr||"").trim(), bid=String(r.bid||"").trim(); if(!kr&&!bid) return;
-    [r.jp,r.kr].forEach(k=>{ const nk=norm(k); if(nk&&!m[nk]) m[nk]={kr,bid}; }); });
-  return m; }
-function rvBrandLookup(m,name){ const nk=String(name||"").trim().toLowerCase().replace(/\s+/g," "); return nk?(m[nk]||null):null; }
+    [r.jp,r.kr].forEach(k=>{ const nk=rvNorm(k); if(nk&&!m[nk]) m[nk]={kr,bid}; const fw=rvFirstWord(k); if(fw&&fw.length>=2&&!f[fw]) f[fw]={kr,bid}; }); });
+  return {m,f}; }
+/* 照合：名前全体で一致 → だめなら1語目で一致（「ブランド名の1語目で当てられる」ずく指示 2026-09-19） */
+function rvBrandLookup(bm,name){ if(!bm) return null; const nk=rvNorm(name); if(!nk) return null;
+  if(bm.m[nk]) return bm.m[nk]; const fw=rvFirstWord(name); return (fw&&fw.length>=2&&bm.f[fw])||null; }
 function urlCellFor(r,field,ph){ const id=String(r.id), key=id+":"+field, val=r[field]||"";
   const has=String(val).trim()!=="", editing=editingUrl.has(key);
-  if(has && !editing){ const us=splitUrls(val); const label=us.length>1?`${us.length}件`:shortUrl(us[0]);
-    return `<td><a class="srclink" href="${esc(us[0])}" target="_blank" title="${esc(us.join('\n'))}">${esc(label)}</a><button class="mini add" onclick="rvOpenUrl('${id}','${field}')" title="このURLを開く">↗</button><span class="edit-mark" onclick="rvUrlEdit('${id}','${field}')" title="URLを編集">✎</span></td>`; }
-  return `<td><textarea class="rvurl" data-uk="${key}" placeholder="${ph}" onchange="rvUrlDone('${id}','${field}',this.value)">${esc(val)}</textarea></td>`; }
+  if(has && !editing){ const us=splitUrls(val); const label=us.length>1?`URL×${us.length}`:"URL";   /* 表示は「URL」だけ＝列を細く（2026-09-19） */
+    return `<td class="rvurlc"><a class="srclink rvurl-a" href="${esc(us[0])}" target="_blank" title="${esc(us.join('\n'))}"${us.length>1?` onclick="event.preventDefault();rvOpenUrl('${id}','${field}')"`:""}>${esc(label)}</a><span class="edit-mark" onclick="rvUrlEdit('${id}','${field}')" title="URLを編集">✎</span></td>`; }
+  return `<td class="rvurlc"><textarea class="rvurl" data-uk="${key}" placeholder="${ph}" onchange="rvUrlDone('${id}','${field}',this.value)">${esc(val)}</textarea></td>`; }
+/* ブランド名／セラー名：入力済みは文字だけ＋✎、空なら入力欄（2026-09-19） */
+const editingName=new Set();
+window.rvNameEdit=(id)=>{ editingName.add(id); rvLastAdded=id; renderResearch(); };
+window.rvNameDone=(id,v)=>{ rvSet(id,'name',v); editingName.delete(id); renderResearch(); };
+function nameCellFor(r,ph){ const id=String(r.id), val=String(r.name||"");
+  if(val.trim()!=="" && !editingName.has(id))
+    return `<td class="rvnamec"><span class="rvname-t" title="${esc(val)}" ondblclick="rvNameEdit('${id}')">${esc(val)}</span><span class="edit-mark" onclick="rvNameEdit('${id}')" title="名前を編集">✎</span></td>`;
+  return `<td class="rvnamec"><input class="rvname" value="${esc(val)}" placeholder="${ph}" onchange="rvNameDone('${id}',this.value)" onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();}"></td>`; }
 
 /* タイトルが空の注文（一括取込分など）は、AmazonのURLスラッグから商品名を推定してブランド判定に使う */
 function brandTitleOf(s){ const t=String(s.title||"").trim(); if(t) return t;
@@ -6748,7 +6763,7 @@ function renderResearch(){
   document.getElementById("rvbody").innerHTML = rows.length ? rows.map(r=>{
     const id=esc(r.id);
     const chk=`<td class="rvc"><input type="checkbox" class="rvchk" data-id="${id}" title="一括で開く対象に選択"></td>`;
-    const nameCell=`<td><input class="rvname" value="${esc(r.name)}" placeholder="${seller?'セラー名':'ブランド名'}" onchange="rvSet('${id}','name',this.value)"></td>`;
+    const nameCell=nameCellFor(r, seller?'セラー名':'ブランド名');
     const memoCell=`<td><input class="rvmemo" value="${esc(r.memo)}" placeholder="メモ" onchange="rvSet('${id}','memo',this.value)"></td>`;
     const dateCell=`<td><input class="rvdate" type="date" value="${esc(r.date)}" onchange="rvSet('${id}','date',this.value)"></td>`;
     if(seller){
