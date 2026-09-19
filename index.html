@@ -613,7 +613,13 @@ window.CAT_ATTR_JA={"색상": "色", "수량": "数量", "패션의류/잡화 �
   }
   /* ===== ホーム：状況ダッシュボード ===== */
   #home-body{ max-width:1200px; margin:0 auto; padding-bottom:30px; }
-  .hm-sec{ font-size:15px; font-weight:800; color:#1e2a4a; margin:36px 2px 14px; display:flex; align-items:baseline; gap:10px; }
+  .hm-sec{ font-size:15px; font-weight:800; color:#1e2a4a; margin:36px 2px 14px; display:flex; align-items:baseline; gap:10px; justify-content:center; }
+  /* トップページは文字を全部中央揃え（2026-09-19 ずく指示） */
+  #home-body{ text-align:center; }
+  #home-body .hm-chips, #home-body .hm-row{ justify-content:center; }
+  #home-body .hm-row{ display:flex; gap:16px; align-items:flex-end; flex-wrap:wrap; margin-top:36px; }
+  #home-body .hm-card-h{ justify-content:center; }
+  #home-body .hm-card-go{ margin-left:0; }
   .hm-sec-s{ font-weight:600; color:var(--muted); font-size:12.5px; }
   .hm-chips{ display:flex; gap:16px; flex-wrap:wrap; }
   .hm-chip{ display:flex; align-items:center; justify-content:center; gap:14px; height:auto; background:#fff; border:1px solid var(--line); border-radius:14px; padding:18px 24px; cursor:pointer; font:inherit; font-weight:400; text-align:center; box-shadow:var(--sh-sm); transition:border-color .15s, box-shadow .15s, transform .15s; }
@@ -1757,10 +1763,14 @@ localStorage.setItem=function(k,v){
 /* 1注文の損益計算（キャンセル／キャンセル返品／返品は売上0・仕入れ額は残す＝赤字判定） */
 function calcSale(s,rate){ const cancel=isZeroSale(s.status); const qty=num(s.qty)||1;   /* 2026-09-03：返品・キャンセル返品も売上0にした */
   const r=(s.rate>0)?s.rate:rate;  /* 取込時に記録したレートを優先（過去分はその時のレートで固定） */
-  const cost=num(s.cost), fee=cancel?0:num(s.fee), ship=cancel?0:num(s.ship), exp=num(s.expense);
-  const costTotal=cost*qty; const won=cancel?0:num(s.won); const yen=Math.round(won*r);
+  /* 送料収入 shipin（ウォン）＝精算明細の <기본배송료>/<추가배송료> 行の合算（2026-09-19）。買い手が払った追加送料・返送料で、
+     クーパンの결제액には入っていない。返品・キャンセルでも実際に受け取っているので売上に残す。その分の手数料は shipinfee（ウォン） */
+  const shipin=num(s.shipin), shipinFeeYen=Math.round(num(s.shipinfee)*r);
+  const cost=num(s.cost), fee=cancel?shipinFeeYen:num(s.fee), ship=cancel?0:num(s.ship), exp=num(s.expense);
+  const costTotal=cost*qty; const wonGoods=cancel?0:num(s.won); const won=wonGoods+shipin;
+  const yenGoods=Math.round(wonGoods*r); const yen=Math.round(won*r);
   const saleTotal=yen; const shipFee=ship+fee; const profit=saleTotal-costTotal-ship-fee-exp;
-  return {qty,cost,costTotal,won,yen,saleTotal,ship,fee,exp,shipFee,profit,cancel}; }
+  return {qty,cost,costTotal,won,wonGoods,yen,yenGoods,shipin,saleTotal,ship,fee,exp,shipFee,profit,cancel}; }
 /* ASIN欄はASINでも商品URLでもよい。URLならそのまま開く（楽天・ヤフショ等）、ASINならAmazonを開く */
 function resolveUrl(v){ v=String(v||"").trim(); if(!v) return ""; return /^https?:\/\//i.test(v)?v:"https://www.amazon.co.jp/dp/"+v; }
 const SHOP_LABEL={"amazon.co.jp":"Amazon","amzn.to":"Amazon","item.rakuten.co.jp":"楽天","rakuten.co.jp":"楽天","search.rakuten.co.jp":"楽天",
@@ -3271,19 +3281,19 @@ function renderHome(){
   const npCp=nippoMonthTotal("fukumura",ym), npSm=nippoMonthTotal("nakajima",ym);
   el.innerHTML=
     `<div class="page-head">今日の状況 <small>${today} 現在。数字や日付をタップすると、その画面へ飛びます</small></div>`+
-    `<div class="hm-sec" style="justify-content:center">💼 売上ステータス</div>`+
+    `<div class="hm-sec">💼 売上ステータス</div>`+
     `<div class="hm-grid">${cards}</div>`+
-    `<div style="display:flex;gap:16px;align-items:flex-end;flex-wrap:wrap;margin-top:36px">`+
+    `<div class="hm-row">`+
       `<button class="hm-chip" style="min-width:200px" onclick="homeGoNippo()">`+
         `<span class="hm-chip-n" style="font-size:16px">📝 日報</span><span class="hm-chip-s">›</span></button>`+
       `<div>`+
-        `<div class="hm-sec" style="margin:0 2px 14px;justify-content:center">📊 在庫管理 <span class="hm-sec-s">最後にチェックした日</span></div>`+   /* 見出しは3枚の真ん中（スマートストア）の上（2026-09-19） */
+        `<div class="hm-sec" style="margin:0 2px 14px">📊 在庫管理 <span class="hm-sec-s">最後にチェックした日</span></div>`+
         `<div class="hm-chips">${stock}</div>`+
       `</div>`+
     `</div>`+
-    `<div style="display:flex;gap:16px;align-items:flex-end;flex-wrap:wrap;margin-top:36px">`+
+    `<div class="hm-row">`+
       `<div>`+
-        `<div class="hm-sec" style="margin:0 2px 14px;justify-content:center">📦 当月の新規出品 <span class="hm-sec-s">日報から集計（${+ym.slice(5,7)}月）</span></div>`+
+        `<div class="hm-sec" style="margin:0 2px 14px">📦 当月の新規出品 <span class="hm-sec-s">日報から集計（${+ym.slice(5,7)}月）</span></div>`+
         `<div class="hm-chips">`+
           `<button class="hm-chip" onclick="homeGoListCount('coupang')">`+
             `<span class="hm-chip-n">クーパン</span><b style="color:var(--accent-d)">${npCp.toLocaleString("ja-JP")}件</b>`+
@@ -5840,7 +5850,7 @@ function renderSalesDetail(){
       `<td class="money mono">${yen(c.costTotal)}</td>`+
       `<td class="money mono">${"₩"+c.won.toLocaleString("ja-JP")}</td>`+
       `<td class="mono">${c.cancel?0:c.qty}</td>`+
-      `<td class="money mono">${yen(c.saleTotal)}</td>`+
+      `<td class="money mono"${c.shipin?` title="うち送料収入 ₩${c.shipin.toLocaleString("ja-JP")}（精算明細の追加送料・返送料）"`:""}>${yen(c.saleTotal)}</td>`+
       discCell+
       `<td><input class="cellinput" type="number" value="${s.ship||""}" onchange="setSaleField('${id}','ship',this.value)"></td>`+
       `<td><input class="cellinput" type="number" value="${s.expense||""}" onchange="setSaleField('${id}','expense',this.value)"></td>`+
@@ -6139,27 +6149,42 @@ document.getElementById("ship-file").addEventListener("change",e=>{ const f=e.ta
     alert(`配送料金の取込完了：${up}件の発送料金を更新しました。`+(nomatch?`\n送り状番号が売上台帳の追跡番号と一致せず未反映：${nomatch}件`:""));
   }catch(err){ alert("取込エラー："+err.message+"\n（送り状のExcelを選んでください）"); } e.target.value=""; };
   rd.readAsArrayBuffer(f); });
-/* 手数料の取込：Order ID(A列)で注文番号を照合し、Sales commission(N列/ウォン)を各注文のレートで円換算して手数料へ */
+/* 精算明細（MSF_PAYMENT_REVENUE_DETAIL）の取込（2026-09-19 一本化）：Order IDで注文を照合し、
+   ・手数料＝Sales commission（全行・ウォン）を注文ごとに合算 → 各注文のレートで円換算して s.fee
+   ・送料収入＝Option IDが <기본배송료>/<추가배송료> の行の Sales amount（ウォン）を合算 → s.shipin（売上に足す）、その行の手数料 → s.shipinfee
+   売上管理の「手数料取込」ボタンと、顧客管理の「Excelを取り込む」（自動判別）の両方からここに来る */
+function importMsf(arr){
+  const head=arr[0].map(h=>String(h||"").trim().toLowerCase());
+  let ci=head.indexOf("order id"); if(ci<0) ci=0;                 /* Order ID列（無ければA列） */
+  let ni=head.indexOf("sales commission"); if(ni<0) ni=13;        /* Sales commission列（無ければN列=14列目） */
+  let oi=head.indexOf("option id"); if(oi<0) oi=4;                /* Option ID列（送料の行は <기본배송료>/<추가배송료>） */
+  let ai=head.indexOf("sales amount"); if(ai<0) ai=9;             /* Sales amount列 */
+  const numOf=v=>{ const x=Number(String(v==null?"":v).replace(/[^0-9.\-]/g,"")); return isFinite(x)?x:0; };
+  const feeWon={}, shipWon={}, shipFeeWon={};
+  for(let i=1;i<arr.length;i++){ const row=arr[i]; if(!row) continue;
+    const oid=String(row[ci]==null?"":row[ci]).trim(); if(!oid) continue;
+    const fee=numOf(row[ni]); feeWon[oid]=(feeWon[oid]||0)+fee;
+    if(/배송료/.test(String(row[oi]||""))){ shipWon[oid]=(shipWon[oid]||0)+numOf(row[ai]); shipFeeWon[oid]=(shipFeeWon[oid]||0)+fee; } }
+  const l=loadSales(); const byOrder={}; l.forEach(s=>byOrder[String(s.order)]=s);
+  let up=0,nomatch=0,shipN=0,shipSum=0; const changed=[];
+  Object.keys(feeWon).forEach(oid=>{ const s=byOrder[oid]; if(!s){ nomatch++; return; }
+    const r=(s.rate>0)?s.rate:curConvRate();                      /* 売上取込と同じ＝各注文のレートで円換算 */
+    s.fee=Math.round(feeWon[oid]*r);
+    const si=Math.round(shipWon[oid]||0); if(si){ shipN++; shipSum+=si; }
+    if(si||s.shipin!=null){ s.shipin=si; s.shipinfee=Math.round(shipFeeWon[oid]||0); }
+    changed.push(s); up++; });
+  if(up){ saveSales(l); pushLedger(changed); render(); }
+  return {up,nomatch,shipN,shipSum};
+}
 document.getElementById("btn-import-fee").onclick=()=>{ document.getElementById("fee-file").click(); };
 document.getElementById("fee-file").addEventListener("change",e=>{ const f=e.target.files[0]; if(!f) return; const rd=new FileReader();
   rd.onload=ev=>{ try{
     const wb=readWB(ev.target.result); const arr=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{header:1,raw:false,defval:""});
     if(!arr.length){ alert("空のファイルです"); return; }
-    const head=arr[0].map(h=>String(h||"").trim().toLowerCase());
-    let ci=head.indexOf("order id"); if(ci<0) ci=0;                 /* Order ID列（無ければA列） */
-    let ni=head.indexOf("sales commission"); if(ni<0) ni=13;        /* Sales commission列（無ければN列=14列目） */
-    const feeWon={};                                                /* Order IDごとに手数料(ウォン)を合算 */
-    for(let i=1;i<arr.length;i++){ const row=arr[i]; if(!row) continue;
-      const oid=String(row[ci]==null?"":row[ci]).trim(); if(!oid) continue;
-      const v=Number(String(row[ni]==null?"":row[ni]).replace(/[^0-9.\-]/g,"")); if(!isFinite(v)) continue;
-      feeWon[oid]=(feeWon[oid]||0)+v; }
-    const l=loadSales(); const byOrder={}; l.forEach(s=>byOrder[String(s.order)]=s);
-    let up=0,nomatch=0; const changed=[];
-    Object.keys(feeWon).forEach(oid=>{ const s=byOrder[oid]; if(!s){ nomatch++; return; }
-      const r=(s.rate>0)?s.rate:curConvRate();                      /* 売上取込と同じ＝各注文のレートで円換算 */
-      s.fee=Math.round(feeWon[oid]*r); changed.push(s); up++; });
-    if(up){ saveSales(l); pushLedger(changed); render(); }
-    alert(`手数料の取込完了：${up}件の手数料を更新しました（Sales commissionのウォンを各注文のレートで円換算）。`+(nomatch?`\nOrder IDが売上台帳の注文番号と一致せず未反映：${nomatch}件`:""));
+    const R=importMsf(arr);
+    alert(`手数料の取込完了：${R.up}件の手数料を更新しました（Sales commissionのウォンを各注文のレートで円換算）。`
+      +(R.shipN?`\n送料収入（追加送料・返送料）を売上に反映：${R.shipN}件・合計 ₩${R.shipSum.toLocaleString("ja-JP")}`:"")
+      +(R.nomatch?`\nOrder IDが売上台帳の注文番号と一致せず未反映：${R.nomatch}件`:""));
   }catch(err){ alert("取込エラー："+err.message+"\n（精算明細のExcelを選んでください）"); } e.target.value=""; };
   rd.readAsArrayBuffer(f); });
 document.getElementById("file").addEventListener("change",e=>{
@@ -6223,21 +6248,16 @@ function numFixNote(){
   return m+"\n　 元のダウンロードしたファイルをそのまま取り込むと、この処理は不要になります。";
 }
 
-/* 精算明細（MSF）→ 注文番号(Order ID)ごとに手数料(Sales commission=N列)を合算し、台帳に自動入力 */
+/* 精算明細（MSF）が顧客管理の「Excelを取り込む」に来たとき：importMsf（手数料は円換算・送料収入も反映）に統一し、売上管理へ移る。
+   ※2026-09-19まではここだけ手数料がウォンのまま保存される不具合があった */
 function importFees(arr,raw){
-  const oi=raw.indexOf("Order ID"), ci=raw.indexOf("Sales commission");
-  const feeMap={};
-  for(let i=1;i<arr.length;i++){ const line=arr[i]; const oid=String(line[oi]||"").trim(); if(!oid) continue;
-    feeMap[oid]=(feeMap[oid]||0)+ (num(line[ci])||0); }
-  const l=loadSales(); let matched=0,unmatched=0; const changed=[];
-  const orders=new Set(l.map(x=>String(x.order)));
-  Object.keys(feeMap).forEach(oid=>{ if(!orders.has(oid)) unmatched++; });
-  l.forEach(s=>{ const v=feeMap[String(s.order)]; if(v!==undefined){ s.fee=Math.round(v); matched++; changed.push(s); } });
-  saveSales(l); if(changed.length) pushLedger(changed);
+  const R=importMsf(arr); const matched=R.up, unmatched=R.nomatch;
   if(section==="cust"){ section="sales"; salesTab="detail"; document.getElementById("crumb").innerHTML=`HOME / <b>売上管理</b> / クーパン`;
     document.querySelectorAll(".navsub a").forEach(x=>x.classList.remove("active")); const a=document.querySelector('.navsub a[data-sec="sales"][data-p="coupang"]'); if(a) a.classList.add("active"); }
   render();
-  alert(`手数料の自動入力が完了しました。\n手数料を反映した注文：${matched}件\n（明細にあるが台帳に無い注文：${unmatched}件 … 先に配送リストを取り込むと反映されます）`);
+  alert(`手数料の自動入力が完了しました。\n手数料を反映した注文：${matched}件`
+    +(R.shipN?`\n送料収入（追加送料・返送料）を売上に反映：${R.shipN}件・合計 ₩${R.shipSum.toLocaleString("ja-JP")}`:"")
+    +`\n（明細にあるが台帳に無い注文：${unmatched}件 … 先に配送リストを取り込むと反映されます）`);
 }
 
 
@@ -6851,11 +6871,11 @@ function hxBuild(){
       const [a1,a2]=hxSplitAddr(r[K.addr]);
       const url=String(s.url||"").trim() || (asin&&!/^https?:/i.test(asin)?"https://www.amazon.co.jp/dp/"+asin:(/^https?:/i.test(asin)?asin:""));
       const nmem=hxNameMem();
-      out.push({ plat, id, asin, title, brand, model, name:(asin&&nmem[asin])||hxProductName(title,brand,model,ja), qty:c.qty||1, unit:c.qty?Math.round(c.saleTotal/c.qty):0,
+      out.push({ plat, id, asin, title, brand, model, name:(asin&&nmem[asin])||hxProductName(title,brand,model,ja), qty:c.qty||1, unit:c.qty?Math.round(c.yenGoods/c.qty):0,   /* 単価は商品代だけ（送料収入は含めない） */
         code:g.c, codeSrc:g.src, jpord:hxClean(s.jpord), jptrack, url, host:hxShopHost(s.url,asin),
         rname:hxClean(r[K.name]), phone:hxPhone(r[K.phone]), pccc:hxClean(r[K.pccc]), a1, a2, zip:hxZip(r[K.zip]), exported:s.hxl||"",
         deliv: delivOf(s),
-        ng: (delivOf(s)!=="H") ? ("配送が "+delivOf(s)+"（HANIRO以外）") : (!hxClean(s.jpord) ? "国内注文番号なし" : (!c.saleTotal ? "売値なし" : "")) });
+        ng: (delivOf(s)!=="H") ? ("配送が "+delivOf(s)+"（HANIRO以外）") : (!hxClean(s.jpord) ? "国内注文番号なし" : (!c.yenGoods ? "売値なし" : "")) });
     });
   });
   return out;
