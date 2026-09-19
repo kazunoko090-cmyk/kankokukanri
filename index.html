@@ -79,6 +79,8 @@ window.CAT_ATTR_JA={"색상": "色", "수량": "数量", "패션의류/잡화 �
   .navsub a[target="_blank"]{ text-decoration:none; }
 
   .stats{ display:grid; grid-template-columns:repeat(5,1fr); gap:14px; margin-bottom:18px; }
+  .xlink{ display:flex; justify-content:flex-end; margin:-8px 0 14px; }   /* カード列の右下：顧客管理⇄売上管理の行き来ボタン（2026-09-19） */
+  .xlink button{ font-weight:700; }
   .stats.s4{ grid-template-columns:repeat(4,1fr); }
   td.mono{ font-variant-numeric:tabular-nums; }
   td.neg{ color:var(--red); }
@@ -866,6 +868,7 @@ window.CAT_ATTR_JA={"색상": "色", "수량": "数量", "패션의류/잡화 �
     <div class="card cardbtn" id="card-arr" onclick="setCustStatus('発送手配済み')" title="押すと発送手配済みだけに絞ります"><div class="label">発送手配済み</div><div class="num" id="s-arr">0<small> 件</small></div></div>
     <div class="card cardbtn" id="card-sent" onclick="setCustStatus('発送済み')" title="押すと発送済みだけに絞ります"><div class="label">発送済み</div><div class="num" id="s-sent">0<small> 件</small></div></div>
   </div>
+  <div class="xlink"><button class="btn-ghost btn-sm" onclick="goSection('sales')" title="同じモールの売上管理を開きます">📊 売上管理へ →</button></div>
 
   <div class="chips" id="cust-chips"></div>
 
@@ -898,6 +901,7 @@ window.CAT_ATTR_JA={"색상": "色", "수량": "数量", "패션의류/잡화 �
       <div class="card cardbtn" id="card-cancel" onclick="setSalesStatus('__cancel')" title="押すとキャンセル・キャンセル返品だけに絞ります"><div class="label">キャンセル件数</div><div class="num" id="sv-cancel">0<small> 件</small></div></div>
       <div class="card cardbtn" id="card-return" onclick="setSalesStatus('返品')" title="押すと返品だけに絞ります"><div class="label">返品件数</div><div class="num" id="sv-return">0<small> 件</small></div></div>
     </div>
+    <div class="xlink"><button class="btn-ghost btn-sm" onclick="goSection('cust')" title="同じモールの顧客管理を開きます">👥 顧客管理へ →</button></div>
     <div class="panel">
       <div class="toolbar">
         <div class="seg">
@@ -5999,6 +6003,8 @@ document.querySelectorAll(".navhead").forEach(h=>h.addEventListener("click",()=>
     window.scrollTo(0,0);
   });
 })();
+/* 顧客管理⇄売上管理の行き来（同じモール）。左メニューの該当リンクを押したのと同じ動き＝active・月リセットなどを共通化 */
+window.goSection=(sec)=>{ const a=document.querySelector(`.navsub a[data-sec="${sec}"][data-p="${current}"]`); if(a){ a.click(); window.scrollTo(0,0); } };
 /* サイドバー：プラットフォーム選択（顧客管理グループのみ稼働） */
 document.querySelectorAll(".navsub a[data-p]").forEach(a=>a.addEventListener("click",()=>{
   section=a.dataset.sec||"cust"; current=a.dataset.p; tblmanKey=null;   /* モール別を選んだら発送管理の表示は解除 */
