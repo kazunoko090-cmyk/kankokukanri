@@ -36,9 +36,9 @@ window.CAT_ATTR_JA={"색상": "色", "수량": "数量", "패션의류/잡화 �
 
   header{ background:rgba(255,255,255,.85); backdrop-filter:saturate(180%) blur(10px); border-bottom:1px solid var(--line); padding:0 24px; height:62px; display:flex; align-items:center; gap:26px; position:sticky; top:0; z-index:20; }
   .brand{ display:flex; align-items:center; gap:11px; }
-  .brand-badge{ width:34px; height:34px; border-radius:10px; background:linear-gradient(135deg,var(--accent),var(--accent-2)); color:#fff; display:flex; align-items:center; justify-content:center; font-weight:800; font-size:16px; box-shadow:0 4px 12px rgba(79,107,239,.4); }
+  .brand-badge{ width:34px; height:34px; border-radius:10px; display:flex; align-items:center; justify-content:center; box-shadow:0 4px 12px rgba(24,95,165,.35); overflow:hidden; }   /* ファビコンと同じロゴ（2026-09-19） */
+  .brand-badge svg{ width:100%; height:100%; display:block; }
   .brand-txt{ font-size:19px; font-weight:800; letter-spacing:.02em; background:linear-gradient(135deg,var(--navy),#43506e); -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent; }
-  .userchip{ margin-left:14px; color:var(--muted); font-size:13px; font-weight:600; display:flex; align-items:center; gap:9px; }
   /* 同期は完全自動のためUIなし。未接続の時だけ、この帯で気づけるようにする */
   #nosync-bar{ display:none; padding:9px 18px; background:#fff7e6; border-bottom:1px solid #f0d9a8; color:#8a6100; font-size:13px; font-weight:600; }
   #nosync-bar.bad{ background:#fdecec; border-bottom-color:#f3b6b6; color:#a12727; }   /* 同期が止まっている＝より強い警告 */
@@ -52,7 +52,6 @@ window.CAT_ATTR_JA={"색상": "色", "수량": "数量", "패션의류/잡화 �
   .field label{ font-weight:700; font-size:13px; }
   .field input{ height:40px; border:1px solid var(--line); border-radius:9px; padding:0 12px; font-size:13px; font-family:inherit; }
   .field input:focus{ outline:none; border-color:var(--accent); box-shadow:0 0 0 3px var(--ring); }
-  .userchip .dot{ width:30px; height:30px; border-radius:50%; background:linear-gradient(135deg,var(--accent),var(--accent-2)); color:#fff; display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:700; box-shadow:var(--sh-sm); }
 
   .crumb{ color:var(--muted); font-size:12.5px; font-weight:600; margin-bottom:16px; letter-spacing:.01em; }
   .crumb b{ color:var(--txt); }
@@ -532,8 +531,7 @@ window.CAT_ATTR_JA={"색상": "色", "수량": "数量", "패션의류/잡화 �
     /* --- 共通の枠（ヘッダー・左メニュー・余白） --- */
     header{ height:54px; padding:0 12px; gap:10px; }
     .brand-txt{ display:none; }
-    .brand-badge{ width:30px; height:30px; font-size:14px; border-radius:9px; }
-    .userchip{ display:none; }
+    .brand-badge{ width:30px; height:30px; border-radius:9px; }
     header .btn-sm{ padding:0 9px; }
     #hdr-menu{ width:38px; height:38px; font-size:17px; }
     .side{ width:78vw; max-width:288px; }
@@ -700,10 +698,9 @@ window.CAT_ATTR_JA={"색상": "色", "수량": "数量", "패션의류/잡화 �
 <body>
 <header>
   <button id="hdr-menu" title="メニュー" aria-label="メニュー">☰</button>
-  <div class="brand" title="トップページへ戻る"><span class="brand-badge">韓</span><span class="brand-txt">韓国輸出管理表</span></div>
+  <div class="brand" title="トップページへ戻る"><span class="brand-badge"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96" aria-hidden="true"><rect width="96" height="96" rx="20" fill="#185FA5"/><rect x="30" y="34" width="16" height="16" rx="2" fill="#ffffff"/><rect x="48" y="34" width="16" height="16" rx="2" fill="#85B7EB"/><path d="M24 54h48l-8 16H32z" fill="#ffffff"/><path d="M22 74q26 10 52 0" fill="none" stroke="#ffffff" stroke-width="4" stroke-linecap="round"/></svg></span><span class="brand-txt">韓国輸出管理表</span></div>
   <button class="btn-ghost btn-sm" id="hdr-help" style="margin-left:auto">❓ 使い方</button>
   <button class="btn-ghost btn-sm" id="hdr-backup">💾 バックアップ</button>
-  <div class="userchip"><span>外注ユーザー</span><span class="dot">U</span></div>
 </header>
 <div id="nosync-bar">⚠ 共有データに接続されていません。管理者から届いた<b>専用リンク</b>を開いてください（今の変更はこのPC内だけに保存されます）。</div>
 
@@ -3271,7 +3268,7 @@ function renderHome(){
   const npCp=nippoMonthTotal("fukumura",ym), npSm=nippoMonthTotal("nakajima",ym);
   el.innerHTML=
     `<div class="page-head">今日の状況 <small>${today} 現在。数字や日付をタップすると、その画面へ飛びます</small></div>`+
-    `<div class="hm-sec">💼 売上ステータス <span class="hm-sec-s">台帳全体の件数。タップでその状態に絞り込み</span></div>`+
+    `<div class="hm-sec">💼 売上ステータス</div>`+
     `<div class="hm-grid">${cards}</div>`+
     `<div style="display:flex;gap:16px;align-items:flex-end;flex-wrap:wrap;margin-top:36px">`+
       `<button class="hm-chip" style="min-width:200px" onclick="homeGoNippo()">`+
