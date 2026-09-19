@@ -80,8 +80,9 @@ window.CAT_ATTR_JA={"색상": "色", "수량": "数量", "패션의류/잡화 �
 
   .stats{ display:grid; grid-template-columns:repeat(5,1fr); gap:14px; margin-bottom:18px; }
   /* 顧客管理⇄売上管理の行き来ボタン：カード列の中の「発送件数／発送済み」の真下（5列目）に置く（2026-09-19） */
-  .stats .xlink{ grid-column:5; display:flex; justify-content:flex-end; align-items:flex-start; }
-  .xlink button{ font-weight:800; font-size:15px; height:44px; padding:0 18px; }
+  /* 顧客管理⇄売上管理の行き来ボタン：カード列の5列目（発送済み／発送件数カードの真下）。文字は大きめ（2026-09-19 ずく指示） */
+  .stats .xlink{ grid-column:5; display:flex; justify-content:center; align-items:flex-start; }
+  .xlink button{ font-weight:800; font-size:17px; height:54px; padding:0 22px; width:100%; border-radius:12px; }
   .stats.s4{ grid-template-columns:repeat(4,1fr); }
   td.mono{ font-variant-numeric:tabular-nums; }
   td.neg{ color:var(--red); }
@@ -548,7 +549,7 @@ window.CAT_ATTR_JA={"색상": "色", "수량": "数量", "패션의류/잡화 �
 
     /* 数字カード：5〜6枚を2列に */
     #view-cust .stats, #view-sales .stats{ grid-template-columns:repeat(2,1fr); gap:9px; margin-bottom:13px; }
-    .stats .xlink{ grid-column:2; }
+    .stats .xlink{ grid-column:1 / -1; }
     #view-cust .card, #view-sales .card{ padding:11px 12px; border-radius:12px; }
     #view-cust .card:hover, #view-sales .card:hover{ transform:none; box-shadow:var(--sh-sm); }
     #view-cust .card .label, #view-sales .card .label{ font-size:10.5px; line-height:1.45; }
