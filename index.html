@@ -5968,9 +5968,11 @@ window.delRow=id=>{ const _l=ledgerMap()[String(id)];
   if(askDel("注文", "注文番号 "+id+(_l&&_l.title?("　/　"+String(_l.title).slice(0,40)):""), "売上台帳からも同時に消えます。"+UNDO_ORDER)){ const ok=platforms[current].orderKey; let rows=load().filter(x=>String(x[ok])!==String(id)); save(rows); removeSale(id); render(); } };
 
 const PNAME={coupang:"クーパン",smart:"スマートストア",st11:"11番街"};
-/* サイドバー：グループ開閉 */
+/* サイドバー：グループ開閉（1つ開くと他は自動で閉じる＝アコーディオン。2026-09-19 ずく指示） */
 document.querySelectorAll(".navhead").forEach(h=>h.addEventListener("click",()=>{
-  h.parentElement.classList.toggle("open");
+  const g=h.parentElement, on=!g.classList.contains("open");
+  document.querySelectorAll(".navgroup.open").forEach(x=>{ if(x!==g) x.classList.remove("open"); });
+  g.classList.toggle("open",on);
 }));
 /* 左メニュー＝引き出し式（パソコン・スマホ共通）。ヘッダーの ☰ で開く／項目を選ぶ・✕・暗い幕・Esc で閉じる。基本は閉じている（2026-09-19）
    ※以前の「◀でアイコンだけの細いメニュー」は廃止（kr_sidemini_v1 は使わない） */
