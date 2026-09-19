@@ -104,7 +104,7 @@ window.CAT_ATTR_JA={"색상": "色", "수량": "数量", "패션의류/잡화 �
   td.jptrack{ white-space:nowrap; }
   #view-cust th, #view-cust td{ padding-left:9px; padding-right:9px; }   /* 顧客管理は列が多いので左右の余白を詰める（2026-09-16） */
   #view-cust td.tight .cbtn{ margin-left:2px; }
-  td.jptrack .carrier{ font-size:10.5px; color:var(--muted); margin-left:3px; }
+  td.jptrack .cbtn{ margin-left:3px; }  td.jptrack .edit-mark{ margin-left:3px; }   /* 国内追跡番号はボタンの間隔を詰める（2026-09-19） */
   #view-sales td{ padding:7px 9px; }
   #view-sales th{ white-space:nowrap; }
   #view-sales td a{ color:var(--accent-d); text-decoration:none; font-weight:700; }
@@ -1533,9 +1533,8 @@ function jpOrdCell(id,s){ const v=jpOrdOf(s);
   return valCell(id,v,{cls:"jpord",ph:"国内No.",title:v||"国内注文番号（Amazon・楽天などの注文番号）を入力",setter:"setJpOrd"}); }
 /* ---- 国内追跡番号（Amazon等の配送業者の伝票番号）：Chrome拡張 amazon-tracking-sync が国内注文番号で照合してWorker経由で入れる。手入力もできる ---- */
 function jpTrackOf(s){ return (s&&s.jptrack)?String(s.jptrack):""; }
-function jpTrackCell(id,s){ const v=jpTrackOf(s), c=(s&&s.jpcarrier)?String(s.jpcarrier):"";
-  return valCell(id,v,{cls:"jptrack",ph:"国内追跡",title:v?((c?c+"　":"")+v):"国内追跡番号（Amazonの配送業者の伝票番号）。Chrome拡張から自動で入ります。手入力も可",setter:"setJpTrack",
-    extra:(v&&c)?`<span class="carrier" title="${esc(c)}">${esc(c.length>6?c.slice(0,6)+"…":c)}</span>`:""}); }
+function jpTrackCell(id,s){ const v=jpTrackOf(s);   /* 配送業者名（jpcarrier）は表示しない（2026-09-19 ずく指示。データは残す） */
+  return valCell(id,v,{cls:"jptrack",ph:"国内追跡",title:v||"国内追跡番号（Amazonの配送業者の伝票番号）。Chrome拡張から自動で入ります。手入力も可",setter:"setJpTrack"}); }
 /* 国際追跡番号：顧客管理・売上管理で同じ形（自動ステータス変更はしない） */
 function trackCell(id,s){ const v=(s&&s.track)?String(s.track):"";
   return valCell(id,v,{ph:"国際追跡番号",title:v||"国際追跡番号。売上管理と共有されます",setter:"setTrack",inputCls:"txt"}); }
