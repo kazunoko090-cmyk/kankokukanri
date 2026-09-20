@@ -137,6 +137,8 @@ window.CAT_ATTR_JA={"색상": "色", "수량": "数量", "패션의류/잡화 �
   .card:hover{ transform:translateY(-3px); box-shadow:var(--sh); }
   .card .label{ color:var(--muted); font-size:11.5px; font-weight:700; letter-spacing:.02em; text-transform:none; }
   .card .num{ font-size:26px; font-weight:800; margin-top:6px; letter-spacing:-.02em; font-variant-numeric:tabular-nums; }
+  .card .numrate{ display:flex; align-items:baseline; gap:10px; flex-wrap:wrap; }
+  .card .numrate .rate{ font-size:15px; font-weight:800; color:var(--accent-d); background:#eef2ff; border-radius:7px; padding:2px 8px; letter-spacing:0; }
   .card .num small{ font-size:12px; color:var(--muted); font-weight:600; }
   .card.alert{ background:linear-gradient(135deg,#fff5f4,#fff); border-color:#fbd3ce; }
   .card.alert .label{ color:var(--red); } .card.alert .num{ color:var(--red); }
@@ -915,8 +917,8 @@ window.CAT_ATTR_JA={"색상": "色", "수량": "数量", "패션의류/잡화 �
   <div id="view-sales" style="display:none">
     <div class="page-head" id="sv-head"></div>
     <div class="stats" id="sv-stats">
-      <div class="card"><div class="label">利益額</div><div class="num" id="sv-profit">¥0</div></div>
-      <div class="card"><div class="label">還付金込み利益 <small style="color:var(--muted);font-weight:600">仕入れ+9%</small></div><div class="num" id="sv-refund">¥0</div></div>
+      <div class="card"><div class="label">利益額</div><div class="num numrate"><span id="sv-profit">¥0</span><span class="rate" id="sv-profit-rate" title="利益率＝利益額÷売上（円）">—</span></div></div>
+      <div class="card"><div class="label">還付金込み利益 <small style="color:var(--muted);font-weight:600">仕入れ+9%</small></div><div class="num numrate"><span id="sv-refund">¥0</span><span class="rate" id="sv-refund-rate" title="還付金込み利益率＝還付金込み利益÷売上（円）">—</span></div></div>
       <div class="card"><div class="label">売上（ウォン）</div><div class="num" id="sv-won">₩0</div></div>
       <div class="card"><div class="label">売上（円）</div><div class="num" id="sv-yen">¥0</div></div>
       <div class="card cardbtn" id="card-ship" onclick="setSalesStatus('発送済み')" title="押すと発送済みだけに絞ります"><div class="label">発送件数</div><div class="num" id="sv-ship">0<small> 件</small></div></div>
@@ -5915,6 +5917,10 @@ function renderSalesDetail(){
   document.getElementById("sv-head").innerHTML= q? `🔍 検索結果 <small>「${esc(q)}」・全期間から ${rows.length}件</small>` : `${monthLbl} <small>${rows.length}件</small>`;
   document.getElementById("scount").textContent= salesStatusFilter? `${scope} ・ ${vrows.length}/${rows.length}件（${svFiltLabel}）` : `${scope} ・ ${rows.length}件`;
   document.getElementById("sv-profit").textContent=yen(pSum);
+  /* 利益率（金額の右隣・2026-09-20 ずく指示）＝利益÷売上（円）。売上0なら「—」 */
+  const pct=v=> ySum>0 ? (v/ySum*100).toFixed(1)+"%" : "—";
+  document.getElementById("sv-profit-rate").textContent=pct(pSum);
+  document.getElementById("sv-refund-rate").textContent=pct(pSum+cSum*REFUND_RATE);
   document.getElementById("sv-won").textContent="₩"+Math.round(wSum).toLocaleString("ja-JP");
   document.getElementById("sv-yen").textContent=yen(ySum);
   document.getElementById("sv-refund").textContent=yen(pSum+cSum*REFUND_RATE);
