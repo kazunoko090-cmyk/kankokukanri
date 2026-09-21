@@ -5634,11 +5634,12 @@ function renderCatResults(){ const host=document.getElementById("cat-results"); 
   if(catErr&&!CATDB.length){ host.innerHTML=`<div class="empty"><b>カテゴリーデータを読み込めませんでした</b>coupang_categories.json を index.html と同じ場所に置いてください。</div>`; return; }
   const q=(catQuery||"").trim().toLowerCase(); let rows=CATDB;
   if(q){ rows=CATDB.filter(c=> c.c.indexOf(q)>=0 || c.p.toLowerCase().indexOf(q)>=0 || jpPath(c.p).toLowerCase().indexOf(q)>=0 ); }
+  rows=rows.slice().sort((a,b)=>(+a.c||0)-(+b.c||0)); /* コード番号順（2026-09-21 ずく指示。以前は必須が少ない順） */
   const total=rows.length; const shown=rows.slice(0, q?400:150);
   const cc=segCache(); const need=[];
   shown.forEach(c=>c.p.split(">").forEach(s=>{ s=s.trim(); if(s&&!/^[\x00-\x7F]+$/.test(s)&&!(window.CAT_SEG_JA&&CAT_SEG_JA[s])&&!cc[s]) need.push(s); }));
   if(need.length) fillSegs([...new Set(need)]);
-  host.innerHTML=`<div style="font-size:13px;color:var(--muted);margin-bottom:8px">${total.toLocaleString("ja-JP")}件${total>shown.length?`（先頭${shown.length}件を表示。検索で絞り込み）`:""} ・ 必須が少ない順</div>`+
+  host.innerHTML=`<div style="font-size:13px;color:var(--muted);margin-bottom:8px">${total.toLocaleString("ja-JP")}件${total>shown.length?`（先頭${shown.length}件を表示。検索で絞り込み）`:""} ・ コード番号順</div>`+
     (shown.length? shown.map(catCard).join("") : `<div class="empty"><b>該当なし</b>コードや名前を変えてお試しください。</div>`);
 }
 function catCard(c){ const iso=catOpen.has(c.c); const jp=jpPath(c.p);
