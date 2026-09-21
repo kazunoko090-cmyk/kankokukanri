@@ -3734,10 +3734,13 @@ const SHOP_URL={ smart:"https://smartstore.naver.com/tokyomart7585" };
 function shopItemUrl(p,n){ n=String(n||"").trim(); return (n&&SHOP_URL[p])?(SHOP_URL[p]+"/products/"+n):""; }
 /* おすすめの並び：同じブランドが固まらないよう、ブランドごとに分けて上から順番に1つずつ取る（casio→orient→citizen→casio→…）。
    ブランド名は商品名の先頭の語（[병행 수입품] や [Parallel Import] などの前置きは飛ばす）。ブランド内は商品名順 */
+/* 韓国語名しか無い商品（스마트스토어CSV由来）も英語名の商品と同じブランドにまとめる */
+const BLOG_BRAND_KEY={"카시오":"casio","세이코":"seiko","시티즌":"citizen","오리엔트":"orient","스와치":"swatch","스카겐":"skagen","엠포리오":"emporio","캘빈":"calvin","시계":"","손목시계":""};
 function blogSpread(list){
   const key=x=>{ let t=String(x.title||x.ko||"").toLowerCase();
-    t=t.replace(/\[(parallel[^\]]*|병행[^\]]*|해외[^\]]*|imported[^\]]*|수입[^\]]*)\]/g," ").replace(/[\[\]()【】（）]/g," ").trim();
-    const w=t.split(/\s+/).find(w=>/[a-z0-9가-힣]/.test(w))||""; return w.replace(/[^a-z0-9가-힣&]/g,""); };
+    t=t.replace(/\[(parallel[^\]]*|병행[^\]]*|해외[^\]]*|imported[^\]]*|수입[^\]]*|견본[^\]]*|정규[^\]]*)\]/g," ").replace(/[\[\]()【】（）]/g," ").trim();
+    let w=(t.split(/\s+/).find(w=>/[a-z0-9가-힣]/.test(w))||"").replace(/[^a-z0-9가-힣&]/g,"");
+    return BLOG_BRAND_KEY[w]||w; };
   const g={}; list.forEach(x=>{ const k=key(x); (g[k]=g[k]||[]).push(x); });
   Object.values(g).forEach(a=>a.sort((p,q)=>String(p.title).localeCompare(String(q.title))));
   const order=Object.keys(g).sort((a,b)=>g[b].length-g[a].length||a.localeCompare(b));
@@ -3747,7 +3750,7 @@ function blogSpread(list){
 }
 function blogReco(p){ const sold=new Set(blogData(p).map(x=>x.asin));
   return (Array.isArray(BLOGRECO[p])?BLOGRECO[p]:[]).filter(r=>r&&r.a&&!sold.has(r.a))
-    .map(r=>({asin:r.a,title:r.e||r.k||"",ko:r.k||"",qty:0,lastT:0,last:"",reco:true,n:r.n||"",s:r.s||""})); }   /* s＝型番（ショップ内検索用。商品名から機械的に抜いた） */
+    .map(r=>({asin:r.a,title:r.e||r.k||"",ko:r.k||"",qty:0,lastT:0,last:"",reco:true,n:r.n||"",s:r.s||"",st:r.st||""})); }   /* s＝型番（ショップ内検索用。商品名から機械的に抜いた）／n＝스마트스토어 상품번호（ストアURL用）／st＝판매중 以外の販売状態（2026-09-22 CSV取込） */
 let BLOGSRC = {};
 (async function(){ try{ const r=await fetch("blogsrc.json"); if(r.ok) BLOGSRC=await r.json(); }catch(e){} })();
 /* ===== 作り置きの記事＝ blogmade.json（2026-09-22） =====
@@ -3892,12 +3895,13 @@ function renderBlog(){
         `<td><button class="rowbtn btn-sm" onclick="blogUnpost('${a}')">販売済みに戻す</button></td></tr>`; }).join("")
       : `<tr><td class="empty" colspan="5"><b>投稿済みはまだありません</b>「販売済み」で投稿日を選び「投稿する」を押すと、ここへ移動します。</td></tr>`;
   } else if(blogTab==="reco"){
-    list=blogSpread(list);   /* 上からブランドが散らばる並び（外注さんは上から順にやる。2026-09-22 ずく指示） */
-    document.getElementById("bloghead").innerHTML="<tr><th>ASIN</th><th>型番<small style=\"font-weight:500;color:var(--muted)\">（ショップ検索用）</small></th><th>商品名（英語）</th><th>ショップ</th><th>管理番号</th><th>投稿日</th><th>操作</th></tr>";
+    /* 上からブランドが散らばる並び（外注さんは上から順にやる。2026-09-22 ずく指示）。판매중 を先に、판매중지 はその下にまとめる */
+    list=blogSpread(list.filter(x=>!x.st)).concat(blogSpread(list.filter(x=>!!x.st)));
+    document.getElementById("bloghead").innerHTML="<tr><th>ASIN</th><th>型番<small style=\"font-weight:500;color:var(--muted)\">（ショップ検索用）</small></th><th>商品名</th><th>ストアURL</th><th>管理番号</th><th>投稿日</th><th>操作</th></tr>";
     document.getElementById("blogbody").innerHTML = list.length? list.map(x=>{ const a=esc(x.asin), d=(blog[x.asin]||{}).date||"", su=shopItemUrl(p,x.n);
       return `<tr><td>${amz(x.asin)}<button class="cbtn" data-copy="${a}" onclick="copyBtn(this)" title="ASINをコピー">📋</button></td>`+
         `<td class="mono" style="white-space:nowrap">${x.s?`${esc(x.s)}<button class="cbtn" data-copy="${esc(x.s)}" onclick="copyBtn(this)" title="型番をコピー（ショップの検索窓に貼る）">📋</button>`:`<span style="color:var(--muted)">—</span>`}</td>`+
-        `<td><span class="clip" title="${esc(x.ko||x.title)}" onclick="toggleClip(this)">${esc(x.title)}</span>${x.title?`<button class="cbtn" data-copy="${esc(x.title)}" onclick="copyBtn(this)" title="商品名をコピー">📋</button>`:""}</td>`+
+        `<td>${x.st?`<span style="display:inline-block;font-size:10.5px;font-weight:800;color:#b45309;background:#fff4e0;border:1px solid #f3d9a4;border-radius:6px;padding:1px 6px;margin-right:6px;vertical-align:middle" title="スマートストアで販売中ではありません（${esc(x.st)}）">${esc(x.st)}</span>`:""}<span class="clip" title="${esc(x.ko||x.title)}" onclick="toggleClip(this)">${esc(x.title)}</span>${x.title?`<button class="cbtn" data-copy="${esc(x.title)}" onclick="copyBtn(this)" title="商品名をコピー">📋</button>`:""}</td>`+
         `<td>${su?`<a class="srclink" href="${esc(su)}" target="_blank" title="${esc(su)}">開く</a><button class="cbtn" data-copy="${esc(su)}" onclick="copyBtn(this)" title="URLをコピー">📋</button>`:`<span style="color:var(--muted)">—</span>`}</td>`+
         noCell(x)+
         `<td><input class="rvdate" type="date" value="${esc(d)}" onchange="blogSetDate('${a}',this.value)"></td>`+
