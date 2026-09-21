@@ -3748,6 +3748,20 @@ function blogReco(p){ const sold=new Set(blogData(p).map(x=>x.asin));
     .map(r=>({asin:r.a,title:r.e||r.k||"",ko:r.k||"",qty:0,lastT:0,last:"",reco:true,n:r.n||"",s:r.s||""})); }   /* s＝型番（ショップ内検索用。商品名から機械的に抜いた） */
 let BLOGSRC = {};
 (async function(){ try{ const r=await fetch("blogsrc.json"); if(r.ok) BLOGSRC=await r.json(); }catch(e){} })();
+/* ===== 作り置きの記事＝ blogmade.json（2026-09-22） =====
+   ・Claude Code の会話で書いた記事（API費用ゼロ）。正データは ~/Desktop/韓国輸出管理MD/ブログ記事/<モール>/<ASIN>.txt、
+     _build_blogmade.py で blogmade.json にまとめて GitHub に上げる。{smart:{ASIN:{t:タイトル,b:本文,d:作成日,n:商品名}}}
+   ・記事がある商品は「作成する」の代わりに「記事を見る」が出る（外注さんは見てコピーするだけ）。無い商品は今までどおり作成する（Worker）
+   ・ブログ画面を開いたときに1回だけ読む（他の画面では読まない） */
+let BLOGMADE = null;
+function blogMadeLoad(){ if(BLOGMADE!==null) return; BLOGMADE={};
+  (async function(){ try{ const r=await fetch("blogmade.json"); if(r.ok){ BLOGMADE=await r.json()||{}; if(section==="blog") renderBlog(); } }catch(e){} })(); }
+function blogMadeOf(asin){ const m=BLOGMADE&&BLOGMADE[current]; return (m&&m[asin]&&m[asin].b)?m[asin]:null; }
+window.blogView=(asin)=>{ const m=blogMadeOf(asin); if(!m){ blogMake(asin); return; }
+  blogPanel(asin,"done",{title:m.t||"",body:m.b||"",pre:true,made:m.d||""}); };
+function blogMakeBtn(a){ return blogMadeOf(a)
+  ? `<button class="rowbtn btn-sm" style="background:#eef7ee;border-color:#bfe0bf" onclick="blogView('${a}')" title="作り置きの記事があります。開いてコピーするだけ">📖 記事を見る</button>`
+  : `<button class="rowbtn btn-sm" onclick="blogMake('${a}')" title="商品データからブログ本文を作ります">✍️ 作成する</button>`; }
 
 /* この商品について分かっていること全部。ここが記事の唯一の根拠 */
 function blogSrc(asin){
@@ -3807,11 +3821,13 @@ function blogPanel(asin,step,out){
     inner='<div style="background:#fff4f4;border:1px solid #f3c2c2;padding:12px;border-radius:8px;font-size:13px">作成に失敗しました：'+esc(out.error||"")+'</div>'
       + '<div style="margin-top:10px"><button class="btn-primary btn-sm" onclick="blogMake(\''+esc(asin)+'\')">戻る</button></div>';
   } else {
-    inner = '<div style="font-size:12px;font-weight:800;color:#666;margin-bottom:4px">타이틀 案</div>'
+    inner = '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">'
+      +   '<div style="font-size:12px;font-weight:800;color:#666">타이틀'+(out.pre?'　<span style="font-weight:600;color:#3a8a3a">作り置き（'+esc(out.made||"")+'）</span>':' 案')+'</div>'
+      +   '<button class="btn-ghost btn-sm" onclick="blogCopyTitle(this)">📋 タイトルをコピー</button></div>'
       + '<pre id="blog-t" style="white-space:pre-wrap;background:#f7f8fa;padding:10px;border-radius:8px;font-size:13px;margin:0 0 12px">'+esc(out.title||"")+'</pre>'
       + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">'
       +   '<div style="font-size:12px;font-weight:800;color:#666">본문</div>'
-      +   '<div><button class="btn-ghost btn-sm" onclick="blogMake(\''+esc(asin)+'\')">やり直す</button> '
+      +   '<div>'+(out.pre?'':'<button class="btn-ghost btn-sm" onclick="blogMake(\''+esc(asin)+'\')">やり直す</button> ')
       +   '<button class="btn-primary btn-sm" onclick="blogCopyBody(this)">📋 本文を全部コピー</button></div></div>'
       + '<pre id="blog-b" style="white-space:pre-wrap;background:#f7f8fa;padding:12px;border-radius:8px;font-size:13px;max-height:50vh;overflow:auto;margin:0">'+esc(out.body||"")+'</pre>';
   }
@@ -3821,6 +3837,8 @@ function blogPanel(asin,step,out){
 window.blogModalClose=()=>{ const m=document.getElementById("blogmodal"); if(m) m.remove(); };
 window.blogCopyBody=(btn)=>{ const el=document.getElementById("blog-b"); if(!el) return;
   copyText(el.textContent); flashBtn(btn); };
+window.blogCopyTitle=(btn)=>{ const el=document.getElementById("blog-t"); if(!el) return;
+  copyText(el.textContent); flashBtn(btn); };
 function blogData(p){ const l=loadSales(platforms[p].salesKey); const g={};
   l.forEach(s=>{ if(isZeroSale(s.status)) return; const a=String(s.asin||"").trim(); if(!a) return;
     if(!g[a]) g[a]={asin:a,title:s.title||"",qty:0,lastT:0,last:""};
@@ -3828,6 +3846,7 @@ function blogData(p){ const l=loadSales(platforms[p].salesKey); const g={};
   return Object.values(g); }
 function renderBlog(){
   const p=current, blog=loadBlog(p);
+  blogMadeLoad();
   document.querySelectorAll("#blog-tabs .segbtn").forEach(b=>b.classList.toggle("active",b.dataset.bt===blogTab));
   const st=(blogTab==="stats");   /* 累計はモール合算なので、検索・CSV・一覧は隠す */
   document.getElementById("blog-stats").style.display=st?"":"none";
@@ -3880,17 +3899,18 @@ function renderBlog(){
         `<td>${su?`<a class="srclink" href="${esc(su)}" target="_blank" title="${esc(su)}">開く</a><button class="cbtn" data-copy="${esc(su)}" onclick="copyBtn(this)" title="URLをコピー">📋</button>`:`<span style="color:var(--muted)">—</span>`}</td>`+
         noCell(x)+
         `<td><input class="rvdate" type="date" value="${esc(d)}" onchange="blogSetDate('${a}',this.value)"></td>`+
-        `<td><button class="rowbtn btn-sm" onclick="blogMake('${a}')" title="商品データからブログ本文を作ります">✍️ 作成する</button> <button class="btn-primary btn-sm" onclick="blogPost('${a}')">投稿する</button></td></tr>`; }).join("")
+        `<td>${blogMakeBtn(a)} <button class="btn-primary btn-sm" onclick="blogPost('${a}')">投稿する</button></td></tr>`; }).join("")
       : `<tr><td class="empty" colspan="7"><b>おすすめの商品がありません</b>${(BLOGRECO[p]||[]).length?"すべて売れたか投稿済みです。":"このモールにはおすすめリストがありません。"}</td></tr>`;
   } else {
     document.getElementById("bloghead").innerHTML="<tr><th>ASIN</th><th>管理番号</th><th>投稿日</th><th>操作</th></tr>";
     document.getElementById("blogbody").innerHTML = list.length? list.map(x=>{ const a=esc(x.asin), d=(blog[x.asin]||{}).date||"";
       return `<tr><td>${amz(x.asin)}</td>${noCell(x)}`+
         `<td><input class="rvdate" type="date" value="${esc(d)}" onchange="blogSetDate('${a}',this.value)"></td>`+
-        `<td><button class="rowbtn btn-sm" onclick="blogMake('${a}')" title="商品データからブログ本文を作ります">✍️ 作成する</button> <button class="btn-primary btn-sm" onclick="blogPost('${a}')">投稿する</button></td></tr>`; }).join("")
+        `<td>${blogMakeBtn(a)} <button class="btn-primary btn-sm" onclick="blogPost('${a}')">投稿する</button></td></tr>`; }).join("")
       : `<tr><td class="empty" colspan="4"><b>販売済みのASINがありません</b>売上管理に販売データが入ると、ここへASINが並びます。</td></tr>`;
   }
-  document.getElementById("blogcount").textContent=`${PNAME[p]} ・ 販売済み ${todoCount}件 ／ おすすめ ${recoCount}件 ／ 投稿済み ${doneCount}件`;
+  const madeCount=sold.concat(reco).filter(x=>!isDone(x.asin)&&blogMadeOf(x.asin)).length;
+  document.getElementById("blogcount").textContent=`${PNAME[p]} ・ 販売済み ${todoCount}件 ／ おすすめ ${recoCount}件 ／ 投稿済み ${doneCount}件`+(madeCount?` ／ 記事あり ${madeCount}件`:"");
 }
 /* ===== ブログ 累計（クーパン＋スマートストア 合算） =====
    1日にできるのは3件までなので、同じ日に4件以上たまっている分は翌日へ繰り下げて数える（＝実際にこなせる形に換算する）。
