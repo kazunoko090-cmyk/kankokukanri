@@ -3750,7 +3750,7 @@ function blogSpread(list){
 }
 function blogReco(p){ const sold=new Set(blogData(p).map(x=>x.asin));
   return (Array.isArray(BLOGRECO[p])?BLOGRECO[p]:[]).filter(r=>r&&r.a&&!sold.has(r.a))
-    .map(r=>({asin:r.a,title:r.e||r.k||"",ko:r.k||"",qty:0,lastT:0,last:"",reco:true,n:r.n||"",s:r.s||"",st:r.st||""})); }   /* s＝型番（ショップ内検索用。商品名から機械的に抜いた）／n＝스마트스토어 상품번호（ストアURL用）／st＝판매중 以外の販売状態（2026-09-22 CSV取込） */
+    .map(r=>({asin:r.a,title:r.e||r.k||"",ko:r.k||"",qty:0,lastT:0,last:"",reco:true,n:r.n||"",s:r.s||"",st:r.st||"",x:r.x||""}));   /* x＝記事を作れなかった理由（Amazonに仕様なし等。2026-09-22）。並びで下に回す */ }   /* s＝型番（ショップ内検索用。商品名から機械的に抜いた）／n＝스마트스토어 상품번호（ストアURL用）／st＝판매중 以外の販売状態（2026-09-22 CSV取込） */
 let BLOGSRC = {};
 (async function(){ try{ const r=await fetch("blogsrc.json"); if(r.ok) BLOGSRC=await r.json(); }catch(e){} })();
 /* ===== 作り置きの記事＝ blogmade.json（2026-09-22） =====
@@ -3896,12 +3896,13 @@ function renderBlog(){
       : `<tr><td class="empty" colspan="5"><b>投稿済みはまだありません</b>「販売済み」で投稿日を選び「投稿する」を押すと、ここへ移動します。</td></tr>`;
   } else if(blogTab==="reco"){
     /* 上からブランドが散らばる並び（外注さんは上から順にやる。2026-09-22 ずく指示）。판매중 を先に、판매중지 はその下にまとめる */
-    list=blogSpread(list.filter(x=>!x.st)).concat(blogSpread(list.filter(x=>!!x.st)));
+    /* さらに、記事を作れなかった商品（x＝理由あり）は各グループの下に回す（2026-09-22 ずく指示「パスして下の方に移動」） */
+    { const grp=x=>(x.st?2:0)+(x.x?1:0); const src=list; list=[0,1,2,3].flatMap(g=>blogSpread(src.filter(x=>grp(x)===g))); }
     document.getElementById("bloghead").innerHTML="<tr><th>ASIN</th><th>型番<small style=\"font-weight:500;color:var(--muted)\">（ショップ検索用）</small></th><th>商品名</th><th>ストアURL</th><th>管理番号</th><th>投稿日</th><th>操作</th></tr>";
     document.getElementById("blogbody").innerHTML = list.length? list.map(x=>{ const a=esc(x.asin), d=(blog[x.asin]||{}).date||"", su=shopItemUrl(p,x.n);
       return `<tr><td>${amz(x.asin)}<button class="cbtn" data-copy="${a}" onclick="copyBtn(this)" title="ASINをコピー">📋</button></td>`+
         `<td class="mono" style="white-space:nowrap">${x.s?`${esc(x.s)}<button class="cbtn" data-copy="${esc(x.s)}" onclick="copyBtn(this)" title="型番をコピー（ショップの検索窓に貼る）">📋</button>`:`<span style="color:var(--muted)">—</span>`}</td>`+
-        `<td>${x.st?`<span style="display:inline-block;font-size:10.5px;font-weight:800;color:#b45309;background:#fff4e0;border:1px solid #f3d9a4;border-radius:6px;padding:1px 6px;margin-right:6px;vertical-align:middle" title="スマートストアで販売中ではありません（${esc(x.st)}）">${esc(x.st)}</span>`:""}<span class="clip" title="${esc(x.ko||x.title)}" onclick="toggleClip(this)">${esc(x.title)}</span>${x.title?`<button class="cbtn" data-copy="${esc(x.title)}" onclick="copyBtn(this)" title="商品名をコピー">📋</button>`:""}</td>`+
+        `<td>${x.st?`<span style="display:inline-block;font-size:10.5px;font-weight:800;color:#b45309;background:#fff4e0;border:1px solid #f3d9a4;border-radius:6px;padding:1px 6px;margin-right:6px;vertical-align:middle" title="スマートストアで販売中ではありません（${esc(x.st)}）">${esc(x.st)}</span>`:""}${x.x?`<span style="display:inline-block;font-size:10.5px;font-weight:800;color:#6b7280;background:#f3f4f6;border:1px solid #d1d5db;border-radius:6px;padding:1px 6px;margin-right:6px;vertical-align:middle" title="記事を作れませんでした：${esc(x.x)}">資料不足</span>`:""}<span class="clip" title="${esc(x.ko||x.title)}" onclick="toggleClip(this)">${esc(x.title)}</span>${x.title?`<button class="cbtn" data-copy="${esc(x.title)}" onclick="copyBtn(this)" title="商品名をコピー">📋</button>`:""}</td>`+
         `<td>${su?`<a class="srclink" href="${esc(su)}" target="_blank" title="${esc(su)}">開く</a><button class="cbtn" data-copy="${esc(su)}" onclick="copyBtn(this)" title="URLをコピー">📋</button>`:`<span style="color:var(--muted)">—</span>`}</td>`+
         noCell(x)+
         `<td><input class="rvdate" type="date" value="${esc(d)}" onchange="blogSetDate('${a}',this.value)"></td>`+
