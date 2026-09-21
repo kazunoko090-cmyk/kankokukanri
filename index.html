@@ -6753,14 +6753,14 @@ function renderResearch(){
     ? ["✓","ブランド名","クーパン","11番街","スマートストア","メモ","最終確認日","操作"]
     : smBrand
     ? ["✓","ブランド名","Amazon","メモ","最終確認日","操作"]
-    : ["✓","ブランド名","Amazon","楽天","カテゴリー","韓国語ブランド","ブランドID","Amazon確認日","楽天確認日","メモ","操作"];   /* 並びは Amazon確認日（date）のまま。楽天確認日＝rdate（2026-09-19） */
+    : ["✓","ブランド名","Amazon","楽天","Amazon確認日","楽天確認日","メモ","操作"];   /* 並びは Amazon確認日（date）のまま。楽天確認日＝rdate（2026-09-19）。カテゴリー／韓国語ブランド／ブランドID の列は 2026-09-21 に廃止（出品はフロンティアで自動化。データは残す） */
   const bmap=rvBrandMap();
   document.getElementById("rvhead").innerHTML="<tr>"+H.map((h,i)=>`<th${i===0?' class="rvc"':''}>${esc(h)}</th>`).join("")+"</tr>";
   const moveSel=id=>{ const opts=researchCats().filter(c=>c.id!==researchTab).map(c=>`<option value="${c.id}">${esc(rvName(c))}へ移動</option>`).join("");
     return `<select class="rvmove" title="別カテゴリへ移動" onchange="rvMove('${id}',this.value)"><option value="">移動…</option>${opts}</select>`; };
   const delBtn=id=>`<button class="rowbtn del btn-sm" onclick="rvDel('${id}')" title="この行を削除">削除</button>`;
   const opCell=id=>`<td class="rvop">${moveSel(id)}${delBtn(id)}</td>`;
-  const colspan=seller?6:(ngmulti?8:(smBrand?6:11));
+  const colspan=seller?6:(ngmulti?8:(smBrand?6:8));
   document.getElementById("rvbody").innerHTML = rows.length ? rows.map(r=>{
     const id=esc(r.id);
     const chk=`<td class="rvc"><input type="checkbox" class="rvchk" data-id="${id}" title="一括で開く対象に選択"></td>`;
@@ -6788,7 +6788,7 @@ function renderResearch(){
       ? `<td class="rvtight"><span class="rvauto" title="出品のブランド表から自動で入っています">${esc(auto)}</span><button class="cbtn" data-copy="${esc(auto)}" onclick="copyBtn(this)" title="コピー">📋</button></td>`
       : `<td class="rvtight"><input class="rvmemo rvbr" value="${esc(r[f]||"")}" placeholder="${ph}" title="出品のブランド表に同じブランド名があれば自動で入ります。無ければここに手入力" onchange="rvSet('${id}','${f}',this.value)"></td>`;
     const rdateCell=`<td><input class="rvdate" type="date" value="${esc(r.rdate||"")}" title="楽天の確認日（並び替えには使いません）" onchange="rvSet('${id}','rdate',this.value)"></td>`;
-    return `<tr data-id="${id}">${chk}${nameCell}${amzCell}${rakCell}${catCell}${autoCell("krb","韓国語ブランド",bm&&bm.kr)}${autoCell("bid","ブランドID",bm&&bm.bid)}${dateCell}${rdateCell}${memoCell}${opCell(id)}</tr>`;
+    return `<tr data-id="${id}">${chk}${nameCell}${amzCell}${rakCell}${dateCell}${rdateCell}${memoCell}${opCell(id)}</tr>`;
   }).join("") : `<tr><td class="empty" colspan="${colspan}"><b>まだ登録がありません</b>右上の「＋ 行を追加」または「CSV取込」で${seller?'セラー':'ブランド'}を登録してください。</td></tr>`;
   document.getElementById("rv-head").innerHTML=`${esc(rvLabel(cat))} <small>${rows.length}件</small>`;
   document.getElementById("rvcount").textContent=`${rvLabel(cat)} ・ ${rows.length}件 ・ 古い順（${current==="coupang"&&!seller&&!ngmulti?"Amazon確認日":"最終確認日"}）`;
@@ -6817,13 +6817,13 @@ document.getElementById("rv-export").onclick=()=>{
   const H = seller?["セラー名",(current==="smart"?"スマートストアURL":"クーパンURL"),"メモ","最終確認日"]
           : ngmulti?["ブランド名","クーパンURL","11番街URL","スマートストアURL","メモ","最終確認日"]
           : smB?["ブランド名","Amazon URL","メモ","最終確認日"]
-          : cpB?["ブランド名","Amazon URL","楽天URL","カテゴリー","韓国語ブランド","ブランドID","Amazon確認日","楽天確認日","メモ"]
+          : cpB?["ブランド名","Amazon URL","楽天URL","Amazon確認日","楽天確認日","メモ"]
           : ["ブランド名","Amazon URL","楽天URL","メモ","最終確認日"];
   const esccsv=v=>{ const s=String(v??""); return /[",\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s; };
   const bmap=cpB?rvBrandMap():{};
   const body=rows.map(r=>{ const bm=cpB?rvBrandLookup(bmap,r.name):null;
     return (seller?[r.name,r.coupang,r.memo,r.date]:ngmulti?[r.name,r.coupang,r.rakuten,r.amazon,r.memo,r.date]:smB?[r.name,r.amazon,r.memo,r.date]
-      :cpB?[r.name,r.amazon,r.rakuten,r.cat||"",(bm&&bm.kr)||r.krb||"",(bm&&bm.bid)||r.bid||"",r.date,r.rdate||"",r.memo||""]
+      :cpB?[r.name,r.amazon,r.rakuten,r.date,r.rdate||"",r.memo||""]
       :[r.name,r.amazon,r.rakuten,r.memo,r.date]).map(esccsv).join(","); }).join("\n");
   const blob=new Blob(["﻿"+H.join(",")+"\n"+body],{type:"text/csv;charset=utf-8"});
   const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download="リサーチ_"+rvLabel(cat)+".csv"; a.click();
