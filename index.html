@@ -6519,16 +6519,29 @@ function rvBrandLookup(bm,name){ if(!bm) return null; const nk=rvNorm(name); if(
 function urlCellFor(r,field,ph){ const id=String(r.id), key=id+":"+field, val=r[field]||"";
   const has=String(val).trim()!=="", editing=editingUrl.has(key);
   if(has && !editing){ const us=splitUrls(val); const label=us.length>1?`URL×${us.length}`:"URL";   /* 表示は「URL」だけ＝列を細く（2026-09-19） */
-    return `<td class="rvurlc"><a class="srclink rvurl-a" href="${esc(us[0])}" target="_blank" title="${esc(us.join('\n'))}"${us.length>1?` onclick="event.preventDefault();rvOpenUrl('${id}','${field}')"`:""}>${esc(label)}</a><span class="edit-mark" onclick="rvUrlEdit('${id}','${field}')" title="URLを編集">✎</span></td>`; }
-  return `<td class="rvurlc"><textarea class="rvurl" data-uk="${key}" placeholder="${ph}" onchange="rvUrlDone('${id}','${field}',this.value)">${esc(val)}</textarea></td>`; }
+    return `<td class="rvurlc" data-ek="u:${key}"><a class="srclink rvurl-a" href="${esc(us[0])}" target="_blank" title="${esc(us.join('\n'))}"${us.length>1?` onclick="event.preventDefault();rvOpenUrl('${id}','${field}')"`:""}>${esc(label)}</a><span class="edit-mark" onclick="rvUrlEdit('${id}','${field}')" title="URLを編集">✎</span></td>`; }
+  return `<td class="rvurlc" data-ek="u:${key}"><textarea class="rvurl" data-uk="${key}" placeholder="${ph}" onchange="rvUrlDone('${id}','${field}',this.value)">${esc(val)}</textarea></td>`; }
 /* ブランド名／セラー名：入力済みは文字だけ＋✎、空なら入力欄（2026-09-19） */
 const editingName=new Set();
 window.rvNameEdit=(id)=>{ editingName.add(id); rvLastAdded=id; renderResearch(); };
 window.rvNameDone=(id,v)=>{ rvSet(id,'name',v); editingName.delete(id); renderResearch(); };
 function nameCellFor(r,ph){ const id=String(r.id), val=String(r.name||"");
   if(val.trim()!=="" && !editingName.has(id))
-    return `<td class="rvnamec"><span class="rvname-t" title="${esc(val)}" ondblclick="rvNameEdit('${id}')">${esc(val)}</span><span class="edit-mark" onclick="rvNameEdit('${id}')" title="名前を編集">✎</span></td>`;
-  return `<td class="rvnamec"><input class="rvname" value="${esc(val)}" placeholder="${ph}" onchange="rvNameDone('${id}',this.value)" onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();}"></td>`; }
+    return `<td class="rvnamec" data-ek="n:${id}"><span class="rvname-t" title="${esc(val)}" ondblclick="rvNameEdit('${id}')">${esc(val)}</span><span class="edit-mark" onclick="rvNameEdit('${id}')" title="名前を編集">✎</span></td>`;
+  return `<td class="rvnamec" data-ek="n:${id}"><input class="rvname" value="${esc(val)}" placeholder="${ph}" onchange="rvNameDone('${id}',this.value)" onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();}"></td>`; }
+
+/* 編集で広がった欄（ブランド名／URL）は、その欄の外を押したら閉じる（ずく指示 2026-09-23）。
+   値を変えていれば onchange が先に走って保存されるので、ここでは開き直しの解除だけを行う */
+document.addEventListener("click",(e)=>{
+  if(!editingName.size && !editingUrl.size) return;
+  if(window.rvComposing) return;
+  const t=e.target, cell=(t && t.closest) ? t.closest("td.rvnamec, td.rvurlc") : null;
+  const keep=cell ? String(cell.getAttribute("data-ek")||"") : "";
+  let ch=false;
+  [...editingName].forEach(id=>{ if(keep!=="n:"+id){ editingName.delete(id); ch=true; } });
+  [...editingUrl].forEach(k=>{ if(keep!=="u:"+k){ editingUrl.delete(k); ch=true; } });
+  if(ch){ if(keep.startsWith("n:")) rvLastAdded=keep.slice(2); else if(keep.startsWith("u:")) rvFocusUrl=keep.slice(2); renderResearch(); }
+});
 
 /* タイトルが空の注文（一括取込分など）は、AmazonのURLスラッグから商品名を推定してブランド判定に使う */
 function brandTitleOf(s){ const t=String(s.title||"").trim(); if(t) return t;
