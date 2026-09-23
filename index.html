@@ -6794,29 +6794,40 @@ function renderResearch(){
   const smBrand = (!seller && !ngmulti && !rank && current!=="coupang");   /* スマート・11番街のブランド系：楽天列なし */
   /* クーパンのブランド系（Sold A／Sold B／競合リサーチ）：楽天URLの右に カテゴリー／韓国語ブランド／ブランドID、メモは操作の左隣（2026-09-19 ずく指示）。
      韓国語ブランド・ブランドIDは「出品 → クーパン → ブランド」表にブランド名が一致する行があれば自動で出す（手入力も可） */
+  /* クーパンのリサーチは全タブ（Sold A／Sold B／競合リサーチ／ライバルセラー等）で
+     楽天URL（セラーはクーパンURL）の右に 韓国語ブランド／ブランドID を出す。
+     値は「出品 → クーパン → ブランド」表に名前が一致すれば自動、無ければ手入力（2026-09-24 ずく指示で復活） */
+  const cpBrandCols = (current==="coupang" && !ngmulti && !rank);
   const H = seller
-    ? ["✓","セラー名",selHead,"メモ","最終確認日","操作"]
+    ? (cpBrandCols
+      ? ["✓","セラー名",selHead,"韓国語ブランド","ブランドID","メモ","最終確認日","操作"]
+      : ["✓","セラー名",selHead,"メモ","最終確認日","操作"])
     : ngmulti
     ? ["✓","ブランド名","クーパン","11番街","スマートストア","メモ","最終確認日","操作"]
     : smBrand
     ? ["✓","ブランド名","Amazon","メモ","最終確認日","操作"]
-    : ["✓","ブランド名","Amazon","楽天","Amazon確認日","楽天確認日","メモ","操作"];   /* 並びは Amazon確認日（date）のまま。楽天確認日＝rdate（2026-09-19）。カテゴリー／韓国語ブランド／ブランドID の列は 2026-09-21 に廃止（出品はフロンティアで自動化。データは残す） */
+    : ["✓","ブランド名","Amazon","楽天","韓国語ブランド","ブランドID","Amazon確認日","楽天確認日","メモ","操作"];   /* 並びは Amazon確認日（date）のまま。楽天確認日＝rdate（2026-09-19）。カテゴリー列は 2026-09-21 に廃止（出品はフロンティアで自動化。データは残す） */
   const bmap=rvBrandMap();
   document.getElementById("rvhead").innerHTML="<tr>"+H.map((h,i)=>`<th${i===0?' class="rvc"':''}>${esc(h)}</th>`).join("")+"</tr>";
   const moveSel=id=>{ const opts=researchCats().filter(c=>c.id!==researchTab).map(c=>`<option value="${c.id}">${esc(rvName(c))}へ移動</option>`).join("");
     return `<select class="rvmove" title="別カテゴリへ移動" onchange="rvMove('${id}',this.value)"><option value="">移動…</option>${opts}</select>`; };
   const delBtn=id=>`<button class="rowbtn del btn-sm" onclick="rvDel('${id}')" title="この行を削除">削除</button>`;
   const opCell=id=>`<td class="rvop">${moveSel(id)}${delBtn(id)}</td>`;
-  const colspan=seller?6:(ngmulti?8:(smBrand?6:8));
+  const colspan=seller?(cpBrandCols?8:6):(ngmulti?8:(smBrand?6:10));
   document.getElementById("rvbody").innerHTML = rows.length ? rows.map(r=>{
     const id=esc(r.id);
     const chk=`<td class="rvc"><input type="checkbox" class="rvchk" data-id="${id}" title="一括で開く対象に選択"></td>`;
     const nameCell=nameCellFor(r, seller?'セラー名':'ブランド名');
     const memoCell=`<td><input class="rvmemo" value="${esc(r.memo)}" placeholder="メモ" onchange="rvSet('${id}','memo',this.value)"></td>`;
     const dateCell=`<td><input class="rvdate" type="date" value="${esc(r.date)}" onchange="rvSet('${id}','date',this.value)"></td>`;
+    const bm=rvBrandLookup(bmap,r.name);
+    const autoCell=(f,ph,auto)=> auto
+      ? `<td class="rvtight"><span class="rvauto" title="出品のブランド表から自動で入っています">${esc(auto)}</span><button class="cbtn" data-copy="${esc(auto)}" onclick="copyBtn(this)" title="コピー">📋</button></td>`
+      : `<td class="rvtight"><input class="rvmemo rvbr" value="${esc(r[f]||"")}" placeholder="${ph}" title="出品のブランド表に同じブランド名があれば自動で入ります。無ければここに手入力" onchange="rvSet('${id}','${f}',this.value)"></td>`;
+    const brCells = cpBrandCols ? autoCell("krb","韓国語ブランド",bm&&bm.kr)+autoCell("bid","ブランドID",bm&&bm.bid) : "";
     if(seller){
       const cpCell=urlCellFor(r,'coupang',selUrlLbl);
-      return `<tr data-id="${id}">${chk}${nameCell}${cpCell}${memoCell}${dateCell}${opCell(id)}</tr>`;
+      return `<tr data-id="${id}">${chk}${nameCell}${cpCell}${brCells}${memoCell}${dateCell}${opCell(id)}</tr>`;
     }
     if(ngmulti){
       const cpCell=urlCellFor(r,'coupang','クーパンURL');
@@ -6829,13 +6840,9 @@ function renderResearch(){
       return `<tr data-id="${id}">${chk}${nameCell}${amzCell}${memoCell}${dateCell}${opCell(id)}</tr>`;
     }
     const rakCell=urlCellFor(r,'rakuten','楽天 URL');
-    const bm=rvBrandLookup(bmap,r.name);
     const catCell=`<td class="rvtight"><input class="rvmemo rvcat" value="${esc(r.cat||"")}" placeholder="カテゴリー" inputmode="numeric" onchange="rvSet('${id}','cat',this.value)"></td>`;   /* 6桁の番号＝細く */
-    const autoCell=(f,ph,auto)=> auto
-      ? `<td class="rvtight"><span class="rvauto" title="出品のブランド表から自動で入っています">${esc(auto)}</span><button class="cbtn" data-copy="${esc(auto)}" onclick="copyBtn(this)" title="コピー">📋</button></td>`
-      : `<td class="rvtight"><input class="rvmemo rvbr" value="${esc(r[f]||"")}" placeholder="${ph}" title="出品のブランド表に同じブランド名があれば自動で入ります。無ければここに手入力" onchange="rvSet('${id}','${f}',this.value)"></td>`;
     const rdateCell=`<td><input class="rvdate" type="date" value="${esc(r.rdate||"")}" title="楽天の確認日（並び替えには使いません）" onchange="rvSet('${id}','rdate',this.value)"></td>`;
-    return `<tr data-id="${id}">${chk}${nameCell}${amzCell}${rakCell}${dateCell}${rdateCell}${memoCell}${opCell(id)}</tr>`;
+    return `<tr data-id="${id}">${chk}${nameCell}${amzCell}${rakCell}${brCells}${dateCell}${rdateCell}${memoCell}${opCell(id)}</tr>`;
   }).join("") : `<tr><td class="empty" colspan="${colspan}"><b>まだ登録がありません</b>右上の「＋ 行を追加」または「CSV取込」で${seller?'セラー':'ブランド'}を登録してください。</td></tr>`;
   document.getElementById("rv-head").innerHTML=`${esc(rvLabel(cat))} <small>${rows.length}件</small>`;
   document.getElementById("rvcount").textContent=`${rvLabel(cat)} ・ ${rows.length}件 ・ 古い順（${current==="coupang"&&!seller&&!ngmulti?"Amazon確認日":"最終確認日"}）`;
@@ -6861,16 +6868,18 @@ document.getElementById("rv-export").onclick=()=>{
   const cat=rcat(researchTab), seller=cat.type==="seller", ngmulti=cat.type==="ngmulti", rows=catRows(cat.id);
   const smB = (!seller && !ngmulti && current==="smart");
   const cpB = (!seller && !ngmulti && current==="coupang");
-  const H = seller?["セラー名",(current==="smart"?"スマートストアURL":"クーパンURL"),"メモ","最終確認日"]
+  const cpCols = (current==="coupang" && !ngmulti);   /* 画面と同じで 韓国語ブランド／ブランドID も出す（2026-09-24） */
+  const H = seller?(cpCols?["セラー名","クーパンURL","韓国語ブランド","ブランドID","メモ","最終確認日"]:["セラー名",(current==="smart"?"スマートストアURL":"クーパンURL"),"メモ","最終確認日"])
           : ngmulti?["ブランド名","クーパンURL","11番街URL","スマートストアURL","メモ","最終確認日"]
           : smB?["ブランド名","Amazon URL","メモ","最終確認日"]
-          : cpB?["ブランド名","Amazon URL","楽天URL","Amazon確認日","楽天確認日","メモ"]
+          : cpB?["ブランド名","Amazon URL","楽天URL","韓国語ブランド","ブランドID","Amazon確認日","楽天確認日","メモ"]
           : ["ブランド名","Amazon URL","楽天URL","メモ","最終確認日"];
   const esccsv=v=>{ const s=String(v??""); return /[",\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s; };
-  const bmap=cpB?rvBrandMap():{};
-  const body=rows.map(r=>{ const bm=cpB?rvBrandLookup(bmap,r.name):null;
-    return (seller?[r.name,r.coupang,r.memo,r.date]:ngmulti?[r.name,r.coupang,r.rakuten,r.amazon,r.memo,r.date]:smB?[r.name,r.amazon,r.memo,r.date]
-      :cpB?[r.name,r.amazon,r.rakuten,r.date,r.rdate||"",r.memo||""]
+  const bmap=cpCols?rvBrandMap():{};
+  const body=rows.map(r=>{ const bm=cpCols?rvBrandLookup(bmap,r.name):null;
+    const krb=(bm&&bm.kr)||r.krb||"", bid=(bm&&bm.bid)||r.bid||"";
+    return (seller?(cpCols?[r.name,r.coupang,krb,bid,r.memo,r.date]:[r.name,r.coupang,r.memo,r.date]):ngmulti?[r.name,r.coupang,r.rakuten,r.amazon,r.memo,r.date]:smB?[r.name,r.amazon,r.memo,r.date]
+      :cpB?[r.name,r.amazon,r.rakuten,krb,bid,r.date,r.rdate||"",r.memo||""]
       :[r.name,r.amazon,r.rakuten,r.memo,r.date]).map(esccsv).join(","); }).join("\n");
   const blob=new Blob(["﻿"+H.join(",")+"\n"+body],{type:"text/csv;charset=utf-8"});
   const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download="リサーチ_"+rvLabel(cat)+".csv"; a.click();
