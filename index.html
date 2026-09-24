@@ -119,6 +119,7 @@ td.costcell .costx{ flex:none; font-size:11px; color:var(--muted); cursor:pointe
 td.costcell .costx:hover{ opacity:1; color:var(--red); }
 td.costcell .costadd{ font-size:10.5px; font-weight:700; color:var(--muted); cursor:pointer; opacity:.6; }
 td.costcell .costadd:hover{ opacity:1; color:var(--accent); }
+td.costcell .costsum{ font-size:11.5px; letter-spacing:-.2px; white-space:nowrap; }   /* 全部入力済み＝1行にまとめる（マウスを乗せると内訳） */
   #view-sales td{ padding:7px 9px; }
   #view-sales th{ white-space:nowrap; }
   #view-sales td a{ color:var(--accent-d); text-decoration:none; font-weight:700; }
@@ -1789,14 +1790,31 @@ function costList(s){ const qty=Math.max(num(s&&s.qty)||1,1); const base=num(s&&
 function costSum(s){ return costList(s).reduce((a,b)=>a+b,0); }
 function costYen(n){ return "¥"+Math.round(n).toLocaleString("ja-JP"); }   /* yen() は別の関数の中だけの名前なのでここでは使えない */
 /* 仕入れ値のセル：入力済み＝金額＋✎（白い窓を消す）、未入力＝入力欄。複数購入は行数ぶん縦に並べる */
+const costOpen=new Set();   /* ✎で広げて編集中の注文番号（全部入力済みのコンパクト表示 → 広げる）2026-09-24 */
+window.costExpand=(id)=>{ costOpen.add(String(id)); render(); };
+/* コンパクト表示（や研究画面と同じく）は、そのセルの外を押したら閉じる */
+document.addEventListener("click",(e)=>{
+  if(!costOpen.size) return;
+  if(e.target && e.target.isConnected===false) return;   /* ✎がその場でDOMを入れ替えた直後＝閉じない */
+  const cell=(e.target&&e.target.closest)?e.target.closest("td.costcell"):null;
+  const keep=cell?String(cell.getAttribute("data-ce")||""):"";
+  let ch=false; [...costOpen].forEach(k=>{ if(k!==keep){ costOpen.delete(k); ch=true; } });
+  if(ch) render();
+});
 function costCell(id,s){ const list=costList(s), multi=list.length>1, qty=Math.max(num(s&&s.qty)||1,1);
+  const allIn=list.length>0 && list.every(v=>v>0);
+  /* 全部入れ終わったら1行にまとめる（縦に長くしない）。✎で広げて1個ずつ直せる */
+  if(multi && allIn && !costOpen.has(String(id))){
+    const brk=list.map((v,i)=>(i+1)+"個目 ¥"+v.toLocaleString("ja-JP")).join("\n");
+    const txt=costYen(list[0])+list.slice(1).map(v=>"／"+v.toLocaleString("ja-JP")).join("");
+    return `<td class="costcell" data-ce="${id}"><div class="costrow"><span class="costv mono costsum" title="${esc(brk)}">${txt}</span><span class="edit-mark" onclick="costExpand('${id}')" title="広げて1個ずつ編集">✎</span></div></td>`; }
   const one=(v,i)=> v>0
     ? `<span class="costv mono" data-v="${v}" title="${multi?(i+1)+"個目の":""}仕入れ値">${costYen(v)}</span><span class="edit-mark" onclick="costEdit(this,'${id}',${i})" title="仕入れ値を編集">✎</span>`
     : `<input class="cellinput" type="number" value="" placeholder="${multi?(i+1)+"個目":""}" title="${multi?(i+1)+"個目の仕入れ値":"仕入れ値"}" onchange="setCostAt('${id}',${i},this.value)">`;
   /* ✕＝この欄を消す（1つのショップで2個まとめて買ったときなど）。欄が1つのときは出さない。＋で足し直せる */
   const del=i=> multi?`<span class="costx" onclick="costDel('${id}',${i})" title="この欄を消す">✕</span>`:"";
   const add= list.length<qty?`<div class="costrow"><span class="costadd" onclick="costAdd('${id}')" title="仕入れ値の欄を1つ足す">＋ 欄を足す</span></div>`:"";
-  return `<td class="costcell">`+list.map((v,i)=>`<div class="costrow">${multi?`<span class="costno">${i+1}</span>`:""}${one(v,i)}${del(i)}</div>`).join("")+add+`</td>`; }
+  return `<td class="costcell" data-ce="${id}">`+list.map((v,i)=>`<div class="costrow">${multi?`<span class="costno">${i+1}</span>`:""}${one(v,i)}${del(i)}</div>`).join("")+add+`</td>`; }
 window.costEdit=(el,id,i)=>{ const box=el.closest(".costrow"); if(!box) return;
   const sp=box.querySelector(".costv"), cur=sp?String(sp.getAttribute("data-v")||""):"";
   const no=box.querySelector(".costno");
@@ -6413,6 +6431,7 @@ window.costDel=(id,i)=>{ const l=loadSales(); const s=l.find(x=>String(x.order)=
   const v=num(list[i]);
   if(v>0 && !confirm((i+1)+"個目の仕入れ値 ¥"+v.toLocaleString("ja-JP")+" の欄を消します。よろしいですか？\n（消すと仕入れ額もその分下がります。＋でまた足せます）")) return;
   list.splice(i,1); s.costs=list; s.cost=num(list[0]);
+  if(s.status==="入金済み" && list.length && list.every(x=>num(x)>0)) applyStatus(s,"仕入れ済み");   /* 残りが全部埋まっていれば仕入れ完了扱い */
   saveSales(l); pushLedger([s]); render(); };
 window.costAdd=(id)=>{ const l=loadSales(); const s=l.find(x=>String(x.order)===String(id)); if(!s) return;
   const list=costList(s), qty=Math.max(num(s.qty)||1,1); if(list.length>=qty) return;
@@ -6422,7 +6441,8 @@ window.costAdd=(id)=>{ const l=loadSales(); const s=l.find(x=>String(x.order)===
 window.setCostAt=(id,i,v)=>{ const l=loadSales(); const s=l.find(x=>String(x.order)===String(id)); if(!s) return;
   const list=costList(s); while(list.length<=i) list.push(0);
   list[i]=num(v); s.costs=list; s.cost=num(list[0]);
-  if(num(v)>0 && s.status==="入金済み") applyStatus(s,"仕入れ済み");   /* 仕入値を入れたら自動で「仕入れ済み」 */
+  /* 自動「仕入れ済み」は欄が全部埋まったとき（複数購入は全部入れてから。2026-09-24 ずく指示） */
+  if(s.status==="入金済み" && list.length && list.every(x=>num(x)>0)) applyStatus(s,"仕入れ済み");
   saveSales(l); pushLedger([s]); render();
 };
 function shortUrl(u){ u=String(u||"").replace(/^https?:\/\//,"").replace(/^www\./,""); return u.length>26?u.slice(0,26)+"…":u; }
