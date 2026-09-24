@@ -299,6 +299,7 @@ td.costcell .costsum{ font-size:11.5px; letter-spacing:-.2px; white-space:nowrap
   #view-research td.rvtight .cbtn{ margin-left:3px; }
   .rvcat{ width:92px; }     /* 6桁の番号 */
   .rvbr{ width:104px; }
+.rvna{ font-size:11.5px; font-weight:700; color:var(--muted); }   /* リサーチURL欄の N/A 表示 */
   .rvmemo:focus{ outline:none; border-color:var(--accent); box-shadow:0 0 0 3px var(--ring); }
   .rvsm{ width:90px; height:32px; border:1px solid var(--line); border-radius:7px; padding:0 8px; font-size:12px; font-family:inherit; }
   .rvsm:focus{ outline:none; border-color:var(--accent); box-shadow:0 0 0 3px var(--ring); }
@@ -6569,7 +6570,9 @@ migrateResearch();
 
 /* （公開用: 初期データは削除。データは復元/同期から） */
 
-function splitUrls(s){ return String(s||"").split(/[\s,]+/).map(x=>x.trim()).filter(Boolean).map(u=>/^https?:\/\//i.test(u)?u:"https://"+u); }
+/* 「N/A」（楽天に無い等の印）はURLとして扱わない＝リンクにしない・一括で開くでも開かない（2026-09-24 ずく指示） */
+function rvIsNA(v){ return /^n\s*\/?\s*a$/i.test(String(v||"").trim()); }
+function splitUrls(s){ return String(s||"").split(/[\s,]+/).map(x=>x.trim()).filter(x=>x&&!rvIsNA(x)).map(u=>/^https?:\/\//i.test(u)?u:"https://"+u); }
 function urlsOf(r){ return [...splitUrls(r.amazon),...splitUrls(r.rakuten),...splitUrls(r.coupang)]; }
 /* 最終確認日：古いものを上・新しいものを下（日付なしは最下部） */
 function sortResearch(rows){ const BIG=8.64e15; return rows.slice().sort((a,b)=>{
@@ -6630,6 +6633,8 @@ function rvBrandLookup(bm,name){ if(!bm) return null; const nk=rvNorm(name); if(
   if(bm.m[nk]) return bm.m[nk]; const fw=rvFirstWord(name); return (fw&&fw.length>=2&&bm.f[fw])||null; }
 function urlCellFor(r,field,ph){ const id=String(r.id), key=id+":"+field, val=r[field]||"";
   const has=String(val).trim()!=="", editing=editingUrl.has(key);
+  if(has && !editing && !splitUrls(val).length)   /* N/Aだけの欄＝そのまま文字で出す（リンクにしない） */
+    return `<td class="rvurlc" data-ek="u:${key}"><span class="rvna" title="URLなし（N/A）">${esc(String(val).trim())}</span><span class="edit-mark" onclick="rvUrlEdit('${id}','${field}')" title="編集">✎</span></td>`;
   if(has && !editing){ const us=splitUrls(val); const label=us.length>1?`URL×${us.length}`:"URL";   /* 表示は「URL」だけ＝列を細く（2026-09-19） */
     return `<td class="rvurlc" data-ek="u:${key}"><a class="srclink rvurl-a" href="${esc(us[0])}" target="_blank" title="${esc(us.join('\n'))}"${us.length>1?` onclick="event.preventDefault();rvOpenUrl('${id}','${field}')"`:""}>${esc(label)}</a><span class="edit-mark" onclick="rvUrlEdit('${id}','${field}')" title="URLを編集">✎</span></td>`; }
   return `<td class="rvurlc" data-ek="u:${key}"><textarea class="rvurl" data-uk="${key}" placeholder="${ph}" onchange="rvUrlDone('${id}','${field}',this.value)">${esc(val)}</textarea></td>`; }
