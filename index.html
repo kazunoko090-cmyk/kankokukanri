@@ -108,6 +108,13 @@ window.CAT_ATTR_JA={"색상": "色", "수량": "数量", "패션의류/잡화 �
   #view-cust th, #view-cust td{ padding-left:9px; padding-right:9px; }   /* 顧客管理は列が多いので左右の余白を詰める（2026-09-16） */
   #view-cust td.tight .cbtn{ margin-left:2px; }
   td.jptrack .cbtn{ margin-left:3px; }  td.jptrack .edit-mark{ margin-left:3px; }   /* 国内追跡番号はボタンの間隔を詰める（2026-09-19） */
+/* 国内注文番号・国内追跡番号：複数番号（仕入れ元が別）＝1番号1行。＋で追加、✕で削除（2026-09-24） */
+.jprow{ display:flex; align-items:center; gap:1px; min-height:22px; }
+.jprow + .jprow{ margin-top:2px; }
+.jpx{ flex:none; font-size:11px; color:var(--muted); cursor:pointer; opacity:.45; padding:0 2px; }
+.jpx:hover{ opacity:1; color:var(--red); }
+.jpadd{ flex:none; font-size:12px; font-weight:800; color:var(--muted); cursor:pointer; opacity:.5; padding:0 3px; }
+.jpadd:hover{ opacity:1; color:var(--accent); }
 /* 仕入れ値：複数購入はその個数ぶん欄を出す。入れ終わった欄は文字＋✎にして白い窓を消す（2026-09-24 ずく指示） */
 td.costcell{ white-space:nowrap; }
 td.costcell .costrow{ display:flex; align-items:center; gap:2px; min-height:30px; }
@@ -1539,12 +1546,42 @@ window.cellEdit=(el,id,setter,ph)=>{ const td=el.closest("td"); if(!td) return; 
   let done=false; const fin=()=>{ if(done) return; done=true; const v=inp.value.trim(); if(v!==cur && typeof window[setter]==="function") window[setter](id,v); else render(); };
   inp.addEventListener("keydown",e=>{ if(e.key==="Enter"){ e.preventDefault(); fin(); } if(e.key==="Escape"){ done=true; render(); } });
   inp.addEventListener("blur",fin); };
+/* 国内注文番号・国内追跡番号は複数持てる（仕入れ元が別のとき）。保存は1つの文字列（「 / 」区切り）＝今までのデータ・検索・HANIRO照合と互換（2026-09-24 ずく指示） */
+function jpNums(v){ return String(v||"").split(/[\s,、;；/／|｜]+/).filter(Boolean); }
+function jpNumsCell(id,s,field,ph,ttl,setter){
+  const nums=jpNums(field==="jpord"?jpOrdOf(s):jpTrackOf(s));
+  if(!nums.length) return `<td class="txtcell ${field}"><input class="cellinput jp" value="" placeholder="${ph}" title="${esc(ttl)}" onchange="${setter}('${id}',this.value)"></td>`;
+  const addBtn=`<span class="jpadd" onclick="jpNumAdd(this,'${id}','${field}')" title="番号を追加（仕入れ元が別で番号が複数あるとき）">＋</span>`;
+  const rows=nums.map((v,i)=>`<div class="jprow"><span class="cellval mono">${esc(v)}</span><button class="cbtn" data-copy="${esc(v)}" onclick="copyBtn(this)" title="コピー">📋</button><span class="edit-mark" onclick="jpNumEdit(this,'${id}','${field}',${i})" title="編集">✎</span>${nums.length>1?`<span class="jpx" onclick="jpNumDel('${id}','${field}',${i})" title="この番号を消す">✕</span>`:""}${i===nums.length-1?addBtn:""}</div>`).join("");
+  return `<td class="txtcell ${field}" title="${esc(ttl)}">${rows}</td>`; }
+window.jpNumApply=(id,field,nums)=>{ const v=nums.join(" / "); if(field==="jpord") setJpOrd(id,v); else setJpTrack(id,v); };
+window.jpNumSet=(id,field,i,v)=>{ const l=loadSales(); const s=l.find(x=>String(x.order)===String(id)); if(!s) return;
+  const nums=jpNums(s[field]); const nv=String(v==null?"":v).trim();
+  if(i>=nums.length){ if(nv) nums.push(nv); else { render(); return; } }
+  else { if(nv) nums[i]=nv; else nums.splice(i,1); }
+  jpNumApply(id,field,nums); };
+window.jpNumDel=(id,field,i)=>{ const l=loadSales(); const s=l.find(x=>String(x.order)===String(id)); if(!s) return;
+  const nums=jpNums(s[field]); if(nums.length<=1) return;
+  const label=field==="jpord"?"国内注文番号":"国内追跡番号";
+  if(!confirm((i+1)+"つ目の"+label+"「"+(nums[i]||"")+"」を消します。よろしいですか？")) return;
+  nums.splice(i,1); jpNumApply(id,field,nums); };
+window.jpNumEdit=(el,id,field,i)=>{ const box=el.closest(".jprow"); if(!box) return; const cur=(box.querySelector(".cellval")||{}).textContent||"";
+  box.innerHTML=`<input class="cellinput jp" value="${esc(cur)}">`; const inp=box.querySelector("input"); inp.focus(); inp.select();
+  let done=false; const fin=()=>{ if(done) return; done=true; const v=inp.value.trim(); if(v!==cur) jpNumSet(id,field,i,v); else render(); };
+  inp.addEventListener("keydown",e=>{ if(e.key==="Enter"){ e.preventDefault(); fin(); } if(e.key==="Escape"){ done=true; render(); } });
+  inp.addEventListener("blur",fin); };
+window.jpNumAdd=(el,id,field)=>{ const box=el.closest(".jprow"); if(!box) return;
+  const inp2=document.createElement("input"); inp2.className="cellinput jp"; inp2.placeholder=field==="jpord"?"国内No.":"国内追跡";
+  el.replaceWith(inp2); inp2.focus();
+  let done=false; const fin=()=>{ if(done) return; done=true; const v=inp2.value.trim(); if(v) jpNumSet(id,field,999,v); else render(); };
+  inp2.addEventListener("keydown",e=>{ if(e.key==="Enter"){ e.preventDefault(); fin(); } if(e.key==="Escape"){ done=true; render(); } });
+  inp2.addEventListener("blur",fin); };
 function jpOrdCell(id,s){ const v=jpOrdOf(s);
-  return valCell(id,v,{cls:"jpord",ph:"国内No.",title:v||"国内注文番号（Amazon・楽天などの注文番号）を入力",setter:"setJpOrd"}); }
+  return jpNumsCell(id,s,"jpord","国内No.",v||"国内注文番号（Amazon・楽天などの注文番号）。＋で2つ目を追加できます","setJpOrd"); }
 /* ---- 国内追跡番号（Amazon等の配送業者の伝票番号）：Chrome拡張 amazon-tracking-sync が国内注文番号で照合してWorker経由で入れる。手入力もできる ---- */
 function jpTrackOf(s){ return (s&&s.jptrack)?String(s.jptrack):""; }
 function jpTrackCell(id,s){ const v=jpTrackOf(s);   /* 配送業者名（jpcarrier）は表示しない（2026-09-19 ずく指示。データは残す） */
-  return valCell(id,v,{cls:"jptrack",ph:"国内追跡",title:v||"国内追跡番号（Amazonの配送業者の伝票番号）。Chrome拡張から自動で入ります。手入力も可",setter:"setJpTrack"}); }
+  return jpNumsCell(id,s,"jptrack","国内追跡",v||"国内追跡番号（Amazonの配送業者の伝票番号）。Chrome拡張から自動で入ります。＋で2つ目を追加できます","setJpTrack"); }
 /* 国際追跡番号：顧客管理・売上管理で同じ形（自動ステータス変更はしない） */
 function trackCell(id,s){ const v=(s&&s.track)?String(s.track):"";
   return valCell(id,v,{ph:"国際追跡番号",title:v||"国際追跡番号。売上管理と共有されます",setter:"setTrack",inputCls:"txt"}); }
@@ -7075,9 +7112,6 @@ function hxZip(v){ let z=hxClean(v).replace(/[^0-9-]/g,""); const d=z.replace(/-
 function hxPhone(v){ let t=hxClean(v).replace(/[^0-9-]/g,""); const d=t.replace(/-/g,"");
   if(/^1[016-9]\d{7,8}$/.test(d)) return "0"+d;      /* 10xxxxxxxx → 010xxxxxxxx */
   return t; }
-/* 国内注文番号・国内追跡番号：欄に複数書いてある場合に分解（スペース・改行・カンマ・／区切り）
-   1つだけ＝1回の国内注文でまとめ買い → 1行で数量そのまま。複数＝仕入れ元が別 → 同梱（1番号=1行）で出す（2026-09-24 ずく指示） */
-function hxSplitNums(v){ return hxClean(v).split(/[\s,、;；/／|｜]+/).filter(Boolean); }
 function hxSplitAddr(a){ a=hxClean(a); const m=a.search(/[,，(（]/); if(m>0){ const a1=a.slice(0,m).replace(/[\s,，]+$/,"").trim(); const a2=a.slice(m).replace(/^[,，\s]+/,"").trim(); return [a1||a, a2||"-"]; } return [a,"-"]; }
 let hxRows=[];
 /* 3モールまとめて対象（2026-09-17）：仕入れ済み × 国内追跡番号あり × 配送H の注文だけを出す */
@@ -7099,10 +7133,10 @@ function hxBuild(){
       const url=String(s.url||"").trim() || (asin&&!/^https?:/i.test(asin)?"https://www.amazon.co.jp/dp/"+asin:(/^https?:/i.test(asin)?asin:""));
       const nmem=hxNameMem();
       out.push({ plat, id, asin, title, brand, model, name:(asin&&nmem[asin])||hxProductName(title,brand,model,ja), qty:c.qty||1, unit:c.qty?Math.round(c.yenGoods/c.qty):0,   /* 単価は商品代だけ（送料収入は含めない） */
-        code:g.c, codeSrc:g.src, jpord:hxClean(s.jpord), jptrack, jpords:hxSplitNums(s.jpord), jptracks:hxSplitNums(s.jptrack), url, host:hxShopHost(s.url,asin),
+        code:g.c, codeSrc:g.src, jpord:hxClean(s.jpord), jptrack, url, host:hxShopHost(s.url,asin),
         rname:hxClean(r[K.name]), phone:hxPhone(r[K.phone]), pccc:hxClean(r[K.pccc]), a1, a2, zip:hxZip(r[K.zip]), exported:s.hxl||"",
         deliv: delivOf(s),
-        ng: (delivOf(s)!=="H") ? ("配送が "+delivOf(s)+"（HANIRO以外）") : (!hxClean(s.jpord) ? "国内注文番号なし" : (!c.yenGoods ? "売値なし" : "")) });
+        ng: (delivOf(s)!=="H") ? ("配送が "+delivOf(s)+"（HANIRO以外）") : (!hxClean(s.jpord) ? "国内注文番号なし" : (jpNums(s.jpord).length>1 ? "国内注文番号が複数（仕入れ元が別）＝手で申請してください" : (!c.yenGoods ? "売値なし" : ""))) });   /* 同梱の自動作成は中止（2026-09-24 ずく指示）。同じ注文番号1つ＝まとめ買いだけ自動で出す */
     });
   });
   return out;
@@ -7118,7 +7152,7 @@ function hxRender(){
     `<td><input class="cellinput hx-name" value="${esc(x.name)}" onchange="hxSetName(${i},this.value)" title="${esc(x.title)}"></td>`+
     `<td class="mono">${x.qty}</td><td class="money mono">¥${(x.unit||0).toLocaleString("ja-JP")}</td>`+
     `<td>${codeSel(x,i)}</td>`+
-    `<td class="mono" style="font-size:11px" title="送り状番号：${esc(x.jptrack||"—")}">${esc(x.jpord||"—")}${(x.jpords&&x.jpords.length>1)?`<div style="color:#0e7ec9;font-size:10.5px;font-weight:800" title="国内注文番号が${x.jpords.length}つ＝仕入れ元が別。Excelでは1番号1行に分けて同梱（同じ受取人）で出します">同梱 ${x.jpords.length}口</div>`:""}</td>`+
+    `<td class="mono" style="font-size:11px" title="送り状番号：${esc(x.jptrack||"—")}">${esc(x.jpord||"—")}</td>`+
     `<td style="font-size:11px">${esc(x.rname)} <span class="mono" style="${/^\d{5}$/.test(x.zip)?"color:var(--muted)":"color:#c0392b;font-weight:800"}" title="郵便番号（5桁でないと業者の検証で弾かれます）">〒${esc(x.zip||"—")}</span><br><span style="color:var(--muted)">${esc(x.phone)} / ${esc(x.pccc)}</span></td>`+
   `</tr>`;
   b.innerHTML=
@@ -7145,22 +7179,11 @@ window.hxExport=()=>{
   if(!picked.length){ alert("出す注文にチェックを入れてください。"); return; }
   const miss=picked.filter(x=>!x.code); if(miss.length){ alert(`通関品目コードが未設定の注文が ${miss.length}件あります（赤い欄）。選んでから出してください。`); return; }
   const bad=picked.filter(x=>!x.rname||!x.phone||!x.pccc||!x.a1||!x.zip); if(bad.length && !confirm(`受取人情報が欠けている注文が ${bad.length}件あります（名前・電話・通関番号・住所・郵便番号のどれか）。このまま出しますか？`)) return;
-  /* 国内注文番号が1つ＝1回の注文でまとめ買い → 1行・数量そのまま（2個なら2）。
-     複数＝仕入れ元が別（荷物が別に届く）→ 1番号=1行に分け、受取人を同じにして同梱として出す。
-     数量は行に配分（2個を2番号なら1個ずつ）。送り状番号も複数書いてあれば1つずつ、足りなければ1つ目を使い回す */
-  const lines=picked.flatMap(x=>{
-    const jos=(x.jpords&&x.jpords.length)?x.jpords:[x.jpord];
-    if(jos.length<2) return [["JP",3,x.host,x.jpord,x.jptrack,x.name,x.qty,x.unit,x.code,hxClean(x.brand),"",x.url,"","","",x.rname,x.a1,x.a2,x.zip,x.phone,x.pccc,"","Y","","","N","","","","","","",0,1]];
-    const n=jos.length, total=Math.max(num(x.qty)||1,n), base=Math.floor(total/n), rem=total%n;
-    return jos.map((jo,i)=>{ const q=base+(i<rem?1:0), jt=(x.jptracks&&(x.jptracks[i]||x.jptracks[0]))||x.jptrack;
-      return ["JP",3,x.host,jo,jt,x.name,q,x.unit,x.code,hxClean(x.brand),"",x.url,"","","",x.rname,x.a1,x.a2,x.zip,x.phone,x.pccc,"","Y","","","N","","","","","","",0,1]; });
-  });
-  const aoa=[HX_HEAD].concat(lines);
+  const aoa=[HX_HEAD].concat(picked.map(x=>["JP",3,x.host,x.jpord,x.jptrack,x.name,x.qty,x.unit,x.code,hxClean(x.brand),"",x.url,"","","",x.rname,x.a1,x.a2,x.zip,x.phone,x.pccc,"","Y","","","N","","","","","","",0,1]));
   const ws=XLSX.utils.aoa_to_sheet(aoa); ws["!cols"]=HX_HEAD.map((h,i)=>({wch:[6,8,20,20,16,40,5,8,8,14,10,40,8,8,8,12,30,24,10,14,16,8,6,10,6,6,10,6,6,10,6,8,6,6][i]||10}));
   /* 郵便番号・電話・通関番号は文字列のまま（先頭の0が消えないように）。
-     さらに郵便番号(S)と電話(T)は業者の見本と同じ「文字列(@)」書式にする（Generalだと業者側の読み取りで0が落ちる。2026-09-17実測）
-     ※行数は同梱で増えることがあるので、picked ではなく出力した行数ぶん回す（2026-09-24） */
-  lines.forEach((row,r)=>{ ["S","T","U","D","E"].forEach(col=>{ const cell=ws[col+(r+2)]; if(cell){ cell.t="s"; cell.v=String(cell.v==null?"":cell.v); if(col==="S"||col==="T") cell.z="@"; } }); });
+     さらに郵便番号(S)と電話(T)は業者の見本と同じ「文字列(@)」書式にする（Generalだと業者側の読み取りで0が落ちる。2026-09-17実測） */
+  picked.forEach((x,r)=>{ ["S","T","U","D","E"].forEach(col=>{ const cell=ws[col+(r+2)]; if(cell){ cell.t="s"; cell.v=String(cell.v==null?"":cell.v); if(col==="S"||col==="T") cell.z="@"; } }); });
   const wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb,ws,"アップロード様式");
   /* 業者側は同じ中身のファイルを二重アップロードとして弾く（実測 2026-09-17）。
      出し直しできるよう、作成日時を埋め込んで毎回中身を固有にし、ファイル名にも時刻を入れる */
@@ -7168,7 +7191,7 @@ window.hxExport=()=>{
   const d=todayStr(), hm=("0"+now.getHours()).slice(-2)+("0"+now.getMinutes()).slice(-2)+("0"+now.getSeconds()).slice(-2);
   /* 旧形式.xlsで出す：業者のxlsx読み取りは「03712」のような文字列を数値化して先頭の0を落とすが、
      xls読み取りは文字列のまま扱う（2026-09-17 実測。A案xlsx=NG／C案xls=OK） */
-  XLSX.writeFile(wb,`HANIRO申請_${d}_${hm}_${picked.length}件.xls`,{bookType:"biff8"});   /* ファイル名は注文数。同梱分割で行数は増えることがある */
+  XLSX.writeFile(wb,`HANIRO申請_${d}_${hm}_${picked.length}件.xls`,{bookType:"biff8"});
   /* ASINごとのコードを記憶（同期される） */
   const mem=hxAsinMem(); let chg=false; picked.forEach(x=>{ if(x.asin&&x.code&&mem[x.asin]!==x.code){ mem[x.asin]=x.code; chg=true; } }); if(chg) localStorage.setItem("kr_hx_asin_v1",JSON.stringify(mem));
   picked.forEach(x=>hxNameRemember(x.asin,x.name));
