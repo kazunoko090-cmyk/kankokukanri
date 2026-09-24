@@ -108,6 +108,17 @@ window.CAT_ATTR_JA={"색상": "色", "수량": "数量", "패션의류/잡화 �
   #view-cust th, #view-cust td{ padding-left:9px; padding-right:9px; }   /* 顧客管理は列が多いので左右の余白を詰める（2026-09-16） */
   #view-cust td.tight .cbtn{ margin-left:2px; }
   td.jptrack .cbtn{ margin-left:3px; }  td.jptrack .edit-mark{ margin-left:3px; }   /* 国内追跡番号はボタンの間隔を詰める（2026-09-19） */
+/* 仕入れ値：複数購入はその個数ぶん欄を出す。入れ終わった欄は文字＋✎にして白い窓を消す（2026-09-24 ずく指示） */
+td.costcell{ white-space:nowrap; }
+td.costcell .costrow{ display:flex; align-items:center; gap:2px; min-height:30px; }
+td.costcell .costrow + .costrow{ margin-top:3px; }
+td.costcell .costno{ flex:none; width:15px; font-size:10px; font-weight:700; color:var(--muted); text-align:right; }
+td.costcell .costv{ display:inline-block; min-width:56px; font-size:12.5px; font-weight:700; font-variant-numeric:tabular-nums; }
+td.costcell .cellinput{ width:84px; }
+td.costcell .costx{ flex:none; font-size:11px; color:var(--muted); cursor:pointer; opacity:.45; padding:0 2px; }
+td.costcell .costx:hover{ opacity:1; color:var(--red); }
+td.costcell .costadd{ font-size:10.5px; font-weight:700; color:var(--muted); cursor:pointer; opacity:.6; }
+td.costcell .costadd:hover{ opacity:1; color:var(--accent); }
   #view-sales td{ padding:7px 9px; }
   #view-sales th{ white-space:nowrap; }
   #view-sales td a{ color:var(--accent-d); text-decoration:none; font-weight:700; }
@@ -1356,7 +1367,6 @@ const COUPANG_COLS = [
 const VIEW = [
   {en:"Vendor product code", head:"ASIN", jp:"ASIN", asin:true},
   {jpord:true, jp:"国内注文番号"},
-  {jptrack:true, jp:"国内追跡番号"},
   {en:"Order number", head:"注文番号", jp:"韓国注文番号", copy:true},
   {track:true, jp:"国際追跡番号"},
   {en:"Order date", head:"주문일", jp:"購入日"},
@@ -1376,7 +1386,6 @@ const VIEW_KEYS = new Set(VIEW.map(v=>v.en));
 const SMART_VIEW = [
   {key:"판매자 상품코드", jp:"ASIN", asin:true},
   {jpord:true, jp:"国内注文番号"},
-  {jptrack:true, jp:"国内追跡番号"},
   {key:"주문번호", jp:"韓国注文番号", copy:true},
   {track:true, jp:"国際追跡番号"},
   {key:"주문일시", jp:"購入日"},
@@ -1420,7 +1429,6 @@ function msgOf(s){ return (s&&s.msg)?s.msg:autoMsg(s?s.won:0); }
 const ST11_VIEW = [
   {key:"판매자 상품코드", jp:"ASIN", asin:true},
   {jpord:true, jp:"国内注文番号"},
-  {jptrack:true, jp:"国内追跡番号"},
   {key:"주문번호", jp:"韓国注文番号", copy:true},
   {track:true, jp:"国際追跡番号"},
   {key:"주문일시", jp:"購入日"},
@@ -1771,6 +1779,34 @@ localStorage.setItem=function(k,v){
   let same=false; try{ same=(_kvGetItem(k)===String(v)); }catch(e){}
   _kvSetItem(k,v);
   try{ if(!same && kvReady && cloudURL() && isKvSyncKey(k)) scheduleKvPush(k); }catch(e){} };
+/* ---- 仕入れ値：複数購入は1個ずつ入れられる（s.costs＝個数ぶんの配列。1個ずつ値段が違ってもOK）----
+   古いデータ（s.cost だけ・costs無し）は「どれも同じ単価」として扱う＝これまでの 仕入れ値×数量 と同じ金額になる（2026-09-24 ずく指示） */
+function costList(s){ const qty=Math.max(num(s&&s.qty)||1,1); const base=num(s&&s.cost);
+  const arr=Array.isArray(s&&s.costs)?s.costs.map(num):null;
+  if(arr) return arr.length?arr:[0];   /* ✕で減らした本数をそのまま使う（1つのショップで2個まとめ買い等）2026-09-24 */
+  const out=[]; for(let i=0;i<qty;i++) out.push(base);
+  return out; }
+function costSum(s){ return costList(s).reduce((a,b)=>a+b,0); }
+function costYen(n){ return "¥"+Math.round(n).toLocaleString("ja-JP"); }   /* yen() は別の関数の中だけの名前なのでここでは使えない */
+/* 仕入れ値のセル：入力済み＝金額＋✎（白い窓を消す）、未入力＝入力欄。複数購入は行数ぶん縦に並べる */
+function costCell(id,s){ const list=costList(s), multi=list.length>1, qty=Math.max(num(s&&s.qty)||1,1);
+  const one=(v,i)=> v>0
+    ? `<span class="costv mono" data-v="${v}" title="${multi?(i+1)+"個目の":""}仕入れ値">${costYen(v)}</span><span class="edit-mark" onclick="costEdit(this,'${id}',${i})" title="仕入れ値を編集">✎</span>`
+    : `<input class="cellinput" type="number" value="" placeholder="${multi?(i+1)+"個目":""}" title="${multi?(i+1)+"個目の仕入れ値":"仕入れ値"}" onchange="setCostAt('${id}',${i},this.value)">`;
+  /* ✕＝この欄を消す（1つのショップで2個まとめて買ったときなど）。欄が1つのときは出さない。＋で足し直せる */
+  const del=i=> multi?`<span class="costx" onclick="costDel('${id}',${i})" title="この欄を消す">✕</span>`:"";
+  const add= list.length<qty?`<div class="costrow"><span class="costadd" onclick="costAdd('${id}')" title="仕入れ値の欄を1つ足す">＋ 欄を足す</span></div>`:"";
+  return `<td class="costcell">`+list.map((v,i)=>`<div class="costrow">${multi?`<span class="costno">${i+1}</span>`:""}${one(v,i)}${del(i)}</div>`).join("")+add+`</td>`; }
+window.costEdit=(el,id,i)=>{ const box=el.closest(".costrow"); if(!box) return;
+  const sp=box.querySelector(".costv"), cur=sp?String(sp.getAttribute("data-v")||""):"";
+  const no=box.querySelector(".costno");
+  box.innerHTML=(no?no.outerHTML:"")+`<input class="cellinput" type="number" value="${esc(cur)}">`;
+  const inp=box.querySelector("input"); inp.focus(); inp.select();
+  let done=false; const fin=()=>{ if(done) return; done=true; const v=inp.value.trim();
+    if(num(v)!==num(cur)) setCostAt(id,i,v); else render(); };
+  inp.addEventListener("keydown",e=>{ if(e.key==="Enter"){ e.preventDefault(); fin(); } if(e.key==="Escape"){ done=true; render(); } });
+  inp.addEventListener("blur",fin); };
+
 /* 1注文の損益計算（キャンセル／キャンセル返品／返品は売上0・仕入れ額は残す＝赤字判定） */
 function calcSale(s,rate){ const cancel=isZeroSale(s.status); const qty=num(s.qty)||1;   /* 2026-09-03：返品・キャンセル返品も売上0にした */
   const r=(s.rate>0)?s.rate:rate;  /* 取込時に記録したレートを優先（過去分はその時のレートで固定） */
@@ -1778,7 +1814,8 @@ function calcSale(s,rate){ const cancel=isZeroSale(s.status); const qty=num(s.qt
      クーパンの결제액には入っていない。返品・キャンセルでも実際に受け取っているので売上に残す。その分の手数料は shipinfee（ウォン） */
   const shipin=num(s.shipin), shipinFeeYen=Math.round(num(s.shipinfee)*r);
   const cost=num(s.cost), fee=cancel?shipinFeeYen:num(s.fee), ship=cancel?0:num(s.ship), exp=num(s.expense);
-  const costTotal=cost*qty; const wonGoods=cancel?0:num(s.won); const won=wonGoods+shipin;
+  const costTotal=costSum(s);   /* 個数ぶんの仕入れ値の合計（古いデータは 単価×数量 と同じ）2026-09-24 */
+  const wonGoods=cancel?0:num(s.won); const won=wonGoods+shipin;
   const yenGoods=Math.round(wonGoods*r); const yen=Math.round(won*r);
   const saleTotal=yen; const shipFee=ship+fee; const profit=saleTotal-costTotal-ship-fee-exp;
   return {qty,cost,costTotal,won,wonGoods,yen,yenGoods,shipin,saleTotal,ship,fee,exp,shipFee,profit,cancel}; }
@@ -5931,7 +5968,7 @@ function renderSalesDetail(){
       `<td>${esc(md(s.date))}</td>`+
       `<td class="${dcls}">${esc(md(s.deadline))}</td>`+
       trackCell(id,s)+
-      `<td><input class="cellinput" type="number" value="${s.cost||""}" onchange="setSaleField('${id}','cost',this.value)"></td>`+
+      costCell(id,s)+
       `<td class="mono${c.qty>=2?' qty2':''}">${c.qty}</td>`+
       `<td class="money mono">${yen(c.costTotal)}</td>`+
       `<td class="money mono">${"₩"+c.won.toLocaleString("ja-JP")}</td>`+
@@ -6368,6 +6405,24 @@ window.setSaleField=(id,f,v)=>{ const l=loadSales(); const s=l.find(x=>String(x.
   // 仕入値を入れたら自動で「仕入れ済み」（入金済みのときだけ進める）
   if(f==="cost" && num(v)>0 && s.status==="入金済み") applyStatus(s,"仕入れ済み");
   /* 2026-09-17：国際追跡番号を入れても自動で「発送済み」にはしない（ずくの指示。ステータスは手で変える） */
+  saveSales(l); pushLedger([s]); render();
+};
+/* 仕入れ値の欄を1つ消す／1つ足す（数量ぶんまで）。まとめ買いで欄が余るとき用（2026-09-24 ずく指示） */
+window.costDel=(id,i)=>{ const l=loadSales(); const s=l.find(x=>String(x.order)===String(id)); if(!s) return;
+  const list=costList(s); if(list.length<=1) return;
+  const v=num(list[i]);
+  if(v>0 && !confirm((i+1)+"個目の仕入れ値 ¥"+v.toLocaleString("ja-JP")+" の欄を消します。よろしいですか？\n（消すと仕入れ額もその分下がります。＋でまた足せます）")) return;
+  list.splice(i,1); s.costs=list; s.cost=num(list[0]);
+  saveSales(l); pushLedger([s]); render(); };
+window.costAdd=(id)=>{ const l=loadSales(); const s=l.find(x=>String(x.order)===String(id)); if(!s) return;
+  const list=costList(s), qty=Math.max(num(s.qty)||1,1); if(list.length>=qty) return;
+  list.push(0); s.costs=list; s.cost=num(list[0]);
+  saveSales(l); pushLedger([s]); render(); };
+/* 仕入れ値（1個目・2個目…）を1つだけ書き換える。s.cost は1個目＝これまでの画面・集計との互換用（2026-09-24） */
+window.setCostAt=(id,i,v)=>{ const l=loadSales(); const s=l.find(x=>String(x.order)===String(id)); if(!s) return;
+  const list=costList(s); while(list.length<=i) list.push(0);
+  list[i]=num(v); s.costs=list; s.cost=num(list[0]);
+  if(num(v)>0 && s.status==="入金済み") applyStatus(s,"仕入れ済み");   /* 仕入値を入れたら自動で「仕入れ済み」 */
   saveSales(l); pushLedger([s]); render();
 };
 function shortUrl(u){ u=String(u||"").replace(/^https?:\/\//,"").replace(/^www\./,""); return u.length>26?u.slice(0,26)+"…":u; }
