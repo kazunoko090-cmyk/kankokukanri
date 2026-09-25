@@ -1376,6 +1376,7 @@ const COUPANG_COLS = [
 const VIEW = [
   {en:"Vendor product code", head:"ASIN", jp:"ASIN", asin:true},
   {jpord:true, jp:"国内注文番号"},
+  {jptrack:true, jp:"国内追跡番号"},
   {en:"Order number", head:"注文番号", jp:"韓国注文番号", copy:true},
   {track:true, jp:"国際追跡番号"},
   {en:"Order date", head:"주문일", jp:"購入日"},
@@ -1395,6 +1396,7 @@ const VIEW_KEYS = new Set(VIEW.map(v=>v.en));
 const SMART_VIEW = [
   {key:"판매자 상품코드", jp:"ASIN", asin:true},
   {jpord:true, jp:"国内注文番号"},
+  {jptrack:true, jp:"国内追跡番号"},
   {key:"주문번호", jp:"韓国注文番号", copy:true},
   {track:true, jp:"国際追跡番号"},
   {key:"주문일시", jp:"購入日"},
@@ -1438,6 +1440,7 @@ function msgOf(s){ return (s&&s.msg)?s.msg:autoMsg(s?s.won:0); }
 const ST11_VIEW = [
   {key:"판매자 상품코드", jp:"ASIN", asin:true},
   {jpord:true, jp:"国内注文番号"},
+  {jptrack:true, jp:"国内追跡番号"},
   {key:"주문번호", jp:"韓国注文番号", copy:true},
   {track:true, jp:"国際追跡番号"},
   {key:"주문일시", jp:"購入日"},
